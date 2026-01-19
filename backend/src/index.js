@@ -3,7 +3,7 @@ require('dotenv').config();
 const express = require("express")
 const dotenv = require("dotenv")
 const { default: mongoose } = require("mongoose")
-// const routes = require("./routes")
+const routes = require("./routes")
 const cors = require("cors")
 const bodyParser = require("body-parser")
 const cookieParser = require("cookie-parser")
@@ -28,11 +28,7 @@ app.use(cors({
 app.use(bodyParser.json())
 
 
-// routes(app);
-
-
-
-
+routes(app);
 
 mongoose.connect(`${process.env.MONGO_DB}`)
     .then(() => {
