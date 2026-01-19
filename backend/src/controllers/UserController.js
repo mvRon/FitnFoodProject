@@ -2,8 +2,8 @@ const UserService = require('../services/UserService');
 // const JwtService = require('../services/JwtService');
 
 const registerAccount = async (req, res) => {
-    try{
-        const { name, email, password, confirmPassword, phone, address, city  } = req.body;
+    try {
+        const { name, email, password, confirmPassword, phone, address, city } = req.body;
         const reg = /^\w+([-+.']\w+)*@\w+([-.]\w+)*\.\w+([-.]\w+)*$/;
         const isCheckEmail = reg.test(email);
 
@@ -65,8 +65,35 @@ const loginAccount = async (req, res) => {
         })
 
 
-        return res.status(200).json({...newRespone, refresh_token})
+        return res.status(200).json({ ...newRespone, refresh_token })
 
+    } catch (e) {
+        return res.status(404).json({
+            message: e
+        })
+    }
+}
+
+const verifyAccount = async (req, res) => {
+    try {
+        const { email, verificationCode } = req.body;
+        const reg = /^\w+([-+.']\w+)*@\w+([-.]\w+)*\.\w+([-.]\w+)*$/;
+        const isCheckEmail = reg.test(email);
+        if (!email || !verificationCode) {
+            return res.status(200).json({
+                status: "ERR",
+                message: "All fields are required!"
+            })
+        }
+        if (!isCheckEmail) {
+            return res.status(200).json({
+                status: "ERR",
+                message: "Invalid email format!"
+            })
+        }
+
+        const response = await UserService.verifyAccount(req.body)
+        return res.status(200).json(response)
     } catch (e) {
         return res.status(404).json({
             message: e
@@ -76,5 +103,6 @@ const loginAccount = async (req, res) => {
 
 module.exports = {
     registerAccount,
-    loginAccount
+    loginAccount,
+    verifyAccount
 }
