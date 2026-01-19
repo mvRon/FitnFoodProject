@@ -1,5 +1,6 @@
 const User = require("../models/UserModel");
 const bcrypt = require("bcrypt");
+const { genToken, refresh_genToken } = require("./JwtService");
 const { response } = require("express");
 
 
@@ -17,6 +18,7 @@ const registerAccount = async (newAccount) => {
             // Hash the password
             const salt = await bcrypt.genSalt(10);
             const hashedPassword = await bcrypt.hash(newAccount.password, salt);
+            const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
 
             // Create new user
             const user = await User.create({
@@ -25,12 +27,14 @@ const registerAccount = async (newAccount) => {
                 password: hashedPassword,
                 phone: newAccount.phone,
                 address: newAccount.address,
-                city: newAccount.city
+                city: newAccount.city,
+                verificationCode: verificationCode
             });
             if (user) {
                 return resolve({
                     status: "OK",
-                    message: "Registration successful!"
+                    message: "Registration successful!",
+                    data: user
                 });
             }
         } catch (error) {
@@ -39,7 +43,7 @@ const registerAccount = async (newAccount) => {
     })
 }
 
-const login = async (loginData) => {
+const loginAccount = async (loginData) => {
     return new Promise(async (resolve, reject) => {
         try {
             const user = await User.findOne({ email: loginData.email });
@@ -58,6 +62,17 @@ const login = async (loginData) => {
                 });
             }
 
+
+             const access_token = await genToken({
+                id: user.id,
+                isAdmin: user.isAdmin,
+            });
+
+            const refresh_token = await refresh_genToken({
+                id: user.id,
+                isAdmin: user.isAdmin,
+            });
+
             return resolve({
                 status: "OK",
                 message: "Login successful!",
@@ -65,7 +80,9 @@ const login = async (loginData) => {
                     id: user._id,
                     name: user.name,
                     email: user.email
-                }
+                },
+                access_token,
+                refresh_token
             });
         } catch (error) {
             return reject(error);
@@ -75,5 +92,5 @@ const login = async (loginData) => {
 
 module.exports = {
     registerAccount,
-    login
+    loginAccount
 };
