@@ -236,7 +236,6 @@ const getAllUsers = async (req, res) => {
 const getUserDetails = async (req, res) => {
     try {
         const userId = req.user.id; // Lấy userId từ req.user được gán trong authUserMiddleWare
-        console.log('userID', userId)
         const response = await UserService.getUserDetails(userId);
         return res.status(200).json(response);
     } catch (e) {
