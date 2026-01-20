@@ -175,9 +175,9 @@ const resetPassword = async (req, res) => {
             });
         }
 
-        return res.status(400).json({ 
+        return res.status(400).json({
             status: 'ERR',
-            message: result.message 
+            message: result.message
         });
     } catch (err) {
         console.error('Reset password error:', err);
@@ -204,6 +204,24 @@ const updateUser = async (req, res) => {
     }
 }
 
+const deleteUser = async (req, res) => {
+    try {
+        const userId = req.params.id;
+        if (!userId) {
+            return res.status(200).json({
+                status: "ERR",
+                message: "User ID required!"
+            })
+        }
+        const response = await UserService.deleteUser(userId)
+        return res.status(200).json(response)
+    } catch (e) {
+        return res.status(404).json({
+            message: e
+        })
+    }
+}
+
 
 module.exports = {
     registerAccount,
@@ -213,5 +231,6 @@ module.exports = {
     refreshToken,
     forgotPassword,
     resetPassword,
-    updateUser
+    updateUser,
+    deleteUser
 }
