@@ -101,8 +101,24 @@ const verifyAccount = async (req, res) => {
     }
 }
 
+
+const logoutAccount = async (req, res) => {
+    try {
+        res.clearCookie('refresh_token')
+        return res.status(200).json({
+            status: 'OK',
+            message: 'Logout successfully'
+        })
+    } catch (e) {
+        return res.status(404).json({
+            message: e
+        })
+    }
+}
+
 module.exports = {
     registerAccount,
     loginAccount,
-    verifyAccount
+    verifyAccount,
+    logoutAccount,
 }
