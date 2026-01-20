@@ -136,10 +136,61 @@ const refreshToken = async (req, res) => {
     }
 }
 
+const forgotPassword = async (req, res) => {
+    try {
+        const { email } = req.body;
+        const reg = /^\w+([-+.']\w+)*@\w+([-.]\w+)*\.\w+([-.]\w+)*$/;
+        const isCheckEmail = reg.test(email);
+        if (!email) {
+            return res.status(200).json({
+                status: "ERR",
+                message: "Email required!",
+            })
+        } else if (!isCheckEmail) {
+            return res.status(200).json({
+                status: "ERR",
+                message: "Invalid email format!"
+            })
+        }
+        const response = await UserService.forgotPassword(req.body)
+        return res.status(200).json(response)
+    } catch (e) {
+        return res.status(404).json({
+            message: e
+        })
+    }
+}
+
+
+const resetPassword = async (req, res) => {
+    try {
+        const { token, newPassword } = req.body;
+
+        const result = await UserService.resetPassword(token, newPassword);
+
+        if (result.success) {
+            return res.status(200).json({
+                status: 'OK',
+                message: 'Password reset successfully'
+            });
+        }
+
+        return res.status(400).json({ 
+            status: 'ERR',
+            message: result.message 
+        });
+    } catch (err) {
+        console.error('Reset password error:', err);
+        res.status(500).json({ message: 'Server error' });
+    }
+}
+
 module.exports = {
     registerAccount,
     loginAccount,
     verifyAccount,
     logoutAccount,
     refreshToken,
+    forgotPassword,
+    resetPassword
 }

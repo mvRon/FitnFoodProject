@@ -3,6 +3,7 @@ const bcrypt = require("bcrypt");
 const { genToken, refresh_genToken } = require("./JwtService");
 const { response } = require("express");
 const EmailService = require("./EmailService");
+const PasswordResetToken = require('../models/PasswordResetToken');
 
 const registerAccount = async (newAccount) => {
     return new Promise(async (resolve, reject) => {
@@ -139,8 +140,96 @@ const verifyAccount = (user) => {
     })
 }
 
+const forgotPassword = (userInfo) => {
+    return new Promise(async (resolve, reject) => {
+        const { email } = userInfo
+        try {
+            const checkUser = await User.findOne({
+                email: email,
+            })
+            if (checkUser === null) {
+                resolve({
+                    status: "OK",
+                    message: "User not found!"
+                })
+            }
+
+            const token = await genToken({
+                id: checkUser.id,
+                isAdmin: checkUser.isAdmin,
+            })
+
+            await PasswordResetToken.create({
+                userId: checkUser.id,
+                token: token,
+                expiresAt: Date.now() + 5 * 60 * 1000,
+            })
+
+
+            await EmailService.recoveryPassword({ email, token })
+
+
+            resolve({
+                status: "OK",
+                message:
+                    "Password recovery email sent!",
+                data: {
+                    email: checkUser.email,
+                    token: token,
+                },
+            });
+        } catch (e) {
+            reject(e);
+        }
+    })
+}
+
+const resetPassword = async (token, newPassword) => {
+    return new Promise(async (resolve, reject) => {
+        try {
+            const resetToken = await PasswordResetToken.findOne({ token });
+
+            if (!resetToken) {
+                return { success: false, message: 'Invalid Token!' };
+            }
+
+            if (resetToken.used) {
+                return { success: false, message: 'Token has already been used!' };
+            }
+
+            if (resetToken.expiresAt < Date.now()) {
+                return { success: false, message: 'Token has expired!' };
+            }
+
+            const user = await User.findById(resetToken.userId);
+            if (!user) {
+                return { success: false, message: 'User not found' };
+            }
+
+            // Update password
+            const hashedPassword = await bcrypt.hash(newPassword, 12);
+            user.password = hashedPassword;
+            await user.save();
+
+
+            // Mark token as used
+            resetToken.used = true;
+            await resetToken.save();
+            resolve({ 
+                status: "OK",
+                message: "Password reset successfully!",
+                success: true 
+            });
+        } catch (e) {
+            reject(e);
+        }
+    });
+};
+
 module.exports = {
     registerAccount,
     loginAccount,
-    verifyAccount
+    verifyAccount,
+    forgotPassword,
+    resetPassword
 };
