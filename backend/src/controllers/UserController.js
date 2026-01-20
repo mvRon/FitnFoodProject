@@ -1,5 +1,5 @@
 const UserService = require('../services/UserService');
-// const JwtService = require('../services/JwtService');
+const JwtService = require('../services/JwtService');
 
 const registerAccount = async (req, res) => {
     try {
@@ -116,9 +116,30 @@ const logoutAccount = async (req, res) => {
     }
 }
 
+const refreshToken = async (req, res) => {
+    try {
+        // const token = req.cookies.refresh_token
+        const token = req.headers.token?.split(' ')[1] // Lấy token từ header Authorization byRon
+
+        if (!token) {
+            return res.status(200).json({
+                status: "ERR",
+                message: "Token required!"
+            })
+        }
+        const response = await JwtService.refreshToken(token)
+        return res.status(200).json(response)
+    } catch (e) {
+        return res.status(404).json({
+            message: e
+        })
+    }
+}
+
 module.exports = {
     registerAccount,
     loginAccount,
     verifyAccount,
     logoutAccount,
+    refreshToken,
 }

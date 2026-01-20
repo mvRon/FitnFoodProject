@@ -23,7 +23,7 @@ const refreshToken = (token) => {
                 if (err) {
                     return resolve({
                         status: "ERR",
-                        message: "The authentication - hết hạn"
+                        message: "Invalid token!"
                     })
                 }
                 const access_token = await genToken({
@@ -32,7 +32,7 @@ const refreshToken = (token) => {
                 })
                 return resolve({
                     status: "OK",
-                    message: "SUCCESS",
+                    message: "Token refreshed successfully!",
                     access_token
                 })
             })
