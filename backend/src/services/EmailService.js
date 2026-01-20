@@ -65,6 +65,99 @@ const verifyAccount = async ({ email, verificationCode }) => {
     }
 };
 
+const recoveryPassword = async ({ email, token }) => {
+    try {
+        const transporter = nodemailer.createTransport({
+            host: "smtp.gmail.com",
+            port: 465,
+            secure: true, // dùng SSL
+            auth: {
+                user: process.env.EMAIL_USER,
+                pass: process.env.EMAIL_PASSWORD
+            }
+        });
+
+        // Hàm tạo nội dung HTML
+        const htmlContent = (token) => `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8" />
+                <title>Đặt lại mật khẩu</title>
+                <style>
+                body {
+                    font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+                    background-color: #f4f4f4;
+                    margin: 0;
+                    padding: 0;
+                }
+                .container {
+                    background-color: #ffffff;
+                    max-width: 600px;
+                    margin: 40px auto;
+                    padding: 30px;
+                    border-radius: 10px;
+                    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+                }
+                h2 {
+                    color: #333333;
+                }
+                p {
+                    color: #555555;
+                    line-height: 1.6;
+                }
+                .button {
+                    display: inline-block;
+                    padding: 12px 20px;
+                    background-color:rgb(146, 192, 240);
+                    color: white;
+                    text-decoration: none;
+                    border-radius: 6px;
+                    margin-top: 20px;
+                    font-weight: bold;
+                }
+                .footer {
+                    font-size: 12px;
+                    color: #999999;
+                    margin-top: 30px;
+                }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                <h2>Yêu cầu đặt lại mật khẩu</h2>
+                <p>Chúng tôi nhận được yêu cầu đặt lại mật khẩu cho tài khoản của bạn. Nếu đó là bạn, vui lòng nhấn vào nút bên dưới để đặt lại mật khẩu mới:</p>
+
+                <!-- URL chứa token được chèn động tại backend -->
+                <a href="${process.env.NODE_ENV === 'production' ?  'https://do-an-thuc-tap.vercel.app' : 'http://localhost:3000'}/reset-password?token=${token}" class="button">
+                    Đặt lại mật khẩu
+                </a>
+
+                <p>Nếu bạn không yêu cầu hành động này, bạn có thể bỏ qua email này một cách an toàn.</p>
+
+                <div class="footer">
+                    © 2025 FitnFood Corporation. All rights reserved.
+                </div>
+                </div>
+            </body>
+            </html>
+
+        `;
+
+        const info = await transporter.sendMail({
+            from: `"FitnFood Corporation" <${process.env.EMAIL_USER}>`,
+            to: `${email}`,
+            subject: "KHÔI PHỤC MẬT KHẨU",
+            html: htmlContent(token),
+        });
+
+        console.log("✅ Đã gửi email khôi phục mật khẩu: %s", info.messageId);
+    } catch (error) {
+        console.error("❌ Lỗi gửi email:", error);
+    }
+};
+
 module.exports = {
-    verifyAccount
+    verifyAccount,
+    recoveryPassword
 };
