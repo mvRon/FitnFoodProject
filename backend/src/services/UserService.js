@@ -215,10 +215,10 @@ const resetPassword = async (token, newPassword) => {
             // Mark token as used
             resetToken.used = true;
             await resetToken.save();
-            resolve({ 
+            resolve({
                 status: "OK",
                 message: "Password reset successfully!",
-                success: true 
+                success: true
             });
         } catch (e) {
             reject(e);
@@ -226,10 +226,45 @@ const resetPassword = async (token, newPassword) => {
     });
 };
 
+const updateUser = (id, data) => {
+    return new Promise(async (resolve, reject) => {
+        try {
+            const checkUser = await User.findOne({
+                _id: id
+            })
+
+            if (checkUser === null) {
+                resolve({
+                    status: "OK",
+                    message: "User not found!"
+                })
+            }
+
+            if (data.password) {
+                const hashedPassword = bcrypt.hashSync(data.password, 10);
+                data.password = hashedPassword;
+            }
+
+            const updatedUser = await User.findByIdAndUpdate(id, data, { new: true });
+
+
+
+            resolve({
+                status: "OK",
+                message: "User updated successfully!",
+                data: updatedUser,
+            })
+        } catch (e) {
+            reject(e);
+        }
+    })
+}
+
 module.exports = {
     registerAccount,
     loginAccount,
     verifyAccount,
     forgotPassword,
-    resetPassword
+    resetPassword,
+    updateUser
 };

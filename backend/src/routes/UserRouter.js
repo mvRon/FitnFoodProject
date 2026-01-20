@@ -9,6 +9,7 @@ router.post('/logout', UserController.logoutAccount);
 router.post('/refresh-token', UserController.refreshToken);
 router.post('/forgot-password', UserController.forgotPassword);
 router.post('/reset-password', UserController.resetPassword);
+router.put('/:id', UserController.updateUser);
 
 
 module.exports = router;
