@@ -283,6 +283,21 @@ const deleteUser = (id) => {
     })
 }
 
+const getAllUsers = () => {
+    return new Promise(async (resolve, reject) => {
+        try {
+            const users = await User.find();
+            resolve({
+                status: "OK",
+                message: "Users retrieved successfully!",
+                data: users
+            });
+        } catch (e) {
+            reject(e);
+        }   
+    });
+}
+
 module.exports = {
     registerAccount,
     loginAccount,
@@ -290,5 +305,6 @@ module.exports = {
     forgotPassword,
     resetPassword,
     updateUser,
-    deleteUser
+    deleteUser,
+    getAllUsers
 };

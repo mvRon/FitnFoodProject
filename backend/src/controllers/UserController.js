@@ -222,6 +222,16 @@ const deleteUser = async (req, res) => {
     }
 }
 
+const getAllUsers = async (req, res) => {
+    try {
+        const response = await UserService.getAllUsers();
+        return res.status(200).json(response);
+    } catch (e) {
+        return res.status(404).json({
+            message: e
+        });
+    }
+};
 
 module.exports = {
     registerAccount,
@@ -232,5 +242,6 @@ module.exports = {
     forgotPassword,
     resetPassword,
     updateUser,
-    deleteUser
+    deleteUser,
+    getAllUsers
 }
