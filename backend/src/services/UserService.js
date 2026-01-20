@@ -298,6 +298,29 @@ const getAllUsers = () => {
     });
 }
 
+const getUserDetails = (id) => {
+    return new Promise(async (resolve, reject) => {
+        try {
+            const user = await User.findById(id);
+            console.log('id:', id)
+            console.log('user', user)
+            if (!user) {
+                return resolve({
+                    status: "ERR",
+                    message: "User not found!"
+                });
+            }
+            resolve({
+                status: "OK",
+                message: "User details retrieved successfully!",
+                data: user
+            });
+        } catch (e) {
+            reject(e);
+        }
+    });
+}
+
 module.exports = {
     registerAccount,
     loginAccount,
@@ -306,5 +329,6 @@ module.exports = {
     resetPassword,
     updateUser,
     deleteUser,
-    getAllUsers
+    getAllUsers,
+    getUserDetails
 };
