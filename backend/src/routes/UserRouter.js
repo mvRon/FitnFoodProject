@@ -10,9 +10,9 @@ router.post('/logout', UserController.logoutAccount);
 router.post('/refresh-token', UserController.refreshToken);
 router.post('/forgot-password', UserController.forgotPassword);
 router.post('/reset-password', UserController.resetPassword);
-router.put('/:id', authUserMiddleWare, UserController.updateUser);
-router.delete('/:id', authMiddleWare, UserController.deleteUser);
-router.get('/', authMiddleWare, UserController.getAllUsers);
+router.put('/update-user/:id', authUserMiddleWare, UserController.updateUser);
+router.delete('/delete-user/:id', authMiddleWare, UserController.deleteUser);
+router.get('/get-all-users', authMiddleWare, UserController.getAllUsers);
 router.get('/get-user-details', authUserMiddleWare, UserController.getUserDetails);
 
 
