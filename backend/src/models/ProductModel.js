@@ -4,8 +4,8 @@ const productSchema = new mongoose.Schema(
     {
         name: { type: String, require: true, unique: true },
         images: [{ type: String, require: true }],
-        // type: { type: mongoose.Schema.Types.ObjectId, ref: "Category", required: true },
-        type: { type: String, require: true },
+        type: { type: mongoose.Schema.Types.ObjectId, ref: "Category", required: true },
+        // type: { type: String, require: true },
         price: { type: Number, require: true },
         countInStock: { type: Number, require: true },
         rating: { type: Number, require: true },
