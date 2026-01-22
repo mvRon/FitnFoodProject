@@ -31,6 +31,12 @@ const getCart = async (req, res) => {
 const updateCart = async (req, res) => {
     const { userId, items } = req.body
     try {
+        if (!userId || !items) {
+            return res.status(400).json({
+                status: "ERR",
+                message: 'User ID and items are required!'
+            })
+        }
         let cart = await Cart.findOne({ userId })
         if (cart) {
             cart.items = items
@@ -54,15 +60,28 @@ const updateCart = async (req, res) => {
 // Delete cart
 const deleteCart = async (req, res) => {
     try {
-        await Cart.findOneAndDelete({ userId: req.params.userId })
-        res.status(200).json({ 
-            status: "OK", 
-            message: 'Cart deleted successfully!' 
+        const userId = req.params.userId
+        if (!userId) {
+            return res.status(400).json({
+                status: "ERR",
+                message: 'User ID is required!'
+            })
+        }
+        const cart = await Cart.findOneAndDelete({ userId })
+        if (!cart) {
+            return res.status(404).json({
+                status: "ERR",
+                message: 'Cart not found!'
+            })
+        }
+        res.status(200).json({
+            status: "OK",
+            message: 'Cart deleted successfully!'
         })
     } catch (error) {
-        res.status(500).json({ 
-            status: "ERR", 
-            message: error.message 
+        res.status(500).json({
+            status: "ERR",
+            message: error.message
         })
     }
 }
