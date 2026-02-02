@@ -129,7 +129,7 @@ const recoveryPassword = async ({ email, token }) => {
                 <p>Chúng tôi nhận được yêu cầu đặt lại mật khẩu cho tài khoản của bạn. Nếu đó là bạn, vui lòng nhấn vào nút bên dưới để đặt lại mật khẩu mới:</p>
 
                 <!-- URL chứa token được chèn động tại backend -->
-                <a href="${process.env.NODE_ENV === 'production' ?  'https://do-an-thuc-tap.vercel.app' : 'http://localhost:3000'}/reset-password?token=${token}" class="button">
+                <a href="${process.env.NODE_ENV === 'production' ? 'https://do-an-thuc-tap.vercel.app' : 'http://localhost:3000'}/reset-password?token=${token}" class="button">
                     Đặt lại mật khẩu
                 </a>
 
@@ -157,7 +157,81 @@ const recoveryPassword = async ({ email, token }) => {
     }
 };
 
+
+const sendEmailOrder = async ({ email, orderItems, totalPrice }) => {
+    try {
+        const transporter = nodemailer.createTransport({
+            host: "smtp.gmail.com",
+            port: 465,
+            secure: true, // dùng SSL
+            auth: {
+                user: process.env.EMAIL_USER,
+                pass: process.env.EMAIL_PASSWORD
+            }
+        });
+
+        // Hàm tạo nội dung HTML
+        const htmlContent = (orderItems, totalPrice) => `
+            <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: auto;">
+                <h2 style="color: #4CAF50; border-bottom: 1px solid #eee;">✅ Đơn hàng của bạn đã được xác nhận!</h2>
+                <p>Cảm ơn bạn đã đặt hàng tại <strong>FitnFood Corporation</strong>. Dưới đây là thông tin đơn hàng của bạn:</p>
+
+                <table style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="background-color: #f2f2f2;">
+                    <th style="padding: 10px; border: 1px solid #ddd;">Ảnh</th>
+                    <th style="padding: 10px; border: 1px solid #ddd;">Sản phẩm</th>
+                    <th style="padding: 10px; border: 1px solid #ddd;">Số lượng</th>
+                    <th style="padding: 10px; border: 1px solid #ddd;">Giá gốc</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${orderItems.map((item, index) => `
+                    <tr>
+                        <td style="padding: 10px; border: 1px solid #ddd;">
+                            <img src="cid:image${index}@ecom" alt="${item.name}" style="width: 50px; height: 50px; object-fit: cover;" />
+                        </td>
+                        <td style="padding: 10px; border: 1px solid #ddd;">${item.name}</td>
+                        <td style="padding: 10px; border: 1px solid #ddd;">${item.amount}</td>
+                        <td style="padding: 10px; border: 1px solid #ddd;">${item.price} VNĐ</td>
+                    </tr>
+                    `).join('')}
+                </tbody>
+                </table>
+
+                <p style="margin-top: 20px; font-size: 16px;"><strong>Tổng cộng (giá đã bao gồm giảm giá từ cửa hàng và mã giảm): ${totalPrice.toLocaleString()} VNĐ</strong></p>
+
+                <p style="margin-top: 30px;">Nếu bạn có bất kỳ thắc mắc nào, hãy liên hệ với chúng tôi qua email hoặc số hotline trên website.</p>
+                <p>Trân trọng,<br><strong>FitnFood Corporation</strong></p>
+            </div>
+        `;
+
+        // Chuyển ảnh base64 thành attachments dạng CID
+        const createAttachments = (orderItems) => {
+            return orderItems.map((item, index) => ({
+                filename: `${item.name}.jpg`,
+                content: Buffer.from(item.image.replace(/^data:image\/\w+;base64,/, ""), 'base64'),
+                encoding: 'base64',
+                cid: `image${index}@ecom`
+            }));
+        };
+
+        const info = await transporter.sendMail({
+            from: `"FitnFood Corporation" <${process.env.EMAIL_USER}>`,
+            to: `${email}`,
+            subject: "THÔNG BÁO ĐƠN HÀNG",
+            html: htmlContent(orderItems, totalPrice),
+            attachments: createAttachments(orderItems)
+        });
+
+        console.log("✅ Đã gửi email thông tin đơn hàng: %s", info.messageId);
+    } catch (error) {
+        console.error("❌ Lỗi gửi email thông tin đơn hàng:", error);
+    }
+};
+
 module.exports = {
     verifyAccount,
-    recoveryPassword
+    recoveryPassword,
+    sendEmailOrder
 };
