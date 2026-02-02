@@ -106,6 +106,136 @@ const createOrder = (newOrder) => {
 };
 
 
+// Lấy toàn bộ đơn hàng của người dùng
+const getUserOrders = (userId) => {
+    return new Promise(async (resolve, reject) => {
+        try {
+            // const orders = await Order.find({ user: userId }).populate('orderItems.product');
+            const orders = await Order.find({ user: userId })
+
+            
+            if (!orders || orders.length === 0) {
+                return resolve({
+                    status: 'OK',
+                    message: 'No orders found',
+                    data: []
+                });
+            }
+
+            return resolve({
+                status: 'OK',
+                message: 'Get user orders successfully!',
+                data: orders
+            });
+        } catch (error) {
+            return reject(error);
+        }
+    });
+};
+
+// Lấy chi tiết đơn hàng theo ID
+const getOrderById = (orderId) => {
+    return new Promise(async (resolve, reject) => {
+        try {
+            // const order = await Order.findById(orderId).populate('orderItems.product').populate('user', 'name email phone address');
+            const order = await Order.findById(orderId)
+
+            
+            if (!order) {
+                return resolve({
+                    status: 'ERR',
+                    message: 'Order not found!'
+                });
+            }
+
+            return resolve({
+                status: 'OK',
+                message: 'Get order details successfully!',
+                data: order
+            });
+        } catch (error) {
+            return reject(error);
+        }
+    });
+};
+
+// Xóa đơn hàng
+const deleteOrder = (orderId, userId) => {
+    return new Promise(async (resolve, reject) => {
+        try {
+            const order = await Order.findById(orderId);
+            
+            if (!order) {
+                return resolve({
+                    status: 'ERR',
+                    message: 'Order not found!'
+                });
+            }
+
+            // Kiểm tra xem người dùng có phải là chủ sở hữu đơn hàng hay không
+            if (order.user.toString() !== userId.toString()) {
+                return resolve({
+                    status: 'ERR',
+                    message: 'Unauthorized: You can only delete your own orders!'
+                });
+            }
+
+            // Hoàn lại hàng tồn kho nếu đơn hàng chưa được giao
+            if (order.isDelivered === 'pending' || order.isDelivered === 'processing') {
+                for (const item of order.orderItems) {
+                    await Product.findByIdAndUpdate(item.product, {
+                        $inc: {
+                            countInStock: +item.amount,
+                            sold: -item.amount,
+                        }
+                    });
+                }
+            }
+
+            // Xóa đơn hàng
+            await Order.findByIdAndDelete(orderId);
+
+            return resolve({
+                status: 'OK',
+                message: 'Order deleted successfully!'
+            });
+        } catch (error) {
+            return reject(error);
+        }
+    });
+};
+
+// Lấy toàn bộ danh sách đơn hàng (Admin)
+const getAllOrders = () => {
+    return new Promise(async (resolve, reject) => {
+        try {
+            const orders = await Order.find()
+                // .populate('orderItems.product')
+                // .populate('user', 'name email phone address city');
+
+            if (!orders || orders.length === 0) {
+                return resolve({
+                    status: 'OK',
+                    message: 'No orders found!',
+                    data: []
+                });
+            }
+
+            return resolve({
+                status: 'OK',
+                message: 'Get all orders successfully!',
+                data: orders
+            });
+        } catch (error) {
+            return reject(error);
+        }
+    });
+};
+
 module.exports = {
     createOrder,
+    getUserOrders,
+    getOrderById,
+    deleteOrder,
+    getAllOrders
 };

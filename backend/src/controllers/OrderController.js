@@ -41,14 +41,88 @@ const createOrder = async (req, res) => {
         return res.status(200).json(response);
     } catch (e) {
         return res.status(404).json({
-            message: e.message || "Something went wrong"
+            message: e.message || "Something went wrong!"
+        });
+    }
+};
+
+// Lấy toàn bộ đơn hàng của người dùng
+const getUserOrders = async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const response = await OrderService.getUserOrders(userId);
+        
+        return res.status(200).json(response);
+    } catch (e) {
+        return res.status(500).json({
+            status: 'ERR',
+            message: e.message || "Something went wrong!"
+        });
+    }
+};
+
+// Lấy chi tiết đơn hàng
+const getOrderById = async (req, res) => {
+    try {
+        const orderId = req.params.id;
+        const userId = req.user.id;
+
+        const response = await OrderService.getOrderById(orderId);
+
+        // Kiểm tra xem người dùng có phải là chủ sở hữu đơn hàng
+        if (response.status === 'OK' && response.data.user._id.toString() !== userId.toString()) {
+            return res.status(403).json({
+                status: 'ERR',
+                message: 'Unauthorized: You can only view your own orders!'
+            });
+        }
+        
+        return res.status(200).json(response);
+    } catch (e) {
+        return res.status(500).json({
+            status: 'ERR',
+            message: e.message || "Something went wrong!"
+        });
+    }
+};
+
+// Xóa đơn hàng
+const deleteOrder = async (req, res) => {
+    try {
+        const orderId = req.params.id;
+        const userId = req.user.id;
+
+        const response = await OrderService.deleteOrder(orderId, userId);
+        
+        const statusCode = response.status === 'OK' ? 200 : 400;
+        return res.status(statusCode).json(response);
+    } catch (e) {
+        return res.status(500).json({
+            status: 'ERR',
+            message: e.message || "Something went wrong!"
+        });
+    }
+};
+
+// Lấy toàn bộ danh sách đơn hàng (Admin)
+const getAllOrders = async (req, res) => {
+    try {
+        const response = await OrderService.getAllOrders();
+        
+        return res.status(200).json(response);
+    } catch (e) {
+        return res.status(500).json({
+            status: 'ERR',
+            message: e.message || "Something went wrong!"
         });
     }
 };
 
 
-
 module.exports = {
     createOrder,
-
+    getUserOrders,
+    getOrderById,
+    deleteOrder,
+    getAllOrders
 };
