@@ -134,12 +134,20 @@ const getUserOrders = (userId) => {
 };
 
 // Lấy chi tiết đơn hàng theo ID
-const getOrderById = (orderId) => {
+const getOrderById = (orderId, userId) => {
     return new Promise(async (resolve, reject) => {
         try {
             // const order = await Order.findById(orderId).populate('orderItems.product').populate('user', 'name email phone address');
             const order = await Order.findById(orderId)
+            const userData = await User.findById(userId);
 
+            //Kiểm tra xem người dùng có phải là chủ sở hữu đơn hàng hay không và có phải admin không
+            if (!userData.isAdmin && order.user.toString() !== userId.toString()) {
+                return resolve({
+                    status: 'ERR',
+                    message: 'Unauthorized: You can only view your own orders!'
+                });
+            }
 
             if (!order) {
                 return resolve({
@@ -164,6 +172,7 @@ const deleteOrder = (orderId, userId) => {
     return new Promise(async (resolve, reject) => {
         try {
             const order = await Order.findById(orderId);
+            const userData = await User.findById(userId);
 
             if (!order) {
                 return resolve({
@@ -173,7 +182,7 @@ const deleteOrder = (orderId, userId) => {
             }
 
             // Kiểm tra xem người dùng có phải là chủ sở hữu đơn hàng hay không
-            if (order.user.toString() !== userId.toString()) {
+            if (!userData.isAdmin && order.user.toString() !== userId.toString()) {
                 return resolve({
                     status: 'ERR',
                     message: 'Unauthorized: You can only delete your own orders!'
