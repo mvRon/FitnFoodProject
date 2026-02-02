@@ -16,6 +16,8 @@ router.get("/:id", authUserMiddleWare, OrderController.getOrderById);
 // Người dùng xóa đơn hàng
 router.delete("/:id", authUserMiddleWare, OrderController.deleteOrder);
 
+router.put("/:id", authUserMiddleWare, OrderController.updateOrder);
+
 // Admin lấy toàn bộ danh sách đơn hàng
 router.get("/admin/all", authMiddleWare, OrderController.getAllOrders);
 

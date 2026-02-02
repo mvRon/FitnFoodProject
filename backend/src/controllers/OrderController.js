@@ -119,10 +119,29 @@ const getAllOrders = async (req, res) => {
 };
 
 
+const updateOrder = async (req, res) => {
+    try {
+        const orderId = req.params.id;
+        const updateData = req.body;
+        const userId = req.user.id;
+        const response = await OrderService.updateOrder(orderId, updateData, userId);
+        
+        const statusCode = response.status === 'OK' ? 200 : 400;
+        return res.status(statusCode).json(response);
+    } catch (e) {
+        return res.status(500).json({
+            status: 'ERR',
+            message: e.message || "Something went wrong!"
+        });
+    }   
+};
+
+
 module.exports = {
     createOrder,
     getUserOrders,
     getOrderById,
     deleteOrder,
-    getAllOrders
+    getAllOrders,
+    updateOrder
 };

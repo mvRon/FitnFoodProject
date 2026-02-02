@@ -19,7 +19,7 @@ const createOrder = (newOrder) => {
                         _id: order.product,
                         countInStock: { $gte: order.amount }
                     },
-                    { 
+                    {
                         $inc: {
                             countInStock: -order.amount,
                             sold: +order.amount,
@@ -56,7 +56,7 @@ const createOrder = (newOrder) => {
 
             //check user có tồn tại không
             const userData = await User.findById(user);
-            if(!userData){
+            if (!userData) {
                 return resolve({
                     status: 'ERR',
                     message: `User not found!`
@@ -64,7 +64,7 @@ const createOrder = (newOrder) => {
             }
 
 
-            const sendEmailOrder = await EmailService.sendEmailOrder({email: userData.email, orderItems, totalPrice})
+            const sendEmailOrder = await EmailService.sendEmailOrder({ email: userData.email, orderItems, totalPrice })
             // Tạo đơn hàng duy nhất sau khi kiểm tra và cập nhật kho thành công
             const createdOrder = await Order.create({
                 orderItems,
@@ -113,7 +113,7 @@ const getUserOrders = (userId) => {
             // const orders = await Order.find({ user: userId }).populate('orderItems.product');
             const orders = await Order.find({ user: userId })
 
-            
+
             if (!orders || orders.length === 0) {
                 return resolve({
                     status: 'OK',
@@ -140,7 +140,7 @@ const getOrderById = (orderId) => {
             // const order = await Order.findById(orderId).populate('orderItems.product').populate('user', 'name email phone address');
             const order = await Order.findById(orderId)
 
-            
+
             if (!order) {
                 return resolve({
                     status: 'ERR',
@@ -164,7 +164,7 @@ const deleteOrder = (orderId, userId) => {
     return new Promise(async (resolve, reject) => {
         try {
             const order = await Order.findById(orderId);
-            
+
             if (!order) {
                 return resolve({
                     status: 'ERR',
@@ -210,8 +210,8 @@ const getAllOrders = () => {
     return new Promise(async (resolve, reject) => {
         try {
             const orders = await Order.find()
-                // .populate('orderItems.product')
-                // .populate('user', 'name email phone address city');
+            // .populate('orderItems.product')
+            // .populate('user', 'name email phone address city');
 
             if (!orders || orders.length === 0) {
                 return resolve({
@@ -232,10 +232,53 @@ const getAllOrders = () => {
     });
 };
 
+const updateOrder = (orderId, updateData, userId) => {
+    return new Promise(async (resolve, reject) => {
+        try {
+
+            //Chỉ người dùng admin mới được quyền cập nhật trạng thái đơn hàng hoặc là người dùng chủ sở hữu đơn hàng
+            const userData = await User.findById(userId);
+            if (!userData) {
+                return resolve({
+                    status: 'ERR',
+                    message: 'User not found!'
+                });
+            }
+
+            const order = await Order.findByIdAndUpdate(orderId, updateData, { new: true });
+            if (!userData.isAdmin && order.user.toString() !== userId.toString()) {
+                return resolve({
+                    status: 'ERR',
+                    message: 'Unauthorized: You can only update your own orders!'
+                });
+            }
+
+
+            if (!order) {
+                return resolve({
+                    status: 'ERR',
+                    message: 'Order not found!'
+                });
+            }
+
+
+            return resolve({
+                status: 'OK',
+                message: 'Order updated successfully!',
+                data: order
+            });
+        } catch (error) {
+            return reject(error);
+        }
+    });
+}
+
+
 module.exports = {
     createOrder,
     getUserOrders,
     getOrderById,
     deleteOrder,
-    getAllOrders
+    getAllOrders,
+    updateOrder
 };
