@@ -67,7 +67,7 @@ const getOrderById = async (req, res) => {
         const orderId = req.params.id;
         const userId = req.user.id;
 
-        const response = await OrderService.getOrderById(orderId);
+        const response = await OrderService.getOrderById(orderId, userId);
 
         // Kiểm tra xem người dùng có phải là chủ sở hữu đơn hàng
         if (response.status === 'OK' && response.data.user._id.toString() !== userId.toString()) {
