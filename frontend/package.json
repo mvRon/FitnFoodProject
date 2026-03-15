@@ -4,11 +4,22 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "eject": "react-scripts eject"
   },
   "author": "Nguyen Ron Van Phat",
   "license": "ISC",
   "dependencies": {
-    "antd": "^6.2.0"
+    "antd": "^6.3.2",
+    "cors": "^2.8.6",
+    "jwt-decode": "^4.0.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "react-redux": "^9.2.0",
+    "react-router-dom": "^7.13.1",
+    "react-scripts": "^5.0.1",
+    "redux-persist": "^6.0.0"
   }
 }
