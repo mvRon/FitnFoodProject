@@ -1,0 +1,22 @@
+1. Màu Chủ Đạo (Primary): Xanh Ngọc Tươi (Emerald Green)
+Mã HEX: #10B981 (RGB: 16, 185, 129)
+
+Ý nghĩa: Tượng trưng cho sự tươi mát, nguyên liệu tự nhiên thảo dược và sự chữa lành. Đây là gam màu cốt lõi để tạo cảm giác an toàn và lành mạnh ngay từ cái nhìn đầu tiên.
+
+2. Màu Phụ (Secondary): Xanh Lam Y Tế (Ocean Blue)
+Mã HEX: #0284C7 (RGB: 2, 132, 199)
+
+Ý nghĩa: Đại diện cho khoa học, công nghệ và sự tin cậy. Gam màu này cực kỳ phù hợp để sử dụng cho các tính năng phân tích chỉ số cơ thể, giao diện chat với trợ lý AI, hoặc các nhãn chứng nhận y tế, giúp người dùng cảm thấy thông tin có độ chính xác cao.
+
+3. Màu Điểm Nhấn (Accent): Cam Năng Lượng (Vitamin Orange)
+Mã HEX: #F59E0B (RGB: 245, 158, 11)
+
+Ý nghĩa: Gợi nhớ đến các loại vitamin thiết yếu và năng lượng sống. Hãy dùng màu này cho các nút "Thêm vào giỏ hàng", nút kêu gọi hành động (CTA), hoặc các badge nổi bật (như "Bán chạy", "Khuyên dùng") để thu hút sự chú ý một cách tự nhiên.
+
+4. Nền và Văn Bản (Background & Text)
+Nền chính: #F8FAFC (Slate 50) - Một tone xám/trắng rất nhẹ nhàng, mang lại cảm giác sạch sẽ, tiệt trùng giống như môi trường y tế hoặc bao bì sản phẩm cao cấp.
+
+Màu chữ chính: #1E293B (Slate 800) - Thay vì dùng màu đen tuyền (#000000) có thể gây gắt mắt, màu xám đen đậm này giúp trải nghiệm đọc các thông tin dài về thành phần dinh dưỡng trở nên êm ái hơn rất nhiều.
+
+Mẹo triển khai giao diện:
+Khi phát triển frontend (đặc biệt với các công nghệ như ReactJs), bạn nên lưu trữ các mã màu này dưới dạng biến toàn cục (CSS Variables). Nếu sử dụng các thư viện UI có sẵn như Ant-Design, bạn chỉ cần ghi đè các token màu này vào file cấu hình theme ban đầu là toàn bộ ứng dụng sẽ tự động đồng bộ.
