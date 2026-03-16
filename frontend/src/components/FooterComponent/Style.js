@@ -113,9 +113,17 @@ export const LocationSelect = styled(Select)`
 `;
 //Footer
 export const StyledFooter = styled(Footer)`
-  background-color: #1C352D;
-  color: #fff;
+  background-color: var(--color-secondary);
+  color: var(--color-white);
   padding: 40px 80px;
+
+  a {
+    transition: color 0.2s ease;
+  }
+
+  a:hover {
+    color: var(--color-accent) !important;
+  }
 `;
 
 // Login

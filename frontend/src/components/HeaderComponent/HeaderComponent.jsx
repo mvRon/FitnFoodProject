@@ -93,7 +93,7 @@ const HeaderComponent = ({ isHiddenSearch = false, isHiddenCart = false }) => {
 
 
   return (
-    <header style={{ width: '100%', background: '#A6B28B' }}>
+    <header style={{ width: '100%', background: 'var(--color-primary)' }}>
       <nav
         className="header-nav"
         style={{
@@ -126,8 +126,8 @@ const HeaderComponent = ({ isHiddenSearch = false, isHiddenCart = false }) => {
             alt="logo"
             style={{ height: 40, width: 60, borderRadius: '50%', objectFit: 'cover' }}
           />
-          <span className="hidden-mobile" style={{ color: '#fff', fontWeight: 700, fontSize: 35 }}>
-            <em>FIT</em>n<span style={{ color: '#ffd400' }}><em>FOOD</em></span>
+          <span className="hidden-mobile" style={{ color: 'var(--color-white)', fontWeight: 700, fontSize: 35 }}>
+            <em>FIT</em>n<span style={{ color: 'var(--color-accent)' }}><em>FOOD</em></span>
           </span>
         </div>
 
@@ -172,16 +172,16 @@ const HeaderComponent = ({ isHiddenSearch = false, isHiddenCart = false }) => {
                 />
               </Popover>
             ) : (
-              <UserOutlined style={{ fontSize: 24, color: '#fff' }} />
+              <UserOutlined style={{ fontSize: 24, color: 'var(--color-white)' }} />
             )}
             {user?.access_token ? (
               <Popover content={content} trigger="click">
-                <span className="header-greeting" style={{ color: '#fff', cursor: 'pointer', fontWeight: 500, fontSize: 13 }}>
+                <span className="header-greeting" style={{ color: 'var(--color-white)', cursor: 'pointer', fontWeight: 500, fontSize: 13 }}>
                   Hi, {userName || user.email || 'User'}
                 </span>
               </Popover>
             ) : (
-              <div className="header-login" onClick={handleNavigateLogin} style={{ color: '#fff', cursor: 'pointer', fontSize: 12 }}>
+              <div className="header-login" onClick={handleNavigateLogin} style={{ color: 'var(--color-white)', cursor: 'pointer', fontSize: 12 }}>
                 <span>Đăng nhập</span>
                 <span>Đăng ký <CaretDownOutlined /></span>
               </div>
@@ -191,9 +191,9 @@ const HeaderComponent = ({ isHiddenSearch = false, isHiddenCart = false }) => {
           {!isHiddenCart && (
             <div onClick={() => navigate('/order')} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 2 }}>
               <Badge count={user?.access_token ? order?.orderItems.length : 0} size="small">
-                <ShoppingCartOutlined style={{ color: '#fff', fontSize: 24 }} />
+                <ShoppingCartOutlined style={{ color: 'var(--color-white)', fontSize: 24 }} />
               </Badge>
-              <span className="cart-label" style={{ color: '#fff', fontSize: 12, fontWeight: 500, display: 'none' }}>Giỏ hàng</span>
+              <span className="cart-label" style={{ color: 'var(--color-white)', fontSize: 12, fontWeight: 500, display: 'none' }}>Giỏ hàng</span>
             </div>
           )}
         </div>

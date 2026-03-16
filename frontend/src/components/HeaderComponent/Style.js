@@ -56,7 +56,7 @@ import { Row } from 'antd';
 
 export const WrapperHeader = styled(Row)`
   padding: 10px 20px;
-  background-color: rgb(26, 148, 255);
+  background-color: var(--color-primary);
   align-items: center;
   gap: 16px;
   flex-wrap: nowrap;
@@ -133,7 +133,7 @@ export const WrapperSpanHeader = styled.span`
 export const WrapperContentPopup = styled.p`
   cursor: pointer;
   &:hover {
-    color: rgb(26, 148, 255);
+    color: var(--color-secondary);
   }
 `;
 
