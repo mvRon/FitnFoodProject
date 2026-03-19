@@ -2,6 +2,8 @@ const Order = require("../models/OrderModel");
 const Product = require("../models/ProductModel");
 const EmailService = require('./EmailService')
 const User = require("../models/UserModel");
+const InventoryVoucher = require("../models/InventoryVoucherModel");
+const StockCard = require("../models/StockCardModel");
 
 
 const createOrder = (newOrder) => {
@@ -23,7 +25,10 @@ const createOrder = (newOrder) => {
                         $inc: {
                             countInStock: -order.amount,
                             sold: +order.amount,
-                        }
+                        },
+                        $set: {
+                            lastStockMovementAt: new Date(),
+                        },
                     },
                     { new: true }
                 );
@@ -82,6 +87,45 @@ const createOrder = (newOrder) => {
                 isPaid,
                 paidAt,
             });
+
+            const voucherCode = `PXK-ORDER-${createdOrder._id.toString().slice(-6).toUpperCase()}`;
+            const voucherItems = orderItems.map((item) => ({
+                product: item.product,
+                quantity: Number(item.amount || 0),
+                unitPrice: Number(item.price || 0),
+                amount: Number(item.amount || 0) * Number(item.price || 0),
+            }));
+
+            const saleVoucher = await InventoryVoucher.create({
+                voucherCode,
+                transactionType: "EXPORT",
+                exportReason: "SALE",
+                performedBy: user,
+                linkedOrder: createdOrder._id,
+                voucherDate: new Date(),
+                status: "confirmed",
+                items: voucherItems,
+                totalAmount: voucherItems.reduce((sum, item) => sum + item.amount, 0),
+                note: `Xuat kho tu don hang ${createdOrder._id}`,
+                confirmedAt: new Date(),
+            });
+
+            for (const item of orderItems) {
+                const productData = await Product.findById(item.product);
+                await StockCard.create({
+                    product: item.product,
+                    date: new Date(),
+                    transactionType: "EXPORT",
+                    voucherCode,
+                    voucherRef: saleVoucher._id,
+                    description: "Xuat kho - SALE",
+                    quantityIn: 0,
+                    quantityOut: Number(item.amount || 0),
+                    balanceAfter: productData?.countInStock || 0,
+                    performedBy: user,
+                    note: `Lien ket don hang ${createdOrder._id}`,
+                });
+            }
 
             return resolve({
                 status: 'OK',

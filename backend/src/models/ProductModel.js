@@ -12,6 +12,7 @@ const productSchema = new mongoose.Schema(
         description: { type: String },
         discount: { type: Number },
         sold: { type: Number },
+        lastStockMovementAt: { type: Date, default: Date.now },
         reviews: [
             {
                 user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
