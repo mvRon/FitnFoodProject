@@ -29,7 +29,7 @@ const createExportVoucher = async (req, res) => {
         if (!exportReason || !Array.isArray(items) || items.length === 0) {
             return res.status(200).json({
                 status: "ERR",
-                message: "exportReason va items la bat buoc",
+                message: "exportReason and items are required!",
             });
         }
 
@@ -52,7 +52,7 @@ const getStockCardByProduct = async (req, res) => {
         if (!productId) {
             return res.status(200).json({
                 status: "ERR",
-                message: "productId la bat buoc",
+                message: "productId is required!",
             });
         }
 
@@ -73,7 +73,7 @@ const upsertThreshold = async (req, res) => {
         if (!productId) {
             return res.status(200).json({
                 status: "ERR",
-                message: "productId la bat buoc",
+                message: "productId is required!",
             });
         }
 
@@ -132,7 +132,7 @@ const getVoucherDetails = async (req, res) => {
         if (!voucherId) {
             return res.status(200).json({
                 status: "ERR",
-                message: "voucherId la bat buoc",
+                message: "voucherId is required!",
             });
         }
 

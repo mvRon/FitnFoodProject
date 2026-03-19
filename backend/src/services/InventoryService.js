@@ -26,18 +26,18 @@ const buildVoucherCode = async (prefix) => {
 
 const validateItems = (items) => {
     if (!Array.isArray(items) || items.length === 0) {
-        return "Danh sach san pham khong duoc de trong";
+        return "Product items are required and must be a non-empty array";
     }
 
     for (const item of items) {
         if (!item?.product) {
-            return "Moi dong san pham phai co product";
+            return "Each item must have a product";
         }
         if (item.quantity == null || Number(item.quantity) <= 0) {
-            return "So luong phai lon hon 0";
+            return "Quantity must be a positive number";
         }
         if (item.unitPrice != null && Number(item.unitPrice) < 0) {
-            return "Gia nhap/xuat khong duoc nho hon 0";
+            return "Unit price cannot be negative";
         }
     }
 
@@ -55,12 +55,12 @@ const createImportVoucher = (payload, userId) => {
             }
 
             if (!IMPORT_SOURCES.includes(sourceType)) {
-                return resolve({ status: "ERR", message: "Nguon nhap kho khong hop le" });
+                return resolve({ status: "ERR", message: "Invalid import source" });
             }
 
             const userData = await User.findById(userId);
             if (!userData) {
-                return resolve({ status: "ERR", message: "Nguoi thuc hien khong ton tai" });
+                return resolve({ status: "ERR", message: "User not found" });
             }
 
             const voucherCode = await buildVoucherCode("PNK");
@@ -90,7 +90,7 @@ const createImportVoucher = (payload, userId) => {
                         }
                         return resolve({
                             status: "ERR",
-                            message: `San pham ${item.product} khong ton tai`,
+                            message: `Product ${item.product} not found`,
                         });
                     }
 
@@ -158,7 +158,7 @@ const createImportVoucher = (payload, userId) => {
 
             return resolve({
                 status: "OK",
-                message: status === "confirmed" ? "Nhap kho thanh cong" : "Da tao phieu nhap o trang thai cho xu ly",
+                message: status === "confirmed" ? "Import voucher created successfully" : "Import voucher created but not confirmed",
                 data: createdVoucher,
             });
         } catch (e) {
@@ -185,18 +185,18 @@ const createExportVoucher = (payload, userId) => {
             }
 
             if (!EXPORT_REASONS.includes(exportReason)) {
-                return resolve({ status: "ERR", message: "Ly do xuat kho khong hop le" });
+                return resolve({ status: "ERR", message: "Invalid export reason" });
             }
 
             const userData = await User.findById(userId);
             if (!userData) {
-                return resolve({ status: "ERR", message: "Nguoi thuc hien khong ton tai" });
+                return resolve({ status: "ERR", message: "User not found" });
             }
 
             if (linkedOrder) {
                 const orderData = await Order.findById(linkedOrder);
                 if (!orderData) {
-                    return resolve({ status: "ERR", message: "Don hang lien ket khong ton tai" });
+                    return resolve({ status: "ERR", message: "Linked order not found" });
                 }
             }
 
@@ -209,7 +209,7 @@ const createExportVoucher = (payload, userId) => {
                 if (!productData) {
                     return resolve({
                         status: "ERR",
-                        message: `San pham ${item.product} khong ton tai`,
+                        message: `Product ${item.product} not found`,
                     });
                 }
 
@@ -238,7 +238,7 @@ const createExportVoucher = (payload, userId) => {
             if (shortageItems.length > 0 && insufficientAction !== "pending") {
                 return resolve({
                     status: "ERR",
-                    message: "Ton kho khong du de xuat",
+                    message: "Insufficient stock for export",
                     data: shortageItems,
                 });
             }
@@ -261,7 +261,7 @@ const createExportVoucher = (payload, userId) => {
 
                 return resolve({
                     status: "OK",
-                    message: "Ton kho chua du. Da tao phieu xuat o trang thai cho xu ly",
+                    message: "Insufficient stock. Export voucher created with pending status",
                     data: pendingVoucher,
                     shortageItems,
                 });
@@ -289,7 +289,7 @@ const createExportVoucher = (payload, userId) => {
                     }
                     return resolve({
                         status: "ERR",
-                        message: "Ton kho khong du de xuat",
+                        message: "Insufficient stock for export",
                     });
                 }
 
@@ -329,7 +329,7 @@ const createExportVoucher = (payload, userId) => {
 
             return resolve({
                 status: "OK",
-                message: "Xuat kho thanh cong",
+                message: "Export voucher created successfully",
                 data: createdVoucher,
             });
         } catch (e) {
@@ -343,7 +343,7 @@ const getStockCardByProduct = (productId, fromDate, toDate) => {
         try {
             const productData = await Product.findById(productId);
             if (!productData) {
-                return resolve({ status: "ERR", message: "San pham khong ton tai" });
+                return resolve({ status: "ERR", message: "Product not found" });
             }
 
             const query = { product: productId };
@@ -360,7 +360,7 @@ const getStockCardByProduct = (productId, fromDate, toDate) => {
 
             return resolve({
                 status: "OK",
-                message: "Lay the kho thanh cong",
+                message: "Stock card retrieved successfully",
                 data: {
                     product: {
                         _id: productData._id,
@@ -383,7 +383,7 @@ const upsertThreshold = (productId, payload) => {
         try {
             const productData = await Product.findById(productId);
             if (!productData) {
-                return resolve({ status: "ERR", message: "San pham khong ton tai" });
+                return resolve({ status: "ERR", message: "Product not found" });
             }
 
             const updatedThreshold = await InventoryThreshold.findOneAndUpdate(
@@ -398,7 +398,7 @@ const upsertThreshold = (productId, payload) => {
 
             return resolve({
                 status: "OK",
-                message: "Cap nhat muc ton an toan thanh cong",
+                message: "Threshold updated successfully",
                 data: updatedThreshold,
             });
         } catch (e) {
@@ -429,7 +429,7 @@ const getInventoryAlerts = (actualCounts = []) => {
                         product,
                         currentStock,
                         safeStockLevel,
-                        message: "Ton kho am bat thuong",
+                        message: "Insufficient stock - stock level is negative",
                     });
                 } else if (currentStock === 0) {
                     alerts.push({
@@ -438,7 +438,7 @@ const getInventoryAlerts = (actualCounts = []) => {
                         product,
                         currentStock,
                         safeStockLevel,
-                        message: "San pham da het hang",
+                        message: "Product is out of stock",
                     });
                 } else if (currentStock <= safeStockLevel) {
                     alerts.push({
@@ -447,7 +447,7 @@ const getInventoryAlerts = (actualCounts = []) => {
                         product,
                         currentStock,
                         safeStockLevel,
-                        message: "San pham sap het hang",
+                        message: "Product is running low on stock",
                     });
                 }
 
@@ -463,7 +463,7 @@ const getInventoryAlerts = (actualCounts = []) => {
                         safeStockLevel,
                         daysWithoutMovement,
                         maxStorageDays,
-                        message: "Hang ton kho lau ngay",
+                        message: "Product has been in stock for a long time without movement",
                     });
                 }
             }
@@ -491,7 +491,7 @@ const getInventoryAlerts = (actualCounts = []) => {
                             systemQty,
                             actualQty,
                             difference,
-                            message: "Chenh lech ton kho giua he thong va thuc te",
+                            message: "Stock discrepancy between system and actual count",
                         });
                     }
                 }
@@ -499,7 +499,7 @@ const getInventoryAlerts = (actualCounts = []) => {
 
             return resolve({
                 status: "OK",
-                message: "Lay danh sach canh bao ton kho thanh cong",
+                message: "Inventory alerts retrieved successfully",
                 data: alerts,
             });
         } catch (e) {
@@ -530,7 +530,7 @@ const getAllVouchers = (filters = {}) => {
 
             return resolve({
                 status: "OK",
-                message: "Lay danh sach phieu kho thanh cong",
+                message: "Inventory vouchers retrieved successfully",
                 data: vouchers,
             });
         } catch (e) {
@@ -548,12 +548,12 @@ const getVoucherDetails = (voucherId) => {
                 .populate("linkedOrder");
 
             if (!voucher) {
-                return resolve({ status: "ERR", message: "Phieu kho khong ton tai" });
+                return resolve({ status: "ERR", message: "Voucher not found" });
             }
 
             return resolve({
                 status: "OK",
-                message: "Lay chi tiet phieu kho thanh cong",
+                message: "Voucher details retrieved successfully",
                 data: voucher,
             });
         } catch (e) {
