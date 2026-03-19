@@ -15,7 +15,7 @@ function LoginPage() {
               <div>
                 <Title style={styles.showcaseTitle}>FitnFood</Title>
                 <Text style={styles.showcaseText}>
-                  Đồng hành cùng bạn xây dựng lối sống khỏe mạnh mỗi ngày 1.
+                  Đồng hành cùng bạn xây dựng lối sống khỏe mạnh mỗi ngày.
                 </Text>
               </div>
 
@@ -41,13 +41,14 @@ function LoginPage() {
                 }}
               >
                 <Form.Item
-                  label="Số điện thoại"
-                  name="phone"
+                  label="Email"
+                  name="email"
                   rules={[
-                    { required: true, message: 'Vui lòng nhập số điện thoại' },
+                    { required: true, message: 'Vui lòng nhập email' },
+                    { type: 'email', message: 'Email không đúng định dạng' },
                   ]}
                 >
-                  <Input size="large" placeholder="Nhập số điện thoại của bạn" />
+                  <Input size="large" placeholder="Nhập email của bạn" />
                 </Form.Item>
 
                 <Form.Item

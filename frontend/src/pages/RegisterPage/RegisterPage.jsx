@@ -1,11 +1,44 @@
 import React from 'react';
-import { Form, Input, Button, DatePicker, Row, Col, Typography } from 'antd';
+import { Form, Input, Button, Row, Col, Typography } from 'antd';
 import { EyeInvisibleOutlined, EyeTwoTone } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
 import { styles, colors } from './Style';
 
 const { Title, Text } = Typography;
 
 function RegisterPage() {
+  const navigate = useNavigate();
+
+  const formatDobInput = (event) => {
+    const digits = event.target.value.replace(/\D/g, '').slice(0, 8);
+    if (digits.length <= 2) return digits;
+    if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+    return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
+  };
+
+  const validateDob = (_, value) => {
+    if (!value) return Promise.reject(new Error('Vui lòng nhập ngày sinh'));
+    if (!/^\d{2}\/\d{2}\/\d{4}$/.test(value)) {
+      return Promise.reject(new Error('Định dạng đúng là DD/MM/YYYY'));
+    }
+
+    const [dayText, monthText, yearText] = value.split('/');
+    const day = Number(dayText);
+    const month = Number(monthText);
+    const year = Number(yearText);
+
+    if (month < 1 || month > 12) {
+      return Promise.reject(new Error('Tháng phải từ 01 đến 12'));
+    }
+
+    const maxDay = new Date(year, month, 0).getDate();
+    if (day < 1 || day > maxDay) {
+      return Promise.reject(new Error('Ngày không hợp lệ với tháng đã nhập'));
+    }
+
+    return Promise.resolve();
+  };
+
   return (
     <div style={styles.wrapper}>
       <div style={styles.card}>
@@ -45,8 +78,18 @@ function RegisterPage() {
                   </Col>
 
                   <Col xs={24} md={12}>
-                    <Form.Item label="Ngày sinh" name="dob">
-                      <DatePicker size="large" style={{ width: '100%' }} format="DD/MM/YYYY" />
+                    <Form.Item
+                      label="Ngày sinh"
+                      name="dob"
+                      getValueFromEvent={formatDobInput}
+                      rules={[{ validator: validateDob }]}
+                    >
+                      <Input
+                        size="large"
+                        maxLength={10}
+                        inputMode="numeric"
+                        placeholder="(DD/MM/YYYY)"
+                      />
                     </Form.Item>
                   </Col>
                 </Row>
@@ -59,7 +102,14 @@ function RegisterPage() {
                   </Col>
 
                   <Col xs={24} md={12}>
-                    <Form.Item label="Email (không bắt buộc)" name="email">
+                    <Form.Item
+                      label="Email (bắt buộc)"
+                      name="email"
+                      rules={[
+                        { required: true, message: 'Vui lòng nhập email' },
+                        { type: 'email', message: 'Email không đúng định dạng' },
+                      ]}
+                    >
                       <Input size="large" placeholder="Nhập email" />
                     </Form.Item>
                   </Col>
@@ -99,7 +149,7 @@ function RegisterPage() {
 
                 <Row gutter={16} style={{ marginTop: 24 }}>
                   <Col xs={24} md={12} style={{ marginBottom: 10 }}>
-                    <Button style={styles.backButton} block>
+                    <Button style={styles.backButton} block onClick={() => navigate('/login')}>
                       Quay lại đăng nhập
                     </Button>
                   </Col>
