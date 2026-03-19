@@ -15,7 +15,7 @@ function LoginPage() {
               <div>
                 <Title style={styles.showcaseTitle}>FitnFood</Title>
                 <Text style={styles.showcaseText}>
-                  Đồng hành cùng bạn xây dựng lối sống khỏe mạnh mỗi ngày.
+                  Đồng hành cùng bạn xây dựng lối sống khỏe mạnh mỗi ngày 1.
                 </Text>
               </div>
 
