@@ -62,7 +62,7 @@ export const getAllComment = async (id) => {
 
 export const getDetailProduct = async (id) => {
     const res = await axios.get(
-        `${process.env.REACT_APP_API_URL_BACKEND}/product/getDetailProduct/${id}`,
+        `${process.env.REACT_APP_API_URL_BACKEND}/product/get-details-product/${id}`,
         { withCredentials: true }
     );
     return res.data;
