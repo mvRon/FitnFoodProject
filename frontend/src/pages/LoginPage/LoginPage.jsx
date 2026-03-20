@@ -7,6 +7,7 @@ import { jwtDecode } from 'jwt-decode';
 import { styles, colors } from './Style';
 import * as UserService from '../../services/UserService';
 import { updateUser } from '../../redux/slice/userSlice';
+import { fetchCart } from '../../redux/slice/orderSlice';
 import { useMutationHook } from '../../hooks/useMutationHook';
 
 const { Title, Text } = Typography;
@@ -68,6 +69,7 @@ function LoginPage() {
           localStorage.setItem('refresh_token', JSON.stringify(data?.refresh_token));
           if (decoded?.id) {
             handleGetDetailUser(decoded?.id, data?.access_token);
+            dispatch(fetchCart(decoded?.id));
           }
         } else {
           localStorage.clear();

@@ -4,8 +4,9 @@ import {
     Spin, Row, Col, Typography, Divider, message,
     InputNumber, Breadcrumb, Image,
 } from 'antd';
-import { useDispatch } from 'react-redux';
-import { addOrder } from '../../redux/slice/orderSlice';
+import { useDispatch, useSelector } from 'react-redux';
+import { jwtDecode } from 'jwt-decode';
+import { addOrder, syncCart } from '../../redux/slice/orderSlice';
 import ReviewComponent from '../../components/ReviewComponent/ReviewComponent';
 
 import {
@@ -31,6 +32,7 @@ const ProductDetailPage = () => {
     const [selectedImage, setSelectedImage] = useState(null);
     // const access_token = useSelector((state) => state.user.access_token);
     const access_token = localStorage.getItem('access_token');
+    const user = useSelector((state) => state.user);
     const dispatch = useDispatch();
     const navigate = useNavigate();
     const [categories, setCategories] = useState([]);
@@ -69,25 +71,39 @@ const ProductDetailPage = () => {
         fetchCategories();
     }, [id]);
 
-    const handleAddToCart = () => {
+    const handleAddToCart = async () => {
         if (!access_token) {
             message.warning('Vui lòng đăng nhập để thêm vào giỏ hàng!');
             navigate('/login', { state: { from: `/productDetail/${id}` } });
             return;
         }
 
-        dispatch(addOrder({
-            orderItem:
-            {
-                name: product?.name,
-                amount: quantity,
-                image: product?.image || productImageList[0],
-                price: product?.price,
-                product: product?._id,
-                discount: product?.discount,
-                countInStock: product?.countInStock
+        const orderItem = {
+            name: product?.name,
+            amount: quantity,
+            image: product?.image || productImageList[0],
+            price: product?.price,
+            product: product?._id,
+            discount: product?.discount,
+            countInStock: product?.countInStock
+        };
+
+        let userId = user?.id;
+        if (!userId) {
+            try {
+                userId = jwtDecode(JSON.parse(access_token))?.id;
+            } catch (error) {
+                userId = null;
             }
+        }
+
+        dispatch(addOrder({
+            orderItem
         }));
+
+        if (userId) {
+            await dispatch(syncCart({ userId }));
+        }
         message.success('Đã thêm vào giỏ hàng!');
     };
 
