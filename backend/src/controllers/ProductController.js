@@ -63,7 +63,7 @@ const deleteProduct = async (req, res) => {
         return res.status(404).json({
             message: e
         })
-    }   
+    }
 }
 
 
@@ -96,10 +96,93 @@ const getAllProducts = async (req, res) => {
     }
 }
 
+
+const addComment = async (req, res) => {
+    const { productId } = req.params;
+    const { comment } = req.body;
+    const user = req.user.id;
+    const result = await ProducService.addComment(productId, { user, comment });
+    res.status(result.status === 'OK' ? 200 : 400).json(result);
+};
+
+const updateComment = async (req, res) => {
+    const { productId, commentId } = req.params;
+    const { comment } = req.body;
+    const user = req.user.id;
+    const result = await ProducService.updateComment(productId, commentId, { user, comment });
+    res.status(result.status === 'OK' ? 200 : 400).json(result);
+};
+
+
+const addRating = async (req, res) => {
+    const { productId } = req.params;
+    const { rating, comment } = req.body;
+    const user = req.user.id;
+    const result = await ProducService.addRating(productId, { user, rating, comment });
+    res.status(result.status === 'OK' ? 200 : 400).json(result);
+};
+
+const getReviews = async (req, res) => {
+    const { productId } = req.params;
+    const result = await ProducService.getReviews(productId);
+    res.status(result.status === 'OK' ? 200 : 404).json(result);
+};
+
+// Thêm phản hồi cho review
+const addReplyToReview = async (req, res) => {
+    const { productId, reviewId } = req.params;
+    const { comment } = req.body;
+    const user = req.user.id;
+    const result = await ProducService.addReplyToReview(productId, reviewId, { user, comment });
+    res.status(result.status === 'OK' ? 200 : 400).json(result);
+};
+
+// Sửa phản hồi cho review
+const updateReplyOfReview = async (req, res) => {
+    const { productId, reviewId, replyId } = req.params;
+    const { comment } = req.body;
+    const user = req.user.id;
+    const result = await ProducService.updateReplyOfReview(productId, reviewId, replyId, { user, comment });
+    res.status(result.status === 'OK' ? 200 : 400).json(result);
+};
+
+// Xóa phản hồi cho review
+const deleteReplyOfReview = async (req, res) => {
+    const { productId, reviewId, replyId } = req.params;
+    const user = req.user.id;
+    const result = await ProducService.deleteReplyOfReview(productId, reviewId, replyId, user);
+    res.status(result.status === 'OK' ? 200 : 400).json(result);
+};
+
+// xóa cmt của chính mình
+const deleteReview = async (req, res) => {
+    const { productId, reviewId } = req.params;
+    const user = req.user.id;
+    const result = await ProducService.deleteReview(productId, reviewId, user);
+    res.status(result.status === 'OK' ? 200 : 400).json(result);
+};
+
+// Kiểm tra quyền đánh giá sản phẩm
+const checkRatingPermission = async (req, res) => {
+    const { productId } = req.params;
+    const user = req.user.id;
+    const result = await ProducService.checkRatingPermission(user, productId);
+    res.status(result.status === 'OK' ? 200 : 400).json(result);
+};
+
 module.exports = {
     createProduct,
     updateProduct,
     deleteProduct,
     getDetailsProduct,
-    getAllProducts
+    getAllProducts,
+    addComment,
+    updateComment,
+    addRating,
+    getReviews,
+    addReplyToReview,
+    updateReplyOfReview,
+    deleteReplyOfReview,
+    deleteReview, 
+    checkRatingPermission
 }
