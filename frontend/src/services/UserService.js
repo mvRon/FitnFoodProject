@@ -23,8 +23,8 @@ export const registerUser = async (data) => {
     return res.data;
 };
 
-export const getDetailUser = async (id, acces_token) => {
-    const res = await axiosJWT.get(`${process.env.REACT_APP_API_URL_BACKEND}/user/getDetailUser/${id}`, {
+export const getDetailUser = async (acces_token) => {
+    const res = await axiosJWT.get(`${process.env.REACT_APP_API_URL_BACKEND}/user/get-user-details`, {
         headers: {
             token: `Bearer ${acces_token}`,
         }
