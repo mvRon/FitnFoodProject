@@ -70,20 +70,40 @@ const HomePage = () => {
             <Breadcrumb.Item>Trang chủ</Breadcrumb.Item>
           </Breadcrumb>
         </div>
-        <div className="body" style={{ backgroundColor: '#efefef', width: '100%' }}>
+        <div className="body" style={{ background: 'linear-gradient(180deg, rgba(16,185,129,0.08), rgba(2,132,199,0.06) 35%, rgba(248,250,252,0.9) 100%)', width: '100%' }}>
           <div id="container" style={{ maxWidth: '1270px', width: '100%', margin: '0 auto', padding: '0 16px' }}>
+            <div
+              style={{
+                marginTop: 10,
+                marginBottom: 14,
+                background: 'linear-gradient(120deg, #10B981 0%, #0284C7 65%)',
+                borderRadius: 24,
+                padding: '20px 24px',
+                boxShadow: '0 20px 45px rgba(2,132,199,0.24)',
+                color: '#fff',
+              }}
+            >
+              <h2 style={{ margin: 0, fontSize: 30, lineHeight: 1.2, fontWeight: 800 }}>
+                Eat Clean, Live Smart
+              </h2>
+              <p style={{ margin: '8px 0 0', fontSize: 14, opacity: 0.95 }}>
+                Chọn thực phẩm lành mạnh theo nhu cầu dinh dưỡng, giao nhanh và luôn tươi mới mỗi ngày.
+              </p>
+            </div>
             <WrapperProducts style={{ marginTop: '20px' }}>
-              <div style={{ maxWidth: '1270px', width: '100%', margin: '0 auto', padding: '0 16px' }}>
+              <div style={{ maxWidth: '1270px', width: '100%', margin: '0 auto', padding: '0 6px' }}>
                 <div className="typeproduct-horizontal-scroll" style={{ overflowX: 'auto', overflowY: 'hidden', whiteSpace: 'nowrap', paddingBottom: 8 }}>
-                  {parentCategories.map((item) => (
-                    <div key={item._id} style={{ display: 'inline-block', marginRight: 12, verticalAlign: 'top' }}>
-                      <TypeProduct
-                        name={item.name}
-                        _id={item._id}
-                        onClick={() => navigate(`/product/${slugify(item.name)}-${item._id}`, { state: item._id })}
-                      />
-                    </div>
-                  ))}
+                  <WrapperTypeProduct>
+                    {parentCategories.map((item) => (
+                      <div key={item._id} style={{ display: 'inline-block', marginRight: 10, verticalAlign: 'top' }}>
+                        <TypeProduct
+                          name={item.name}
+                          _id={item._id}
+                          onClick={() => navigate(`/product/${slugify(item.name)}-${item._id}`, { state: item._id })}
+                        />
+                      </div>
+                    ))}
+                  </WrapperTypeProduct>
                 </div>
               </div>
               {products?.data?.length > 0 ? products?.data?.map((product) => {

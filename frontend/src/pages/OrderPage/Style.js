@@ -5,14 +5,16 @@ import { Button, Input, InputNumber } from "antd";
 
 
 export const WrapperStyleHeader = styled.div`
-  background: rgb(255, 255, 255);
-  padding: 9px 16px;
-  border-radius: 4px;
+  background: linear-gradient(145deg, #ffffff, #f8fafc);
+  padding: 11px 16px;
+  border-radius: 14px;
+  border: 1px solid rgba(2, 132, 199, 0.18);
+  box-shadow: 0 10px 24px rgba(30, 41, 59, 0.06);
   display: flex;
   align-items: center;
   span {
-    color: rgb(36, 36, 36);
-    font-weight: 400;
+    color: var(--color-text);
+    font-weight: 500;
     font-size: 13px;
   }
   @media (max-width: 768px) {
@@ -24,15 +26,42 @@ export const WrapperStyleHeader = styled.div`
 `;
 
 export const WrapperStyleHeaderDelivery = styled.div`
-  background: rgb(255, 255, 255);
-  padding: 9px 16px;
-  border-radius: 4px;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.14), rgba(2, 132, 199, 0.14));
+  padding: 12px 16px;
+  border-radius: 14px;
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  box-shadow: 0 10px 24px rgba(16, 185, 129, 0.14);
   display: flex;
   align-items: center;
-  margin-bottom: 4px;
+  margin-bottom: 8px;
+  width: 100%;
+
+  .ant-steps {
+    width: 100%;
+  }
+
+  .ant-steps-item-title {
+    color: var(--color-text) !important;
+    font-weight: 700;
+  }
+
+  .ant-steps-item-description {
+    color: #334155 !important;
+  }
+
+  .ant-steps-item-finish .ant-steps-item-icon,
+  .ant-steps-item-process .ant-steps-item-icon {
+    background: var(--color-primary) !important;
+    border-color: var(--color-primary) !important;
+  }
+
+  .ant-steps-item-finish .ant-steps-item-tail::after {
+    background-color: var(--color-primary) !important;
+  }
+
   span {
-    color: rgb(36, 36, 36);
-    font-weight: 400;
+    color: var(--color-text);
+    font-weight: 500;
     font-size: 13px;
   }
   @media (max-width: 768px) {
@@ -57,11 +86,12 @@ export const WrapperListOrder = styled.div`
 export const WrapperItemOrder = styled.div`
   display: flex;
   align-items: center;
-  padding: 12px 8px;
-  background: #fff;
+  padding: 13px 10px;
+  background: linear-gradient(145deg, #ffffff, #f8fafc);
   margin-top: 12px;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+  border-radius: 12px;
+  border: 1px solid rgba(16, 185, 129, 0.15);
+  box-shadow: 0 12px 24px rgba(30, 41, 59, 0.06);
   @media (max-width: 768px) {
     flex-direction: column;
     align-items: flex-start;
@@ -84,8 +114,9 @@ export const WrapperCountOrder = styled.div`
   display: flex;
   align-items: center;
   width: 84px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
+  border: 1px solid rgba(2, 132, 199, 0.35);
+  border-radius: 8px;
+  background: #fff;
   @media (max-width: 768px) {
     width: 84px;
     margin-top: 6px;
@@ -108,10 +139,10 @@ export const WrapperRight = styled.div`
 
 export const WrapperInfo = styled.div`
   padding: 17px 20px;
-  border-bottom: 1px solid #f5f5f5;
-  background: #fff;
-  border-top-right-radius: 6px;
-  border-top-left-radius: 6px;
+  border-bottom: 1px solid rgba(2, 132, 199, 0.12);
+  background: linear-gradient(165deg, #ffffff, #f8fafc);
+  border-top-right-radius: 14px;
+  border-top-left-radius: 14px;
   width: 100%;
   @media (max-width: 768px) {
     padding: 10px 8px;
@@ -123,9 +154,10 @@ export const WrapperTotal = styled.div`
   align-items: flex-start;
   justify-content: space-between;
   padding: 17px 20px;
-  background: #fff;
-  border-bottom-right-radius: 6px;
-  border-bottom-left-radius: 6px;
+  background: linear-gradient(165deg, #ffffff, #f8fafc);
+  border-bottom-right-radius: 14px;
+  border-bottom-left-radius: 14px;
+  border-top: 1px solid rgba(16, 185, 129, 0.15);
   @media (max-width: 768px) {
     flex-direction: column;
     gap: 8px;
@@ -157,13 +189,14 @@ export const WrapperDiscountSection = styled.div`
 `;
 
 export const DiscountButton = styled(Button)`
-  background: #f5f5fa;
-  border: 1px solid #d9d9d9;
-  color: #000;
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.55);
+  color: #9a5f00;
   padding: 0 12px;
-  height: 32px;
+  height: 34px;
   font-size: 12px;
-  border-radius: 4px;
+  border-radius: 10px;
+  font-weight: 700;
   @media (max-width: 768px) {
     padding: 0 8px;
     font-size: 11px;

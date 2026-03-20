@@ -6,11 +6,15 @@ import styled from "styled-components"
 export const WrapperTypeProduct = styled.div`
   display: flex;
   align-items: center;
-  gap: 24px;
+  gap: 14px;
   justify-content: flex-start;
   height: auto;
   margin-top: 10px;
   flex-wrap: wrap;
+  padding: 8px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.12), rgba(2, 132, 199, 0.08));
+  border: 1px solid rgba(16, 185, 129, 0.25);
 
   @media (max-width: 768px) {
     justify-content: center;
@@ -20,24 +24,29 @@ export const WrapperTypeProduct = styled.div`
 
 export const WrapperButtonMore = styled(Button)`
   text-align: center;
-  border: 1px solid #A6B28B;
+  border: 1px solid var(--color-accent);
   width: 240px;
-  height: 46px;
-  border-radius: 4px;
+  height: 48px;
+  border-radius: 999px;
+  box-shadow: 0 10px 24px rgba(245, 158, 11, 0.25);
 
-  background-color: ${(props) => (props.disabled ? '#d9d9d9' : '#fff')};
-  color: ${(props) => (props.disabled ? 'red' : 'rgb(11, 116, 229)')};
+  background-color: ${(props) => (props.disabled ? '#d9d9d9' : 'var(--color-accent)')};
+  color: ${(props) => (props.disabled ? '#888' : '#fff')};
   cursor: ${(props) => (props.disabled ? 'not-allowed' : 'pointer')};
 
   span {
-    color: ${(props) => (props.disabled ? '#fff' : '#A6B28B')};
+    color: ${(props) => (props.disabled ? '#fff' : '#fff')};
+    font-weight: 700;
+    letter-spacing: 0.2px;
   }
 
   &:hover {
-    background-color: ${(props) => props.disabled ? '#d9d9d9' : '#A6B28B'} !important;
+    background-color: ${(props) => props.disabled ? '#d9d9d9' : '#dd8d0a'} !important;
+    border-color: ${(props) => props.disabled ? '#d9d9d9' : '#dd8d0a'} !important;
+    transform: ${(props) => props.disabled ? 'none' : 'translateY(-1px)'};
     
     span {
-      color: ${(props) => (props.disabled ? 'red' : '#fff')};
+      color: ${(props) => (props.disabled ? '#fff' : '#fff')};
     }
   }
 `;
@@ -49,12 +58,19 @@ export const WrapperButtonMore = styled(Button)`
 
 export const WrapperProducts = styled.div`
   display: flex;
-  gap: 14px;
+  gap: 16px;
   flex-wrap: wrap;
   justify-content: center;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(248, 250, 252, 0.98));
+  border: 1px solid rgba(2, 132, 199, 0.12);
+  border-radius: 24px;
+  padding: 18px 14px 22px;
+  box-shadow: 0 18px 45px rgba(30, 41, 59, 0.07);
 
   @media (max-width: 768px) {
     gap: 10px;
+    padding: 12px 8px 16px;
+    border-radius: 16px;
   }
 `
 
