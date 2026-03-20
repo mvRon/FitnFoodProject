@@ -415,7 +415,7 @@ const OrderPage = () => {
         >
           <div style={{ flex: 2, minWidth: 320, maxWidth: 900, width: "100%" }}>
             <WrapperStyleHeaderDelivery>
-              <StepComponent items={itemsDelivery} current={deliveryMemo === 20000 ? 0 : deliveryMemo === 10000 ? 1 : deliveryMemo === 0 || order?.orderItemSelected.length === 0 ? 3 : 2} />
+              <StepComponent items={itemsDelivery} current={deliveryMemo === 20000 ? 0 : deliveryMemo === 10000 ? 1 : 2} />
             </WrapperStyleHeaderDelivery>
             <WrapperStyleHeader>
               <span style={{ display: "inline-block", minWidth: 180, width: "40%" }}>
