@@ -1,13 +1,20 @@
-import React from 'react';
-import { Form, Input, Button, Row, Col, Typography } from 'antd';
+import React, { useState } from 'react';
+import { Form, Input, Button, Row, Col, Typography, message } from 'antd';
 import { EyeInvisibleOutlined, EyeTwoTone } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { styles, colors } from './Style';
+import * as UserService from '../../services/UserService';
 
 const { Title, Text } = Typography;
 
 function RegisterPage() {
+  const [form] = Form.useForm();
   const navigate = useNavigate();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [isRegisterMode, setIsRegisterMode] = useState(true);
+  const [verifyCode, setVerifyCode] = useState('');
+  const [registeredEmail, setRegisteredEmail] = useState('');
 
   const formatDobInput = (event) => {
     const digits = event.target.value.replace(/\D/g, '').slice(0, 8);
@@ -17,7 +24,7 @@ function RegisterPage() {
   };
 
   const validateDob = (_, value) => {
-    if (!value) return Promise.reject(new Error('Vui lòng nhập ngày sinh'));
+    if (!value) return Promise.resolve();
     if (!/^\d{2}\/\d{2}\/\d{4}$/.test(value)) {
       return Promise.reject(new Error('Định dạng đúng là DD/MM/YYYY'));
     }
@@ -37,6 +44,71 @@ function RegisterPage() {
     }
 
     return Promise.resolve();
+  };
+
+  const onFinish = async (values) => {
+    const payload = {
+      name: values.name?.trim(),
+      email: values.email?.trim(),
+      password: values.password,
+      confirmPassword: values.confirmPassword,
+      phone: values.phone?.trim(),
+      address: values.address?.trim(),
+      city: values.city?.trim(),
+    };
+
+    try {
+      setIsSubmitting(true);
+      const res = await UserService.registerUser(payload);
+
+      if (res?.status === 'OK') {
+        message.success('Đăng ký thành công. Vui lòng kiểm tra email để xác minh tài khoản.');
+        setRegisteredEmail(payload.email);
+        setIsRegisterMode(false);
+        return;
+      }
+
+      message.error(res?.message || 'Đăng ký thất bại');
+    } catch (error) {
+      message.error(error?.response?.data?.message || 'Đăng ký thất bại, vui lòng thử lại');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleVerifyAccount = async () => {
+    if (!registeredEmail) {
+      message.error('Không tìm thấy email đăng ký để xác minh');
+      return;
+    }
+
+    if (!verifyCode?.trim()) {
+      message.error('Vui lòng nhập mã xác minh');
+      return;
+    }
+
+    try {
+      setIsVerifying(true);
+      const res = await UserService.verifyUser({
+        email: registeredEmail,
+        verificationCode: verifyCode.trim(),
+      });
+
+      if (res?.status === 'OK') {
+        message.success('Xác minh tài khoản thành công. Vui lòng đăng nhập.');
+        form.resetFields();
+        setVerifyCode('');
+        setIsRegisterMode(true);
+        navigate('/login');
+        return;
+      }
+
+      message.error(res?.message || 'Xác minh thất bại');
+    } catch (error) {
+      message.error(error?.response?.data?.message || 'Xác minh thất bại, vui lòng thử lại');
+    } finally {
+      setIsVerifying(false);
+    }
   };
 
   return (
@@ -63,16 +135,25 @@ function RegisterPage() {
           <Col xs={24} md={14}>
             <div style={styles.panel}>
               <Title level={2} style={{ color: colors.text, marginBottom: 0 }}>
-                Đăng ký tài khoản
+                {isRegisterMode ? 'Đăng ký tài khoản' : 'Xác minh tài khoản'}
               </Title>
-              <Text style={styles.panelSubtitle}>Hoàn thiện thông tin để bắt đầu</Text>
+              <Text style={styles.panelSubtitle}>
+                {isRegisterMode
+                  ? 'Hoàn thiện thông tin để bắt đầu'
+                  : 'Nhập mã xác minh được gửi tới email của bạn'}
+              </Text>
 
-              <Form layout="vertical">
+              {isRegisterMode ? (
+              <Form form={form} layout="vertical" onFinish={onFinish}>
                 <Title level={4}>Thông tin cá nhân</Title>
 
                 <Row gutter={16}>
                   <Col xs={24} md={12}>
-                    <Form.Item label="Họ và tên" name="name">
+                    <Form.Item
+                      label="Họ và tên"
+                      name="name"
+                      rules={[{ required: true, message: 'Vui lòng nhập họ và tên' }]}
+                    >
                       <Input size="large" placeholder="Nhập họ và tên" />
                     </Form.Item>
                   </Col>
@@ -96,7 +177,11 @@ function RegisterPage() {
 
                 <Row gutter={16}>
                   <Col xs={24} md={12}>
-                    <Form.Item label="Số điện thoại" name="phone">
+                    <Form.Item
+                      label="Số điện thoại"
+                      name="phone"
+                      rules={[{ required: true, message: 'Vui lòng nhập số điện thoại' }]}
+                    >
                       <Input size="large" placeholder="Nhập số điện thoại" />
                     </Form.Item>
                   </Col>
@@ -115,11 +200,40 @@ function RegisterPage() {
                   </Col>
                 </Row>
 
+                <Row gutter={16}>
+                  <Col xs={24} md={12}>
+                    <Form.Item
+                      label="Địa chỉ"
+                      name="address"
+                      rules={[{ required: true, message: 'Vui lòng nhập địa chỉ' }]}
+                    >
+                      <Input size="large" placeholder="Nhập địa chỉ" />
+                    </Form.Item>
+                  </Col>
+
+                  <Col xs={24} md={12}>
+                    <Form.Item
+                      label="Thành phố"
+                      name="city"
+                      rules={[{ required: true, message: 'Vui lòng nhập thành phố' }]}
+                    >
+                      <Input size="large" placeholder="Nhập thành phố" />
+                    </Form.Item>
+                  </Col>
+                </Row>
+
                 <Title level={4}>Tạo mật khẩu</Title>
 
                 <Row gutter={16}>
                   <Col xs={24} md={12}>
-                    <Form.Item label="Mật khẩu" name="password">
+                    <Form.Item
+                      label="Mật khẩu"
+                      name="password"
+                      rules={[
+                        { required: true, message: 'Vui lòng nhập mật khẩu' },
+                        { min: 6, message: 'Mật khẩu tối thiểu 6 ký tự' },
+                      ]}
+                    >
                       <Input.Password
                         size="large"
                         placeholder="Nhập mật khẩu"
@@ -131,7 +245,22 @@ function RegisterPage() {
                   </Col>
 
                   <Col xs={24} md={12}>
-                    <Form.Item label="Nhập lại mật khẩu" name="confirmPassword">
+                    <Form.Item
+                      label="Nhập lại mật khẩu"
+                      name="confirmPassword"
+                      dependencies={['password']}
+                      rules={[
+                        { required: true, message: 'Vui lòng nhập lại mật khẩu' },
+                        ({ getFieldValue }) => ({
+                          validator(_, value) {
+                            if (!value || getFieldValue('password') === value) {
+                              return Promise.resolve();
+                            }
+                            return Promise.reject(new Error('Mật khẩu nhập lại không khớp'));
+                          },
+                        }),
+                      ]}
+                    >
                       <Input.Password
                         size="large"
                         placeholder="Nhập lại mật khẩu"
@@ -155,12 +284,65 @@ function RegisterPage() {
                   </Col>
 
                   <Col xs={24} md={12}>
-                    <Button type="primary" style={styles.submitButton} block onClick={console.log('Register')}>
+                    <Button
+                      type="primary"
+                      htmlType="submit"
+                      style={styles.submitButton}
+                      loading={isSubmitting}
+                      block
+                    >
                       Hoàn tất đăng ký
                     </Button>
                   </Col>
                 </Row>
               </Form>
+              ) : (
+                <Form layout="vertical">
+                  <Form.Item label="Email đã đăng ký">
+                    <Input size="large" value={registeredEmail} disabled />
+                  </Form.Item>
+
+                  <Form.Item
+                    label="Mã xác minh"
+                    required
+                    rules={[{ required: true, message: 'Vui lòng nhập mã xác minh' }]}
+                  >
+                    <Input
+                      size="large"
+                      placeholder="Nhập mã xác minh"
+                      value={verifyCode}
+                      onChange={(e) => setVerifyCode(e.target.value)}
+                    />
+                  </Form.Item>
+
+                  <Row gutter={16} style={{ marginTop: 24 }}>
+                    <Col xs={24} md={12} style={{ marginBottom: 10 }}>
+                      <Button
+                        style={styles.backButton}
+                        block
+                        onClick={() => {
+                          setIsRegisterMode(true);
+                          setVerifyCode('');
+                        }}
+                      >
+                        Quay lại đăng ký
+                      </Button>
+                    </Col>
+
+                    <Col xs={24} md={12}>
+                      <Button
+                        type="primary"
+                        style={styles.submitButton}
+                        loading={isVerifying}
+                        block
+                        onClick={handleVerifyAccount}
+                      >
+                        Xác minh tài khoản
+                      </Button>
+                    </Col>
+                  </Row>
+                </Form>
+              )}
             </div>
           </Col>
         </Row>
