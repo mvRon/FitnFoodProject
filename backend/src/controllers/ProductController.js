@@ -32,13 +32,14 @@ const updateProduct = async (req, res) => {
     try {
         const productId = req.params.id;
         const data = req.body;
+        const userId = req.user?.id;
         if (!productId) {
             return res.status(200).json({
                 status: "ERR",
                 message: "Product ID is required!"
             })
         }
-        const response = await ProducService.updateProduct(productId, data)
+        const response = await ProducService.updateProduct(productId, data, userId)
         return res.status(200).json(response)
     } catch (e) {
         return res.status(404).json({

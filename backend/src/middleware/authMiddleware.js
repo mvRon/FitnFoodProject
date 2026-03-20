@@ -11,6 +11,7 @@ const authMiddleWare = (req, res, next) => {
                 return res.status(404).json({ message: "The authentication", status: "ERROR" });
             }
             if (user?.isAdmin) {
+                req.user = user;
                 next();
             } else {
                 return res.status(404).json({ message: "The authentication", status: "ERROR" });

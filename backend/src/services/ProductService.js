@@ -1,4 +1,5 @@
 const Product = require("../models/ProductModel");
+const InventoryService = require("./InventoryService");
 
 
 const createProduct = (newProduct) => {
@@ -31,14 +32,93 @@ const createProduct = (newProduct) => {
     })
 }
 
-const updateProduct = (productId, data) => {
+const updateProduct = (productId, data, userId) => {
     return new Promise(async (resolve, reject) => {
         try {
-            const updatedProduct = await Product.findByIdAndUpdate(
-                productId,
-                data,
-                { new: true }
-            );
+            const productData = await Product.findById(productId);
+
+            if (!productData) {
+                return resolve({
+                    status: "ERR",
+                    message: "Product not found!"
+                });
+            }
+
+            const updateData = { ...(data || {}) };
+            const hasCountInStockUpdate = Object.prototype.hasOwnProperty.call(updateData, "countInStock");
+
+            if (hasCountInStockUpdate) {
+                if (!userId) {
+                    return resolve({
+                        status: "ERR",
+                        message: "User context is required for stock adjustment"
+                    });
+                }
+
+                const nextStock = Number(updateData.countInStock);
+                if (!Number.isFinite(nextStock) || nextStock < 0) {
+                    return resolve({
+                        status: "ERR",
+                        message: "countInStock must be a non-negative number"
+                    });
+                }
+
+                const currentStock = Number(productData.countInStock || 0);
+                const stockDelta = nextStock - currentStock;
+
+                if (stockDelta !== 0) {
+                    const quantity = Math.abs(stockDelta);
+                    const note = `Stock adjusted from update-product API for product ${productId}`;
+
+                    const adjustmentResponse = stockDelta > 0
+                        ? await InventoryService.createImportVoucher(
+                            {
+                                sourceType: "ADJUSTMENT",
+                                status: "confirmed",
+                                note,
+                                items: [{
+                                    product: productId,
+                                    quantity,
+                                    unitPrice: 0,
+                                }],
+                            },
+                            userId
+                        )
+                        : await InventoryService.createExportVoucher(
+                            {
+                                exportReason: "ADJUSTMENT",
+                                insufficientAction: "error",
+                                note,
+                                items: [{
+                                    product: productId,
+                                    quantity,
+                                    unitPrice: 0,
+                                }],
+                            },
+                            userId
+                        );
+
+                    if (adjustmentResponse.status !== "OK") {
+                        return resolve(adjustmentResponse);
+                    }
+                }
+
+                delete updateData.countInStock;
+            }
+
+            delete updateData.lastStockMovementAt;
+
+            let updatedProduct = null;
+            if (Object.keys(updateData).length > 0) {
+                updatedProduct = await Product.findByIdAndUpdate(
+                    productId,
+                    updateData,
+                    { new: true }
+                );
+            } else {
+                updatedProduct = await Product.findById(productId);
+            }
+
             if (updatedProduct) {
                 resolve({
                     status: "OK",
