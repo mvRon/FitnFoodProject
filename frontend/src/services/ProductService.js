@@ -1,0 +1,244 @@
+import axios from "axios";
+import { axiosJWT } from "./UserService";
+
+export const getAllProduct = async (search, limit) => {
+    let res = {};
+    if (search) {
+        res = await axios.get(
+            `${process.env.REACT_APP_API_URL_BACKEND}/product/get-all-products?filter=name&filter=${search}&limit=${limit}`,
+            { withCredentials: true }
+        );
+        return res.data;
+    } else {
+        res = await axios.get(
+            `${process.env.REACT_APP_API_URL_BACKEND}/product/get-all-products?limit=${limit || 1000}`,
+            { withCredentials: true }
+        );
+        return res.data;
+    }
+};
+
+export const getProductByType = async (typeId, page, limit) => {
+    let res = {};
+    if (typeId) {
+        res = await axios.get(
+            `${process.env.REACT_APP_API_URL_BACKEND}/product/get-all-products?filter=typeId&filter=${typeId}&limit=${limit}&page=${page}`,
+            { withCredentials: true }
+        );
+        return res.data;
+    }
+    return res.data;
+};
+
+export const createProduct = async (data) => {
+    const res = await axios.post(
+        `${process.env.REACT_APP_API_URL_BACKEND}/product/createProduct`,
+        data,
+        { withCredentials: true }
+    );
+    return res.data;
+};
+
+export const commentProduct = async (id, access_token, data) => {
+    const res = await axiosJWT.post(
+        `${process.env.REACT_APP_API_URL_BACKEND}/product/${id}/review`,
+        data,
+        {
+            headers: {
+                token: `Bearer ${access_token}`,
+            },
+        }
+    );
+    return res.data;
+};
+
+export const getAllComment = async (id) => {
+    // Sử dụng axios thường, không truyền access_token, không truyền header
+    const res = await axios.get(
+        `${process.env.REACT_APP_API_URL_BACKEND}/product/${id}/reviews`
+    );
+    return res.data;
+};
+
+export const getDetailProduct = async (id) => {
+    const res = await axios.get(
+        `${process.env.REACT_APP_API_URL_BACKEND}/product/get-details-product/${id}`,
+        { withCredentials: true }
+    );
+    return res.data;
+};
+
+export const updateProduct = async (id, access_token, data) => {
+    const res = await axiosJWT.put(
+        `${process.env.REACT_APP_API_URL_BACKEND}/product/updateProduct/${id}`,
+        data,
+        {
+            headers: {
+                token: `Bearer ${access_token}`,
+            },
+        }
+    );
+    return res.data;
+};
+
+export const deleteProduct = async (id, access_token) => {
+    const res = await axiosJWT.delete(
+        `${process.env.REACT_APP_API_URL_BACKEND}/product/deleteProduct/${id}`,
+        {
+            headers: {
+                token: `Bearer ${access_token}`,
+            },
+        }
+    );
+    return res.data;
+};
+
+export const deleteManyProduct = async (ids, access_token) => {
+    const res = await axiosJWT.post(
+        `${process.env.REACT_APP_API_URL_BACKEND}/product/deleteManyProduct`,
+        ids,
+        {
+            headers: {
+                token: `Bearer ${access_token}`,
+            },
+        }
+    );
+    return res.data;
+};
+
+export const getAllTypeProduct = async () => {
+    const res = await axios.get(
+        `${process.env.REACT_APP_API_URL_BACKEND}/product/getAllTypeProduct`
+    );
+    return res.data;
+};
+
+export const addCommentProduct = async (id, access_token, data) => {
+    const res = await axiosJWT.post(
+        `${process.env.REACT_APP_API_URL_BACKEND}/product/${id}/comment`,
+        data,
+        {
+            headers: {
+                token: `Bearer ${access_token}`,
+            },
+        }
+    );
+    return res.data;
+};
+
+// Kiểm tra quyền đánh giá sản phẩm
+export const checkRatingPermission = async (productId, access_token) => {
+    try {
+        const res = await axiosJWT.get(
+            `${process.env.REACT_APP_API_URL_BACKEND}/product/${productId}/check-rating-permission`,
+            {
+                headers: {
+                    token: `Bearer ${access_token}`,
+                },
+            }
+        );
+        return res.data;
+    } catch (err) {
+        return { status: 'ERROR', message: err.response?.data?.message || err.message };
+    }
+};
+
+export const addRatingProduct = async (id, access_token, data) => {
+    try {
+        const res = await axiosJWT.post(
+            `${process.env.REACT_APP_API_URL_BACKEND}/product/${id}/rating`,
+            data,
+            {
+                headers: {
+                    token: `Bearer ${access_token}`,
+                },
+            }
+        );
+        return res.data;
+    } catch (err) {
+        return { status: 'ERROR', message: err.response?.data?.message || err.message };
+    }
+};
+
+export const addReplyToReview = async (productId, reviewId, access_token, data) => {
+    try {
+        const res = await axiosJWT.post(
+            `${process.env.REACT_APP_API_URL_BACKEND}/product/${productId}/reviews/${reviewId}/replies`,
+            data,
+            {
+                headers: {
+                    token: `Bearer ${access_token}`,
+                },
+            }
+        );
+        return res.data;
+    } catch (err) {
+        return { status: 'ERR', message: err.response?.data?.message || err.message };
+    }
+};
+
+export const updateReplyOfReview = async (productId, reviewId, replyId, access_token, data) => {
+    try {
+        const res = await axiosJWT.put(
+            `${process.env.REACT_APP_API_URL_BACKEND}/product/${productId}/reviews/${reviewId}/replies/${replyId}`,
+            data,
+            {
+                headers: {
+                    token: `Bearer ${access_token}`,
+                },
+            }
+        );
+        return res.data;
+    } catch (err) {
+        return { status: 'ERR', message: err.response?.data?.message || err.message };
+    }
+};
+
+export const deleteReplyOfReview = async (productId, reviewId, replyId, access_token) => {
+    try {
+        const res = await axiosJWT.delete(
+            `${process.env.REACT_APP_API_URL_BACKEND}/product/${productId}/reviews/${reviewId}/replies/${replyId}`,
+            {
+                headers: {
+                    token: `Bearer ${access_token}`,
+                },
+            }
+        );
+        return res.data;
+    } catch (err) {
+        return { status: 'ERR', message: err.response?.data?.message || err.message };
+    }
+};
+
+export const updateCommentProduct = async (productId, reviewId, access_token, data) => {
+    try {
+        const res = await axiosJWT.put(
+            `${process.env.REACT_APP_API_URL_BACKEND}/product/${productId}/comment/${reviewId}`,
+            data,
+            {
+                headers: {
+                    token: `Bearer ${access_token}`,
+                },
+            }
+        );
+        return res.data;
+    } catch (err) {
+        return { status: 'ERR', message: err.response?.data?.message || err.message };
+    }
+};
+
+export const deleteCommentProduct = async (productId, reviewId, access_token) => {
+    try {
+        const res = await axiosJWT.delete(
+            `${process.env.REACT_APP_API_URL_BACKEND}/product/${productId}/reviews/${reviewId}`,
+            {
+                headers: {
+                    token: `Bearer ${access_token}`,
+                },
+            }
+        );
+        return res.data;
+    } catch (err) {
+        return { status: 'ERR', message: err.response?.data?.message || err.message };
+    }
+};

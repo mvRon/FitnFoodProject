@@ -10,7 +10,7 @@ import * as UserService from '../../services/UserService'
 import { resetUser } from '../../redux/slice/userSlice';
 import { searchProduct } from '../../redux/slice/productSlice';
 import Logo from '../../logo.svg'
-import { clearOrder } from '../../redux/slice/orderSlice';
+import { clearOrder, syncCart } from '../../redux/slice/orderSlice';
 
 // import {
 //   AvatarImage,
@@ -40,13 +40,24 @@ const HeaderComponent = ({ isHiddenSearch = false, isHiddenCart = false }) => {
   }
 
   const handleLogout = async () => {
-    setIsLoading(true)
-    await UserService.logoutUser()
-    dispatch(resetUser())
-    dispatch(clearOrder())
-    setIsLoading(false)
-    handleHome()
-    message.success("Đăng xuất thành công!")
+    try {
+      setIsLoading(true)
+
+      // Persist the latest cart state before clearing local redux on logout.
+      if (user?.id) {
+        await dispatch(syncCart({ userId: user.id, cartItems: order?.orderItems || [] }))
+      }
+
+      await UserService.logoutUser()
+      dispatch(resetUser())
+      dispatch(clearOrder())
+      handleHome()
+      message.success("Đăng xuất thành công!")
+    } catch (error) {
+      message.error("Có lỗi khi đăng xuất, vui lòng thử lại")
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   useEffect(() => {
@@ -90,6 +101,8 @@ const HeaderComponent = ({ isHiddenSearch = false, isHiddenCart = false }) => {
     dispatch(searchProduct(e.target.value))
 
   }
+
+
 
 
   return (
@@ -190,7 +203,7 @@ const HeaderComponent = ({ isHiddenSearch = false, isHiddenCart = false }) => {
           {/* Cart */}
           {!isHiddenCart && (
             <div onClick={() => navigate('/order')} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 2 }}>
-              <Badge count={user?.access_token ? order?.orderItems.length : 0} size="small">
+              <Badge count={user?.access_token ? order?.orderItems?.length : 0} size="small">
                 <ShoppingCartOutlined style={{ color: 'var(--color-white)', fontSize: 24 }} />
               </Badge>
               <span className="cart-label" style={{ color: 'var(--color-white)', fontSize: 12, fontWeight: 500, display: 'none' }}>Giỏ hàng</span>

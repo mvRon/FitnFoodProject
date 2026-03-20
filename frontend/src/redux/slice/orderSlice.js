@@ -5,16 +5,25 @@ import * as CartService from '../../services/CartService'
 
 // ======= Async Thunks =======
 
+const getAccessTokenFromState = (state) => {
+  const tokenFromRedux = state?.user?.access_token
+  if (tokenFromRedux) return tokenFromRedux
+  return localStorage.getItem('access_token')
+}
+
 // Lấy giỏ hàng từ backend khi người dùng đăng nhập
-export const fetchCart = createAsyncThunk('order/fetchCart', async (userId) => {
-  const data = await CartService.getCart(userId)
-  return data.items
+export const fetchCart = createAsyncThunk('order/fetchCart', async (userId, thunkAPI) => {
+  const access_token = getAccessTokenFromState(thunkAPI.getState())
+  const data = await CartService.getCart(userId, access_token)
+  return data?.data?.items || []
 })
 
 // Gửi giỏ hàng lên backend khi người dùng đăng xuất
-export const syncCart = createAsyncThunk('order/syncCart', async ({ userId, cartItems }) => {
-  const data = await CartService.updateCart(userId, cartItems)
-  return data.items
+export const syncCart = createAsyncThunk('order/syncCart', async ({ userId, cartItems }, thunkAPI) => {
+  const access_token = getAccessTokenFromState(thunkAPI.getState())
+  const latestCartItems = cartItems ?? thunkAPI.getState()?.order?.orderItems ?? []
+  const data = await CartService.updateCart(userId, latestCartItems, access_token)
+  return data?.data?.items || []
 })
 
 export const orderSlice = createSlice({
