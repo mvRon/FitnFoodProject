@@ -1,5 +1,5 @@
 import React from 'react'
-import { StyledLogo, StyleNameProduct, WrapperCardStyle, WrapperDiscountText, WrapperPriceText, WrapperReportText, WrapperStyleTextSell } from './Style';
+import { OriginalPriceText, RatingValueText, SalePriceText, StyledLogo, StyledRatingStar, StyleNameProduct, WrapperCardStyle, WrapperDiscountText, WrapperPriceText, WrapperReportText, WrapperStyleTextSell } from './Style';
 import { StarFilled } from '@ant-design/icons';
 import { Image, Typography } from 'antd';
 import { useLocation, useNavigate } from 'react-router-dom'
@@ -37,13 +37,14 @@ const CardComponent = (props) => {
             <div>
                 <WrapperReportText>
                     <span style={{ marginRight: '4px' }}>
-                        <span>{(typeof rating === 'number' ? rating.toFixed(1).replace('.', ',') : (Number.parseFloat(rating)?.toFixed(1).replace('.', ',') || '2,0'))} </span> {<StarFilled style={{ fontSize: '12px', color: 'yellow' }} />}
+                        <RatingValueText>{(typeof rating === 'number' ? rating.toFixed(1).replace('.', ',') : (Number.parseFloat(rating)?.toFixed(1).replace('.', ',') || '2,0'))} </RatingValueText>
+                        {<StyledRatingStar><StarFilled /></StyledRatingStar>}
                     </span>
                     <WrapperStyleTextSell> | Đã bán {sold || 5}</WrapperStyleTextSell>
                 </WrapperReportText>
                 <WrapperPriceText>
-                    <Text delete style={{ marginRight: '8px' }}>{convertPrice(price) || 100000}</Text>
-                    <Text style={{ marginRight: '8px', color: 'red' }}>{convertPrice(priceAfterDiscount) || 100000} <WrapperDiscountText>- {discount || 5}%</WrapperDiscountText></Text>
+                    <OriginalPriceText><Text delete>{convertPrice(price) || 100000}</Text></OriginalPriceText>
+                    <SalePriceText>{convertPrice(priceAfterDiscount) || 100000} <WrapperDiscountText>- {discount || 5}%</WrapperDiscountText></SalePriceText>
                 </WrapperPriceText>
             </div>
         </WrapperCardStyle>

@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState, useCallback } from 'react';
-import { List, Avatar, Space, message, Typography, Rate, Dropdown, Menu, Button } from 'antd';
+import { List, Avatar, Space, message, Typography, Rate, Dropdown, Button } from 'antd';
 import { UserOutlined, MoreOutlined } from '@ant-design/icons';
 import { useSelector, useDispatch } from 'react-redux';
 import * as ProductService from '../../services/ProductService';
@@ -210,12 +210,21 @@ const CommentSection = ({ productId, refreshTrigger }) => {
                                                 <Dropdown
                                                     trigger={['click']}
                                                     placement="bottomRight"
-                                                    overlay={
-                                                        <Menu>
-                                                            <Menu.Item key="edit" onClick={() => handleEditComment(item._id, item.comment)}>Sửa</Menu.Item>
-                                                            <Menu.Item key="delete" onClick={() => handleDeleteComment(item._id)}>Xóa</Menu.Item>
-                                                        </Menu>
-                                                    }
+                                                    menu={{
+                                                        items: [
+                                                            {
+                                                                key: 'edit',
+                                                                label: 'Sửa',
+                                                                onClick: () => handleEditComment(item._id, item.comment),
+                                                            },
+                                                            {
+                                                                key: 'delete',
+                                                                label: 'Xóa',
+                                                                danger: true,
+                                                                onClick: () => handleDeleteComment(item._id),
+                                                            },
+                                                        ],
+                                                    }}
                                                 >
                                                     <Button icon={<MoreOutlined />} type="text" size="small" />
                                                 </Dropdown>

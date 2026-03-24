@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { List, Avatar, Space, message, Dropdown } from 'antd';
+import { List, Avatar, Space, message, Dropdown, Button } from 'antd';
 import { UserOutlined, MoreOutlined } from '@ant-design/icons';
 import moment from 'moment';
 import * as ProductService from '../../services/ProductService';
@@ -140,7 +140,12 @@ const ReplyComponent = ({ productId, reviewId, replies, access_token, userId, fe
                                             trigger={['click']}
                                             placement="bottomRight"
                                         >
-                                            <MoreOutlined style={{ fontSize: '16px', cursor: 'pointer', color: '#666' }} />
+                                            <Button
+                                                icon={<MoreOutlined />}
+                                                type="text"
+                                                size="small"
+                                                style={{ color: '#666' }}
+                                            />
                                         </Dropdown>
                                     )}</ReplyText>}
                                 />
