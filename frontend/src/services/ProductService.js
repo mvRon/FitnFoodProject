@@ -32,7 +32,7 @@ export const getProductByType = async (typeId, page, limit) => {
 
 export const createProduct = async (data) => {
     const res = await axios.post(
-        `${process.env.REACT_APP_API_URL_BACKEND}/product/createProduct`,
+        `${process.env.REACT_APP_API_URL_BACKEND}/product/create-product`,
         data,
         { withCredentials: true }
     );
@@ -83,7 +83,7 @@ export const updateProduct = async (id, access_token, data) => {
 
 export const deleteProduct = async (id, access_token) => {
     const res = await axiosJWT.delete(
-        `${process.env.REACT_APP_API_URL_BACKEND}/product/deleteProduct/${id}`,
+        `${process.env.REACT_APP_API_URL_BACKEND}/product/delete-product/${id}`,
         {
             headers: {
                 token: `Bearer ${access_token}`,
@@ -95,7 +95,7 @@ export const deleteProduct = async (id, access_token) => {
 
 export const deleteManyProduct = async (ids, access_token) => {
     const res = await axiosJWT.post(
-        `${process.env.REACT_APP_API_URL_BACKEND}/product/deleteManyProduct`,
+        `${process.env.REACT_APP_API_URL_BACKEND}/product/delete-many-products`,
         ids,
         {
             headers: {
