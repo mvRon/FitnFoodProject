@@ -196,6 +196,24 @@ const getAllProducts = () => {
     });
 }
 
+const getAllTypeProducts = () => {
+    return new Promise(async (resolve, reject) => {
+        try {
+            const AllType = await Product.distinct('type')
+            resolve({
+                status: "OK",
+                message: "All types retrieved successfully!",
+                data: AllType,
+            })
+        } catch (e) {
+            reject(e);
+        }
+    })
+}
+
+
+
+
 const addComment = async (productId, { user, comment }) => {
     try {
         const product = await Product.findById(productId);
@@ -434,5 +452,6 @@ module.exports = {
     updateReplyOfReview,
     deleteReplyOfReview,
     deleteReview,
-    checkRatingPermission
+    checkRatingPermission,
+    getAllTypeProducts
 }

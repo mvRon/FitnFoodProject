@@ -70,7 +70,7 @@ export const getDetailProduct = async (id) => {
 
 export const updateProduct = async (id, access_token, data) => {
     const res = await axiosJWT.put(
-        `${process.env.REACT_APP_API_URL_BACKEND}/product/updateProduct/${id}`,
+        `${process.env.REACT_APP_API_URL_BACKEND}/product/update-product/${id}`,
         data,
         {
             headers: {
@@ -108,7 +108,7 @@ export const deleteManyProduct = async (ids, access_token) => {
 
 export const getAllTypeProduct = async () => {
     const res = await axios.get(
-        `${process.env.REACT_APP_API_URL_BACKEND}/product/getAllTypeProduct`
+        `${process.env.REACT_APP_API_URL_BACKEND}/product/get-all-type-products`,
     );
     return res.data;
 };
