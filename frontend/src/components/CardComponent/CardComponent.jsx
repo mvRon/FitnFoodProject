@@ -4,7 +4,7 @@ import { StarFilled } from '@ant-design/icons';
 import { Image, Typography } from 'antd';
 import { useLocation, useNavigate } from 'react-router-dom'
 import { convertPrice } from '../../utils'
-import testIMG from '../../assets/kjw1.jpeg'
+// import testIMG from '../../assets/kjw1.jpeg'
 
 const { Title, Text } = Typography;
 const CardComponent = (props) => {
@@ -25,13 +25,13 @@ const CardComponent = (props) => {
                 header: { width: '200px', height: '200px' },
                 body: { padding: '10px' }
             }}
-            cover={<img alt="example" src={testIMG} />}
+            cover={<img alt="example" src={image} />}
             onClick={() => countInStock !== 0 && handleDetailProduct(id)}
             disabled={countInStock === 0}
         >
 
             <div>
-                <StyledLogo src={testIMG} preview={false} />
+                <StyledLogo src={image} preview={false} />
                 <StyleNameProduct>{name || 'Demo'}</StyleNameProduct>
             </div>
             <div>
