@@ -9,7 +9,7 @@ import HeaderComponent from '../../components/HeaderComponent/HeaderComponent';
 // import { retry } from '@reduxjs/toolkit/query';
 import AdminProductComponent from '../../components/AdminProductComponent/AdminProductComponent';
 // import AdminOrderComponent from '../../components/AdminOrderComponent/AdminOrderComponent.jsx'
-// import AdminCategoryComponent from '../../components/AdminCategoryComponent/AdminCategoryComponent.jsx';
+import AdminCategoryComponent from '../../components/AdminCategoryComponent/AdminCategoryComponent.jsx';
 // import AdminBannerComponent from '../../components/AdminBannerComponent/AdminBannerComponent.jsx';
 // import AdminDiscountComponent from '../../components/AdminDiscountComponent/AdminDiscountComponent.jsx';
 
@@ -25,10 +25,10 @@ const AdminPage = () => {
                 return (
                     <AdminProductComponent />
                 )
-            // case 'Category':
-            //     return (
-            //         <AdminCategoryComponent />
-            //     )
+            case 'Category':
+                return (
+                    <AdminCategoryComponent />
+                )
             // case 'Order':
             //     return (
             //         <AdminOrderComponent />
