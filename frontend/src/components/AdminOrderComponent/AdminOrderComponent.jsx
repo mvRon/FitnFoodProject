@@ -124,20 +124,20 @@ const AdminOrderComponent = () => {
 
     const getColumnSearchProps = (dataIndex) => ({
         filterDropdown: ({ setSelectedKeys, selectedKeys, confirm, clearFilters, close }) => (
-            <div style={{ padding: 8 }} onKeyDown={(e) => e.stopPropagation()}>
+            <div className="admin-order-filter-dropdown" onKeyDown={(e) => e.stopPropagation()}>
                 <Input
                     ref={searchInput}
                     placeholder={`Tìm ${dataIndex}`}
                     value={selectedKeys[0]}
                     onChange={(e) => setSelectedKeys(e.target.value ? [e.target.value] : [])}
                     onPressEnter={() => handleSearch(selectedKeys, confirm, dataIndex)}
-                    style={{ marginBottom: 8, display: "block" }}
+                    className="admin-order-filter-input"
                 />
                 <Space>
-                    <Button type="primary" onClick={() => handleSearch(selectedKeys, confirm, dataIndex)} icon={<SearchOutlined />} size="small" style={{ width: 90 }}>
+                    <Button className="admin-order-filter-btn admin-order-filter-btn-primary" type="primary" onClick={() => handleSearch(selectedKeys, confirm, dataIndex)} icon={<SearchOutlined />} size="small">
                         Tìm
                     </Button>
-                    <Button onClick={() => clearFilters && handleReset(clearFilters)} size="small" style={{ width: 90 }}>
+                    <Button className="admin-order-filter-btn" onClick={() => clearFilters && handleReset(clearFilters)} size="small">
                         Đặt lại
                     </Button>
                     <Button type="link" size="small" onClick={() => close()}>
@@ -146,7 +146,7 @@ const AdminOrderComponent = () => {
                 </Space>
             </div>
         ),
-        filterIcon: (filtered) => <SearchOutlined style={{ color: filtered ? "#1677ff" : undefined }} />,
+        filterIcon: (filtered) => <SearchOutlined style={{ color: filtered ? "#0284C7" : undefined }} />,
         onFilter: (value, record) => record[dataIndex]?.toString().toLowerCase().includes(value.toLowerCase()),
         onFilterDropdownOpenChange: (open) => {
             if (open) {
@@ -324,7 +324,7 @@ const AdminOrderComponent = () => {
                 className="admin-order-modal"
             >
                 <LoadingComponent isPending={isLoading || mutationUpdateOrder.isPending}>
-                    <Form layout="vertical" form={form} onFinish={handleUpdateOrder} forceRender >
+                    <Form className="admin-order-form" layout="vertical" form={form} onFinish={handleUpdateOrder} forceRender >
                         <Form.Item label="Khách hàng" name="customerName">
                             <Input disabled />
                         </Form.Item>

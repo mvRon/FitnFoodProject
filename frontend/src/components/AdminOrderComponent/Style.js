@@ -13,6 +13,14 @@ export const OrderGlobalStyle = createGlobalStyle`
     animation: adminOrderFadeIn 0.35s ease;
   }
 
+  .admin-order-page .ant-table {
+    font-size: 14px;
+  }
+
+  .admin-order-page .ant-table-tbody > tr:hover > td {
+    background: rgba(2, 132, 199, 0.05) !important;
+  }
+
   .admin-order-table-wrap {
     border: 1px solid rgba(2, 132, 199, 0.16);
     border-radius: 16px;
@@ -31,6 +39,56 @@ export const OrderGlobalStyle = createGlobalStyle`
     color: #0369A1;
     background: rgba(2, 132, 199, 0.08);
     font-weight: 700;
+    font-size: 14px;
+  }
+
+  .admin-order-filter-dropdown {
+    padding: 10px;
+    border-radius: 12px;
+    border: 1px solid rgba(2, 132, 199, 0.16);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.98));
+    min-width: 250px;
+  }
+
+  .admin-order-filter-input {
+    margin-bottom: 8px;
+    display: block;
+    border-radius: 8px;
+  }
+
+  .admin-order-filter-btn {
+    width: 90px;
+    border-color: rgba(2, 132, 199, 0.28);
+    color: #0369A1;
+  }
+
+  .admin-order-filter-btn-primary {
+    border: none !important;
+    color: #fff !important;
+    background: linear-gradient(135deg, #10B981, #0284C7) !important;
+  }
+
+  .admin-order-form .ant-form-item {
+    margin-bottom: 14px;
+  }
+
+  .admin-order-form .ant-form-item-label > label {
+    font-weight: 600;
+    color: #1E293B;
+    font-size: 14px;
+  }
+
+  .admin-order-form .ant-input,
+  .admin-order-form .ant-select-selector {
+    border-radius: 10px !important;
+    border-color: rgba(2, 132, 199, 0.22) !important;
+  }
+
+  .admin-order-form .ant-input:focus,
+  .admin-order-form .ant-input-focused,
+  .admin-order-form .ant-select-focused .ant-select-selector {
+    border-color: #0284C7 !important;
+    box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.16) !important;
   }
 
   .admin-order-action-btn {
@@ -131,9 +189,9 @@ export const OrderPageContainer = styled.div`
 `;
 
 export const WrapperHeader = styled.h2`
-  font-size: 28px;
+  font-size: 24px;
   font-weight: 700;
-  margin-bottom: 16px;
+  margin-bottom: 14px;
   color: #0F766E;
   letter-spacing: 0.2px;
 `;
