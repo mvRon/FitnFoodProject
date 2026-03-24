@@ -147,14 +147,14 @@ const RatingSection = ({ productId, refreshAll }) => {
 
     return (
         <RatingSectionWrapper>
-            <Title level={4} style={{ textAlign: 'center', marginBottom: '25px', color: '#2d3748' }}>
+            <Title level={4} style={{ textAlign: 'center', marginBottom: '25px', color: '#1E293B', fontWeight: 700, letterSpacing: 0.2 }}>
                 Đánh giá sản phẩm
             </Title>
 
             <RatingAverageContainer>
                 <RatingAverageScore>{averageRating.toFixed(1)}</RatingAverageScore>
                 <RatingStarsDisplay>
-                    <Rate disabled allowHalf value={averageRating} style={{ fontSize: '22px', color: '#f6ad55' }} />
+                    <Rate disabled allowHalf value={averageRating} style={{ fontSize: '22px', color: '#F59E0B' }} />
                 </RatingStarsDisplay>
                 <RatingAverageText>Tổng {totalValidReviews} lượt đánh giá</RatingAverageText>
             </RatingAverageContainer>
@@ -167,7 +167,7 @@ const RatingSection = ({ productId, refreshAll }) => {
                         <RatingBreakdownItem key={star}>
                             <RatingStarLabel>
                                 <Tooltip title={`${star} sao`}>
-                                    <Rate disabled defaultValue={star} count={1} style={{ fontSize: 16, color: '#f6ad55' }} />
+                                    <Rate disabled defaultValue={star} count={1} style={{ fontSize: 16, color: '#F59E0B' }} />
                                 </Tooltip>
                             </RatingStarLabel>
                             <StyledProgress percent={percent} showInfo={false} />
@@ -183,15 +183,15 @@ const RatingSection = ({ productId, refreshAll }) => {
                     <RatingInputContainer>
                         <Title level={5} style={{ margin: 0, whiteSpace: 'nowrap' }}>Đánh giá của bạn:</Title>
                         {isCheckingPermission ? (
-                            <div style={{ textAlign: 'center', padding: '20px' }}>
-                                <Typography.Text>Đang kiểm tra quyền đánh giá...</Typography.Text>
+                            <div style={{ textAlign: 'center', padding: '20px', width: '100%', border: '1px dashed rgba(2,132,199,0.28)', borderRadius: 12, background: 'rgba(248,250,252,0.86)' }}>
+                                <Typography.Text style={{ color: '#0284C7' }}>Đang kiểm tra quyền đánh giá...</Typography.Text>
                             </div>
                         ) : canRate ? (
                             <>
                                 <StyledRate onChange={handleStarChange} value={userRating} />
                                 {showCommentBox && (
-                                    <div style={{ width: '100%', marginTop: 10 }}>
-                                        <Typography.Text>Bạn nghĩ gì về sản phẩm này?</Typography.Text>
+                                    <div style={{ width: '100%', marginTop: 10, padding: 12, borderRadius: 12, border: '1px solid rgba(16,185,129,0.24)', background: 'linear-gradient(160deg, rgba(16,185,129,0.08), rgba(248,250,252,0.7))' }}>
+                                        <Typography.Text style={{ color: '#0F766E', fontWeight: 600 }}>Bạn nghĩ gì về sản phẩm này?</Typography.Text>
                                         <StyledTextArea
                                             rows={3}
                                             value={commentContent}
@@ -206,8 +206,8 @@ const RatingSection = ({ productId, refreshAll }) => {
                                 </StyledRatingSubmitButton>
                             </>
                         ) : (
-                            <div style={{ textAlign: 'center', padding: '20px', color: '#ff4d4f' }}>
-                                <Typography.Text>
+                            <div style={{ textAlign: 'center', padding: '20px', color: '#B45309', width: '100%', border: '1px solid rgba(245,158,11,0.35)', borderRadius: 12, background: 'rgba(245,158,11,0.08)' }}>
+                                <Typography.Text style={{ color: '#B45309' }}>
                                     Bạn cần mua sản phẩm này và đợi đơn hàng được giao để có thể đánh giá.
                                 </Typography.Text>
                             </div>

@@ -16,10 +16,14 @@ const ReviewComment = ({ refreshTrigger, productId, setRefreshTrigger }) => {
 
 
     return (
-        <>
-            <RatingSection productId={productId} refreshAll={refreshAll} />
-            <CommentSection productId={productId} refreshTrigger={refreshTrigger} />
-        </>
+        <div style={{ display: 'grid', gap: 18 }}>
+            <div style={{ background: 'linear-gradient(165deg, #FFFFFF, rgba(248,250,252,0.96))', border: '1px solid rgba(2,132,199,0.16)', borderRadius: 16, padding: 4, boxShadow: '0 12px 26px rgba(30,41,59,0.08)' }}>
+                <RatingSection productId={productId} refreshAll={refreshAll} />
+            </div>
+            <div style={{ background: 'linear-gradient(165deg, #FFFFFF, rgba(248,250,252,0.96))', border: '1px solid rgba(16,185,129,0.2)', borderRadius: 16, padding: 4, boxShadow: '0 12px 26px rgba(2,132,199,0.08)' }}>
+                <CommentSection productId={productId} refreshTrigger={refreshTrigger} />
+            </div>
+        </div>
     );
 };
 

@@ -194,7 +194,7 @@ const ProductDetailPage = () => {
       </Breadcrumb> */}
 
             <div style={{ maxWidth: '1270px', width: '100%', margin: '0 auto', padding: '0 16px' }}>
-                <Breadcrumb style={{ background: 'transparent', padding: 0, marginBottom: 12, cursor: 'pointer' }}>
+                <Breadcrumb style={{ background: 'linear-gradient(90deg, rgba(2,132,199,0.08), rgba(16,185,129,0.08))', border: '1px solid rgba(2,132,199,0.18)', borderRadius: 12, padding: '10px 14px', marginBottom: 12, cursor: 'pointer' }}>
                     <Breadcrumb.Item onClick={handleNavigateHome}>Trang chủ</Breadcrumb.Item>
                     {categoryPath.map((cat) => (
                         <Breadcrumb.Item
@@ -220,13 +220,13 @@ const ProductDetailPage = () => {
                                     : <Text type="secondary">Sản phẩm chưa có hình ảnh.</Text>
                             }
                         </ProductImageWrapper>
-                        <div style={{ width: '100%', marginTop: 16, display: 'flex', gap: 8, border: '1px solid #e8e8e8', padding: 8, borderRadius: 6, backgroundColor: '#fff' }}>
+                        <div style={{ width: '100%', marginTop: 16, display: 'flex', gap: 10, border: '1px solid rgba(2,132,199,0.2)', padding: 10, borderRadius: 12, background: 'linear-gradient(160deg, #FFFFFF, #F8FAFC)' }}>
                             {productImageList.map((image, index) => (
                                 <Image
                                     key={index}
                                     src={image}
                                     alt={`${product?.name} - ${index + 1}`}
-                                    style={{ width: 60, height: 60, objectFit: 'cover', borderRadius: 6, cursor: 'pointer', border: selectedImage === image ? '2px solid #1890ff' : 'none' }}
+                                    style={{ width: 62, height: 62, objectFit: 'cover', borderRadius: 10, cursor: 'pointer', border: selectedImage === image ? '2px solid #10B981' : '1px solid rgba(2,132,199,0.16)', boxShadow: selectedImage === image ? '0 8px 14px rgba(16,185,129,0.2)' : 'none' }}
                                     onClick={() => setSelectedImage(image)}
                                     preview={false}
                                 />
@@ -240,17 +240,17 @@ const ProductDetailPage = () => {
                     <ProductInfoWrapper>
                         <h2>{product.name}</h2>
                         <Divider />
-                        <Text delete className="price" style={{ color: 'black' }}>{product.price.toLocaleString('vi-VN')} VNĐ</Text>
+                        <Text delete className="price" style={{ color: '#64748B' }}>{product.price.toLocaleString('vi-VN')} VNĐ</Text>
                         <div className="price">{priceAfterDiscount.toLocaleString('vi-VN')} VNĐ <WrapperDiscountText> - {product.discount}%</WrapperDiscountText></div>
                         <div className="sold">Đã bán: {product.sold || 0}</div>
-                        <div style={{ margin: '20px 0' }}>
+                        <div style={{ margin: '20px 0', padding: '10px 12px', borderRadius: 10, border: '1px solid rgba(2,132,199,0.16)', background: 'rgba(248,250,252,0.8)' }}>
                             <span className="label">Số lượng: </span>
                             <InputNumber min={1} value={quantity} onChange={(value) => setQuantity(value)} />
                         </div>
-                        <StyledAddButton onClick={handleAddToCart} style={{ marginRight: 16 }}>
+                        <StyledAddButton onClick={handleAddToCart} style={{ marginRight: 16, background: '#F59E0B', borderColor: '#F59E0B', boxShadow: '0 10px 22px rgba(245,158,11,0.32)' }}>
                             Thêm vào giỏ hàng
                         </StyledAddButton>
-                        <StyledAddButton onClick={handleBuyNow} style={{ background: '#78C841' }}>
+                        <StyledAddButton onClick={handleBuyNow} style={{ background: '#10B981', borderColor: '#10B981', boxShadow: '0 10px 22px rgba(16,185,129,0.28)' }}>
                             Mua ngay
                         </StyledAddButton>
                     </ProductInfoWrapper>
