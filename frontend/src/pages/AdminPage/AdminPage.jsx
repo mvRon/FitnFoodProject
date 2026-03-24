@@ -5,42 +5,42 @@ import { getLevelKeys } from '../../utils';
 import HeaderComponent from '../../components/HeaderComponent/HeaderComponent';
 // import { useNavigate } from 'react-router-dom';
 // import ProfilePage from '../ProfilePage/ProfilePage';
-import AdminUserComponent from '../../components/AdminUserComponent/AdminUserComponent';
+// import AdminUserComponent from '../../components/AdminUserComponent/AdminUserComponent';
 // import { retry } from '@reduxjs/toolkit/query';
 import AdminProductComponent from '../../components/AdminProductComponent/AdminProductComponent';
-import AdminOrderComponent from '../../components/AdminOrderComponent/AdminOrderComponent.jsx'
-import AdminCategoryComponent from '../../components/AdminCategoryComponent/AdminCategoryComponent.jsx';
-import AdminBannerComponent from '../../components/AdminBannerComponent/AdminBannerComponent.jsx';
-import AdminDiscountComponent from '../../components/AdminDiscountComponent/AdminDiscountComponent.jsx';
+// import AdminOrderComponent from '../../components/AdminOrderComponent/AdminOrderComponent.jsx'
+// import AdminCategoryComponent from '../../components/AdminCategoryComponent/AdminCategoryComponent.jsx';
+// import AdminBannerComponent from '../../components/AdminBannerComponent/AdminBannerComponent.jsx';
+// import AdminDiscountComponent from '../../components/AdminDiscountComponent/AdminDiscountComponent.jsx';
 
 const AdminPage = () => {
     // const navigate = useNavigate()
     const renderKey = (key) => {
         switch (key) {
-            case 'User':
-                return (
-                    <AdminUserComponent />
-                )
+            // case 'User':
+            //     return (
+            //         <AdminUserComponent />
+            //     )
             case 'Product':
                 return (
                     <AdminProductComponent />
                 )
-            case 'Category':
-                return (
-                    <AdminCategoryComponent />
-                )
-            case 'Order':
-                return (
-                    <AdminOrderComponent />
-                )
-            case 'Discount':
-                return (
-                    <AdminDiscountComponent />
-                )
-            case 'Banner':
-                return (
-                    <AdminBannerComponent />
-                )
+            // case 'Category':
+            //     return (
+            //         <AdminCategoryComponent />
+            //     )
+            // case 'Order':
+            //     return (
+            //         <AdminOrderComponent />
+            //     )
+            // case 'Discount':
+            //     return (
+            //         <AdminDiscountComponent />
+            //     )
+            // case 'Banner':
+            //     return (
+            //         <AdminBannerComponent />
+            //     )
 
             default:
                 return <></>
