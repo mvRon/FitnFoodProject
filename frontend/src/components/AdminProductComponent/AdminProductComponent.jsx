@@ -77,8 +77,8 @@ const AdminProductComponent = () => {
     const renderAction = (record) => {
         return (
             <Space>
-                <Button icon={<EditOutlined />} onClick={handleDetailProduct} />
-                <Button icon={<DeleteOutlined />} danger onClick={e => { e.stopPropagation(); setIsModalOpenDelete(true); setRowSelected(record._id); }} />
+                <Button className="admin-product-action-btn" icon={<EditOutlined />} onClick={handleDetailProduct} />
+                <Button className="admin-product-action-btn admin-product-action-btn-danger" icon={<DeleteOutlined />} danger onClick={e => { e.stopPropagation(); setIsModalOpenDelete(true); setRowSelected(record._id); }} />
             </Space>
         )
 
@@ -430,13 +430,13 @@ const AdminProductComponent = () => {
                         : getCategoryById(category.parent);
                     return (
                         <>
-                            {parentCat && <Tag color="orange">{parentCat.name}</Tag>}
-                            <Tag color="blue">{category.name}</Tag>
+                            {parentCat && <Tag style={{ background: 'rgba(245, 158, 11, 0.14)', color: '#B45309', borderColor: 'rgba(245, 158, 11, 0.3)', borderRadius: 999 }}>{parentCat.name}</Tag>}
+                            <Tag style={{ background: 'rgba(2, 132, 199, 0.12)', color: '#0369A1', borderColor: 'rgba(2, 132, 199, 0.3)', borderRadius: 999 }}>{category.name}</Tag>
                         </>
                     );
                 }
                 // Nếu là category cha
-                return <Tag color="orange">{category.name}</Tag>;
+                return <Tag style={{ background: 'rgba(245, 158, 11, 0.14)', color: '#B45309', borderColor: 'rgba(245, 158, 11, 0.3)', borderRadius: 999 }}>{category.name}</Tag>;
             }
         },
         {
@@ -688,14 +688,14 @@ const AdminProductComponent = () => {
     };
 
     return (
-        <div>
+        <div className="admin-product-page">
             <WrapperHeader>Quản lý sản phẩm</WrapperHeader>
-            <div style={{ marginTop: '10px' }}>
-                <Button onClick={showModal} style={{ height: '50px', borderRadius: '6px', borderStyle: 'dashed' }}>
+            <div className="admin-product-toolbar" style={{ marginTop: '10px' }}>
+                <Button className="admin-product-add-btn" onClick={showModal} style={{ height: '50px', borderRadius: '6px', borderStyle: 'dashed' }}>
                     <PlusOutlined style={{ fontSize: '20px' }} />Thêm sản phẩm
                 </Button>
             </div>
-            <div style={{ marginTop: '20px' }}>
+            <div className="admin-product-table-wrap" style={{ marginTop: '20px' }}>
                 <TableComponent
                     handleDeleteMany={handleDeleteManyProduct}
                     columns={columns}
@@ -718,6 +718,7 @@ const AdminProductComponent = () => {
                 onCancel={handleCancel}
                 footer={null}
                 width={600}
+                className="admin-product-modal"
                 okText={null}
                 okType='none'
                 loading={isloading}
@@ -775,7 +776,7 @@ const AdminProductComponent = () => {
                         </Form.Item>
                         <Form.Item label="Hình ảnh" name="images" rules={[{ required: true, message: 'Chọn hình ảnh!' }]} style={{ marginBottom: 16 }}>
                             <WrapperUploadFile onChange={handleOnchangeAvatar} maxCount={5} multiple>
-                                <Button>Upload</Button>
+                                <Button className="admin-product-upload-btn">Upload</Button>
                                 {stateProduct?.images?.map((image, index) => (
                                     <img key={index} src={image} style={{
                                         height: '60px',
@@ -788,7 +789,7 @@ const AdminProductComponent = () => {
                             </WrapperUploadFile>
                         </Form.Item>
                         <Form.Item>
-                            <Button type="primary" htmlType="submit" icon={<PlusOutlined />} block size="large">
+                            <Button className="admin-product-submit-btn" type="primary" htmlType="submit" icon={<PlusOutlined />} block size="large">
                                 Xác nhận
                             </Button>
                         </Form.Item>
@@ -800,6 +801,7 @@ const AdminProductComponent = () => {
                 open={isOpenDrawer}
                 onCancel={() => setIsOpenDrawer(false)}
                 width={600}
+                className="admin-product-modal"
                 footer={null}
             >
                 <LoadingComponent isPending={isPendingUpdated}>
@@ -855,7 +857,7 @@ const AdminProductComponent = () => {
                         </Form.Item>
                         <Form.Item label="Hình ảnh" name="images" rules={[{ required: true, message: 'Chọn hình ảnh!' }]} style={{ marginBottom: 16 }}>
                             <WrapperUploadFile onChange={handleOnchangeDetailAvatar} maxCount={5} multiple>
-                                <Button>Upload</Button>
+                                <Button className="admin-product-upload-btn">Upload</Button>
                                 {stateDetailProduct?.images?.map((image, index) => (
                                     <img key={index} src={image} style={{
                                         height: '60px',
@@ -868,7 +870,7 @@ const AdminProductComponent = () => {
                             </WrapperUploadFile>
                         </Form.Item>
                         <Form.Item>
-                            <Button type="primary" htmlType="submit" block size="large">
+                            <Button className="admin-product-submit-btn" type="primary" htmlType="submit" block size="large">
                                 Cập nhật
                             </Button>
                         </Form.Item>
@@ -881,12 +883,116 @@ const AdminProductComponent = () => {
                 open={isModalOpenDelete}
                 onCancel={handleCancelDelete}
                 okText='Yes' onOk={handleDeleteProduct}
+                className="admin-product-modal"
                 loading={isloading}
             >
                 <LoadingComponent isPending={isPendingDeleted}>
                     <div>Bạn có chắc muốn xóa sản phẩm này không?</div>
                 </LoadingComponent>
             </ModalComponent>
+            <style>{`
+                .admin-product-page {
+                    --admin-emerald: #10B981;
+                    --admin-blue: #0284C7;
+                    --admin-orange: #F59E0B;
+                    --admin-bg: #F8FAFC;
+                    --admin-text: #1E293B;
+                    color: var(--admin-text);
+                    padding: 18px;
+                }
+                .admin-product-page .admin-product-toolbar {
+                    display: flex;
+                    justify-content: flex-end;
+                }
+                .admin-product-page .admin-product-add-btn {
+                    border-color: rgba(16, 185, 129, 0.54) !important;
+                    color: #0F766E !important;
+                    background: linear-gradient(120deg, rgba(16, 185, 129, 0.2), rgba(2, 132, 199, 0.1));
+                    font-weight: 600;
+                    transition: all 0.25s ease;
+                }
+                .admin-product-page .admin-product-add-btn:hover {
+                    transform: translateY(-2px);
+                    box-shadow: 0 12px 22px rgba(2, 132, 199, 0.16);
+                }
+                .admin-product-page .admin-product-table-wrap {
+                    border: 1px solid rgba(2, 132, 199, 0.16);
+                    border-radius: 16px;
+                    padding: 12px;
+                    background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(248, 250, 252, 0.96));
+                    box-shadow: 0 16px 30px rgba(15, 23, 42, 0.08);
+                    animation: adminProductFadeIn 0.35s ease;
+                }
+                .admin-product-page .admin-product-table-wrap .ant-table-wrapper {
+                    overflow: auto;
+                    border-radius: 12px;
+                }
+                .admin-product-page .admin-product-table-wrap .ant-table-thead > tr > th {
+                    color: #0369A1;
+                    background: rgba(2, 132, 199, 0.08);
+                    font-weight: 700;
+                }
+                .admin-product-page .admin-product-action-btn {
+                    border-color: rgba(2, 132, 199, 0.28);
+                    color: #0369A1;
+                }
+                .admin-product-page .admin-product-action-btn:hover {
+                    border-color: rgba(2, 132, 199, 0.5) !important;
+                    color: #0C4A6E !important;
+                }
+                .admin-product-page .admin-product-action-btn-danger {
+                    border-color: rgba(245, 158, 11, 0.5) !important;
+                    color: #B45309 !important;
+                }
+                .admin-product-page .admin-product-action-btn-danger:hover {
+                    border-color: #F59E0B !important;
+                    color: #92400E !important;
+                }
+                .admin-product-page .admin-product-submit-btn {
+                    background: linear-gradient(135deg, #10B981, #0284C7) !important;
+                    border: none !important;
+                    box-shadow: 0 12px 22px rgba(16, 185, 129, 0.24);
+                }
+                .admin-product-page .admin-product-upload-btn {
+                    border-color: rgba(2, 132, 199, 0.35);
+                    color: #0369A1;
+                    font-weight: 600;
+                }
+                .admin-product-page .admin-product-upload-btn:hover {
+                    border-color: rgba(16, 185, 129, 0.55) !important;
+                    color: #0F766E !important;
+                }
+                .admin-product-modal .ant-modal-content {
+                    border-radius: 18px;
+                    overflow: hidden;
+                    border: 1px solid rgba(16, 185, 129, 0.18);
+                }
+                .admin-product-modal .ant-modal-header {
+                    background: linear-gradient(130deg, rgba(16, 185, 129, 0.15), rgba(2, 132, 199, 0.12));
+                    border-bottom: 1px solid rgba(2, 132, 199, 0.12);
+                }
+                @keyframes adminProductFadeIn {
+                    from {
+                        opacity: 0;
+                        transform: translateY(8px);
+                    }
+                    to {
+                        opacity: 1;
+                        transform: translateY(0);
+                    }
+                }
+                @media (max-width: 768px) {
+                    .admin-product-page {
+                        padding: 10px;
+                    }
+                    .admin-product-page .admin-product-toolbar {
+                        justify-content: stretch;
+                    }
+                    .admin-product-page .admin-product-add-btn {
+                        width: 100%;
+                    }
+                }
+            `}</style>
         </div>
     )
 }

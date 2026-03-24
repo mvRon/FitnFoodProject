@@ -10,6 +10,7 @@ import HeaderComponent from '../../components/HeaderComponent/HeaderComponent';
 import AdminProductComponent from '../../components/AdminProductComponent/AdminProductComponent';
 // import AdminOrderComponent from '../../components/AdminOrderComponent/AdminOrderComponent.jsx'
 import AdminCategoryComponent from '../../components/AdminCategoryComponent/AdminCategoryComponent.jsx';
+import { AdminPageGlobalStyle, AdminPageShell } from './Style';
 // import AdminBannerComponent from '../../components/AdminBannerComponent/AdminBannerComponent.jsx';
 // import AdminDiscountComponent from '../../components/AdminDiscountComponent/AdminDiscountComponent.jsx';
 
@@ -144,58 +145,37 @@ const AdminPage = () => {
 
     return (
         <>
+            <AdminPageGlobalStyle />
             {/* <HeaderComponent isHiddenSearch={true} isHiddenCart={true} /> */}
-            <div className="adminpage-main" style={{ display: 'flex', minHeight: '100vh' }}>
-                <div className="adminpage-menu-wrapper" style={{ minWidth: 0 }}>
-                    <Menu
-                        mode="inline"
-                        defaultSelectedKeys={['231']}
-                        openKeys={stateOpenKeys}
-                        onOpenChange={onOpenChange}
-                        style={{
-                            width: '256px',
-                            boxShadow: '1px 1px 2px #ccc',
-                            height: '100vh',
-                            maxWidth: '100vw',
-                        }}
-                        items={items}
-                        onClick={handleOnClick}
-                        theme='light'
-                    />
+            <AdminPageShell className="adminpage-shell">
+                <div className="adminpage-main">
+                    <div className="adminpage-menu-wrapper">
+                        <div className="adminpage-brand-card">
+                            <div className="adminpage-brand-title">FitnFood Admin</div>
+                            <div className="adminpage-brand-subtitle">Quản trị hệ thống thông minh</div>
+                        </div>
+                        <Menu
+                            className="adminpage-menu"
+                            mode="inline"
+                            defaultSelectedKeys={['231']}
+                            openKeys={stateOpenKeys}
+                            onOpenChange={onOpenChange}
+                            items={items}
+                            onClick={handleOnClick}
+                            theme='light'
+                        />
+                    </div>
+                    <div className="adminpage-content-wrapper">
+                        <div className="adminpage-content-head">
+                            <h2>Không gian quản trị</h2>
+                            <p>Tối ưu vận hành với bảng điều khiển trực quan, màu sắc đồng bộ và thao tác nhanh.</p>
+                        </div>
+                        <div className="adminpage-content-card">
+                            {renderKey(keySelected)}
+                        </div>
+                    </div>
                 </div>
-                <div className="adminpage-content-wrapper" style={{ flex: 1, padding: '15px' }}>
-                    {renderKey(keySelected)}
-                </div>
-            </div>
-            <style>{`
-                @media (max-width: 1024px) {
-                    .adminpage-main {
-                        flex-direction: column;
-                        min-height: unset;
-                    }
-                    .adminpage-menu-wrapper {
-                        width: 100% !important;
-                        max-width: 100vw !important;
-                    }
-                    .adminpage-menu-wrapper .ant-menu {
-                        width: 100% !important;
-                        max-width: 100vw !important;
-                        height: auto !important;
-                        box-shadow: none !important;
-                    }
-                    .adminpage-content-wrapper {
-                        padding: 10px 4px;
-                    }
-                }
-                @media (max-width: 600px) {
-                    .adminpage-content-wrapper {
-                        padding: 4px 2px;
-                    }
-                    .adminpage-menu-wrapper .ant-menu {
-                        font-size: 15px;
-                    }
-                }
-            `}</style>
+            </AdminPageShell>
         </>
     )
 }
