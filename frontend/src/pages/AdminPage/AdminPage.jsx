@@ -8,7 +8,7 @@ import HeaderComponent from '../../components/HeaderComponent/HeaderComponent';
 // import AdminUserComponent from '../../components/AdminUserComponent/AdminUserComponent';
 // import { retry } from '@reduxjs/toolkit/query';
 import AdminProductComponent from '../../components/AdminProductComponent/AdminProductComponent';
-// import AdminOrderComponent from '../../components/AdminOrderComponent/AdminOrderComponent.jsx'
+import AdminOrderComponent from '../../components/AdminOrderComponent/AdminOrderComponent.jsx'
 import AdminCategoryComponent from '../../components/AdminCategoryComponent/AdminCategoryComponent.jsx';
 import { AdminPageGlobalStyle, AdminPageShell } from './Style';
 // import AdminBannerComponent from '../../components/AdminBannerComponent/AdminBannerComponent.jsx';
@@ -30,10 +30,10 @@ const AdminPage = () => {
                 return (
                     <AdminCategoryComponent />
                 )
-            // case 'Order':
-            //     return (
-            //         <AdminOrderComponent />
-            //     )
+            case 'Order':
+                return (
+                    <AdminOrderComponent />
+                )
             // case 'Discount':
             //     return (
             //         <AdminDiscountComponent />
