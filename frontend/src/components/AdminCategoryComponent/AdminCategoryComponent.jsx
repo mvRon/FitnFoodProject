@@ -3,6 +3,7 @@ import { Button, Form, Input, message, Modal, Select, Space, Tag } from 'antd';
 import { EditOutlined, DeleteOutlined, PlusOutlined } from '@ant-design/icons';
 import { WrapperHeader } from './Style';
 import { CategoryGlobalStyle } from './Style';
+import { AdminCategoryPageGlobalStyle } from './Style';
 import { getAllCategories, createCategory, updateCategory, deleteCategory } from '../../services/CategoryService';
 import TableComponent from '../TableComponent/TableComponent';
 import { useSelector } from 'react-redux';
@@ -121,18 +122,31 @@ const AdminCategoryComponent = () => {
 
     // Table columns
     const rowClassName = (record) => !record.parent ? 'category-parent-row' : '';
+
+    const getParentCategoryName = (parent) => {
+        if (!parent) return null;
+
+        if (typeof parent === 'object') {
+            if (parent.name) return parent.name;
+            if (parent._id) {
+                const foundParent = categories.find(cat => cat && cat._id === parent._id);
+                return foundParent?.name || null;
+            }
+            return null;
+        }
+
+        const foundParent = categories.find(cat => cat && cat._id === parent);
+        return foundParent?.name || null;
+    };
+
     const columns = [
         {
             title: 'Tên loại sản phẩm',
             dataIndex: 'name',
             key: 'name',
             render: (text, record) => (
-                <span style={
-                    record.isChild
-                        ? { paddingLeft: 32, color: '#0284C7', fontWeight: 600 }
-                        : { color: '#F59E0B', fontWeight: 'bold' }
-                }>
-                    {!record.parent && <span style={{ marginRight: 6 }}>★</span>}
+                <span className={record.isChild ? 'admin-category-name-child' : 'admin-category-name-parent'}>
+                    {!record.parent && <span className="admin-category-star">★</span>}
                     {text}
                     {/* {!record.parent && <span className="category-parent-tag">CHA</span>} */}
                 </span>
@@ -142,10 +156,12 @@ const AdminCategoryComponent = () => {
             title: 'Thuộc loại',
             dataIndex: 'parent',
             key: 'parent',
-            render: (parent) =>
-                parent && parent.name
-                    ? <Tag style={{ background: 'rgba(2, 132, 199, 0.12)', color: '#0369A1', borderColor: 'rgba(2, 132, 199, 0.3)', borderRadius: 999 }}>{parent.name}</Tag>
-                    : <Tag style={{ background: 'rgba(245, 158, 11, 0.14)', color: '#B45309', borderColor: 'rgba(245, 158, 11, 0.3)', borderRadius: 999 }}>Gốc</Tag>
+            render: (parent) => {
+                const parentName = getParentCategoryName(parent);
+                return parentName
+                    ? <Tag className="admin-category-parent-tag">{parentName}</Tag>
+                    : <Tag className="admin-category-root-tag">Gốc</Tag>
+            }
         },
         {
             title: 'Hành động',
@@ -248,23 +264,10 @@ const AdminCategoryComponent = () => {
             okText: 'Xóa',
             cancelText: 'Hủy',
             okButtonProps: {
-                style: {
-                    border: 'none',
-                    borderRadius: 10,
-                    minHeight: 38,
-                    fontWeight: 600,
-                    background: 'linear-gradient(135deg, #10B981, #0284C7)',
-                    boxShadow: '0 10px 20px rgba(16, 185, 129, 0.2)',
-                }
+                className: 'admin-common-modal-ok'
             },
             cancelButtonProps: {
-                style: {
-                    borderRadius: 10,
-                    minHeight: 38,
-                    borderColor: 'rgba(2, 132, 199, 0.4)',
-                    color: '#0369A1',
-                    fontWeight: 600,
-                }
+                className: 'admin-common-modal-cancel'
             },
             onOk: async () => {
                 try {
@@ -295,13 +298,14 @@ const AdminCategoryComponent = () => {
     return (
         <div className="admin-category-page">
             <CategoryGlobalStyle />
+            <AdminCategoryPageGlobalStyle />
             <WrapperHeader>Quản lý loại sản phẩm</WrapperHeader>
-            <div className="admin-category-toolbar" style={{ marginTop: '10px' }}>
-                <Button className="admin-category-add-btn" onClick={() => { setIsModalOpen(true); form.resetFields(); setRowSelected(''); setNameError(''); setIsFormValid(true); }} style={{ height: '50px', borderRadius: '6px', borderStyle: 'dashed' }}>
+            <div className="admin-category-toolbar">
+                <Button className="admin-category-add-btn" onClick={() => { setIsModalOpen(true); form.resetFields(); setRowSelected(''); setNameError(''); setIsFormValid(true); }}>
                     <PlusOutlined style={{ fontSize: '20px' }} /> Thêm loại sản phẩm
                 </Button>
             </div>
-            <div className="admin-category-table-wrap" style={{ marginTop: '20px' }}>
+            <div className="admin-category-table-wrap">
                 <TableComponent
                     forceRender
                     columns={columns}
@@ -383,138 +387,6 @@ const AdminCategoryComponent = () => {
                     </Form.Item>
                 </Form>
             </Modal>
-            <style>{`
-                .admin-category-page {
-                    --admin-emerald: #10B981;
-                    --admin-blue: #0284C7;
-                    --admin-orange: #F59E0B;
-                    --admin-bg: #F8FAFC;
-                    --admin-text: #1E293B;
-                    color: var(--admin-text);
-                    padding: 18px;
-                }
-                .admin-category-page .admin-category-toolbar {
-                    display: flex;
-                    justify-content: flex-end;
-                }
-                .admin-category-page .admin-category-add-btn {
-                    border-color: rgba(16, 185, 129, 0.5) !important;
-                    color: #0F766E !important;
-                    background: linear-gradient(140deg, rgba(16, 185, 129, 0.18), rgba(2, 132, 199, 0.08));
-                    font-weight: 600;
-                    transition: all 0.25s ease;
-                }
-                .admin-category-page .admin-category-add-btn:hover {
-                    transform: translateY(-2px);
-                    box-shadow: 0 10px 18px rgba(2, 132, 199, 0.16);
-                }
-                .admin-category-page .admin-category-table-wrap {
-                    border: 1px solid rgba(2, 132, 199, 0.16);
-                    border-radius: 16px;
-                    padding: 12px;
-                    background: linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(248, 250, 252, 0.95));
-                    box-shadow: 0 16px 30px rgba(15, 23, 42, 0.08);
-                    animation: adminCategoryFadeIn 0.35s ease;
-                }
-                .admin-category-page .admin-category-table-wrap .ant-table-wrapper {
-                    overflow: auto;
-                    border-radius: 12px;
-                }
-                .admin-category-page .admin-category-table-wrap .ant-table-thead > tr > th {
-                    color: #0369A1;
-                    background: rgba(2, 132, 199, 0.08);
-                    font-weight: 700;
-                }
-                .admin-category-page .admin-category-action-btn {
-                    width: 36px;
-                    height: 36px;
-                    border-radius: 10px;
-                    display: inline-flex;
-                    align-items: center;
-                    justify-content: center;
-                    background: #fff;
-                    border-color: rgba(2, 132, 199, 0.28);
-                    color: #0369A1;
-                    transition: all 0.2s ease;
-                }
-                .admin-category-page .admin-category-action-btn:hover {
-                    border-color: rgba(2, 132, 199, 0.5) !important;
-                    color: #0C4A6E !important;
-                    transform: translateY(-1px);
-                }
-                .admin-category-page .admin-category-action-btn-danger {
-                    border-color: rgba(245, 158, 11, 0.5) !important;
-                    color: #B45309 !important;
-                }
-                .admin-category-page .admin-category-action-btn-danger:hover {
-                    border-color: #F59E0B !important;
-                    color: #92400E !important;
-                }
-                .admin-category-page .admin-category-submit-btn {
-                    background: linear-gradient(135deg, #10B981, #0284C7) !important;
-                    border: none !important;
-                    box-shadow: 0 12px 22px rgba(16, 185, 129, 0.24);
-                    min-height: 40px;
-                    border-radius: 10px;
-                    font-weight: 600;
-                }
-                .admin-category-modal .ant-modal-content {
-                    border-radius: 18px;
-                    overflow: hidden;
-                    border: 1px solid rgba(16, 185, 129, 0.18);
-                }
-                .admin-category-modal .ant-modal-header {
-                    background: linear-gradient(130deg, rgba(16, 185, 129, 0.15), rgba(2, 132, 199, 0.12));
-                    border-bottom: 1px solid rgba(2, 132, 199, 0.12);
-                }
-                .admin-category-modal .ant-modal-footer {
-                    border-top: 1px solid rgba(2, 132, 199, 0.12);
-                    padding: 14px 20px;
-                    display: flex;
-                    justify-content: flex-end;
-                    gap: 10px;
-                }
-                .admin-category-modal .ant-modal-footer .ant-btn {
-                    height: 38px;
-                    border-radius: 10px;
-                    font-weight: 600;
-                }
-                .admin-category-modal .ant-modal-footer .ant-btn-default {
-                    border-color: rgba(2, 132, 199, 0.28);
-                    color: #0369A1;
-                }
-                .admin-category-modal .ant-modal-footer .ant-btn-primary {
-                    border: none;
-                    background: linear-gradient(135deg, #10B981, #0284C7);
-                    box-shadow: 0 10px 20px rgba(16, 185, 129, 0.2);
-                }
-                .admin-category-modal .ant-modal-confirm-btns {
-                    display: flex;
-                    justify-content: flex-end;
-                    gap: 10px;
-                }
-                @keyframes adminCategoryFadeIn {
-                    from {
-                        opacity: 0;
-                        transform: translateY(8px);
-                    }
-                    to {
-                        opacity: 1;
-                        transform: translateY(0);
-                    }
-                }
-                @media (max-width: 768px) {
-                    .admin-category-page {
-                        padding: 10px;
-                    }
-                    .admin-category-page .admin-category-toolbar {
-                        justify-content: stretch;
-                    }
-                    .admin-category-page .admin-category-add-btn {
-                        width: 100%;
-                    }
-                }
-            `}</style>
         </div>
     );
 };
