@@ -4,7 +4,7 @@ import { DeleteOutlined, EditOutlined, PlusOutlined, SearchOutlined, UploadOutli
 import TableComponent from '../TableComponent/TableComponent'
 // import InputComponent from '../InputComponent/InputComponent'
 import { getBase64, renderOption } from '../../utils'
-import { WrapperHeader, WrapperUploadFile } from './Style'
+import { AdminProductPageGlobalStyle, WrapperHeader, WrapperUploadFile } from './Style'
 import * as ProductService from '../../services/ProductService'
 import { useMutationHook } from '../../hooks/useMutationHook'
 // import * as message from '../../components/MessageComponent/MessageComponent'
@@ -17,6 +17,12 @@ import { useDebounce } from '../../hooks/useDebounce'
 import { getAllCategories } from '../../services/CategoryService'
 
 const AdminProductComponent = () => {
+
+    const getEntityId = (value) => {
+        if (!value) return ''
+        if (typeof value === 'object') return value._id || ''
+        return value
+    }
 
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [rowSelected, setRowSelected] = useState('')
@@ -142,7 +148,7 @@ const AdminProductComponent = () => {
     const mutation = useMutationHook(
         (data) => {
             const { name, price, description, rating, images, type, countInStock, sold, discount } = data
-            const res = ProductService.createProduct({ name, price, description, rating, images, type, countInStock, sold, discount })
+            const res = ProductService.createProduct({ name, price, description, rating, images, type, countInStock, sold, discount }, storageData)
             return res
         }
     )
@@ -163,7 +169,7 @@ const AdminProductComponent = () => {
                 rating: res?.data?.rating,
                 // images: res?.data?.images[0],
                 images: Array.isArray(res?.data?.images) ? res?.data?.images : [res?.data?.images], // Đảm bảo images luôn là mảng
-                type: res?.data?.type,
+                type: getEntityId(res?.data?.type),
                 countInStock: res?.data?.countInStock,
                 sold: res?.data?.sold,
                 discount: res?.data?.discount,
@@ -272,9 +278,7 @@ const AdminProductComponent = () => {
     const getColumnSearchProps = (dataIndex) => ({
         filterDropdown: ({ setSelectedKeys, selectedKeys, confirm, clearFilters, close }) => (
             <div
-                style={{
-                    padding: 8,
-                }}
+                className="admin-product-filter-dropdown"
                 onKeyDown={(e) => e.stopPropagation()}
             >
                 <Input
@@ -283,10 +287,7 @@ const AdminProductComponent = () => {
                     value={selectedKeys[0]}
                     onChange={(e) => setSelectedKeys(e.target.value ? [e.target.value] : [])}
                     onPressEnter={() => handleSearch(selectedKeys, confirm, dataIndex)}
-                    style={{
-                        marginBottom: 8,
-                        display: 'block',
-                    }}
+                    className="admin-product-filter-input"
                 />
                 <Space>
                     <Button
@@ -294,18 +295,14 @@ const AdminProductComponent = () => {
                         onClick={() => handleSearch(selectedKeys, confirm, dataIndex)}
                         icon={<SearchOutlined />}
                         size="small"
-                        style={{
-                            width: 90,
-                        }}
+                        className="admin-product-filter-btn"
                     >
                         Search
                     </Button>
                     <Button
                         onClick={() => clearFilters && handleReset(clearFilters)}
                         size="small"
-                        style={{
-                            width: 90,
-                        }}
+                        className="admin-product-filter-btn"
                     >
                         Reset
                     </Button>
@@ -324,9 +321,7 @@ const AdminProductComponent = () => {
         ),
         filterIcon: (filtered) => (
             <SearchOutlined
-                style={{
-                    color: filtered ? '#1677ff' : undefined,
-                }}
+                className={filtered ? 'admin-product-filter-icon-active' : ''}
             />
         ),
         onFilter: (value, record) =>
@@ -354,7 +349,10 @@ const AdminProductComponent = () => {
         //     ),
     });
 
-    const getCategoryById = (id) => allCategories.find(cat => cat._id === id);
+    const getCategoryById = (value) => {
+        const id = getEntityId(value)
+        return allCategories.find(cat => cat && cat._id === id)
+    }
 
     const columns = [
         {
@@ -422,21 +420,19 @@ const AdminProductComponent = () => {
             dataIndex: 'type',
             render: (type) => {
                 const category = getCategoryById(type);
-                if (!category) return type;
+                if (!category) return <Tag>Chưa xác định</Tag>;
                 // Nếu là category con
                 if (category.parent) {
-                    const parentCat = typeof category.parent === 'object'
-                        ? getCategoryById(category.parent._id)
-                        : getCategoryById(category.parent);
+                    const parentCat = getCategoryById(category.parent);
                     return (
                         <>
-                            {parentCat && <Tag style={{ background: 'rgba(245, 158, 11, 0.14)', color: '#B45309', borderColor: 'rgba(245, 158, 11, 0.3)', borderRadius: 999 }}>{parentCat.name}</Tag>}
-                            <Tag style={{ background: 'rgba(2, 132, 199, 0.12)', color: '#0369A1', borderColor: 'rgba(2, 132, 199, 0.3)', borderRadius: 999 }}>{category.name}</Tag>
+                            {parentCat && <Tag className="admin-product-tag admin-product-tag-parent">{parentCat.name}</Tag>}
+                            <Tag className="admin-product-tag admin-product-tag-child">{category.name}</Tag>
                         </>
                     );
                 }
                 // Nếu là category cha
-                return <Tag style={{ background: 'rgba(245, 158, 11, 0.14)', color: '#B45309', borderColor: 'rgba(245, 158, 11, 0.3)', borderRadius: 999 }}>{category.name}</Tag>;
+                return <Tag className="admin-product-tag admin-product-tag-parent">{category.name}</Tag>;
             }
         },
         {
@@ -449,13 +445,7 @@ const AdminProductComponent = () => {
                 return (
                     <img
                         src={imageSrc}
-                        style={{
-                            height: '60px',
-                            width: '60px',
-                            borderRadius: '50%',
-                            objectFit: 'cover',
-                            marginLeft: '10px',
-                        }}
+                        className="admin-product-thumb-image"
                         alt='Product Image'
                     />
                 );
@@ -629,19 +619,15 @@ const AdminProductComponent = () => {
             fetchGetDetailProduct(rowSelected).then(res => {
                 const product = res?.data;
                 if (product) {
-                    const currentCategory = allCategories.find(cat => cat._id === product.type);
+                    const currentCategory = getCategoryById(product.type);
                     if (currentCategory) {
                         if (currentCategory.parent) {
-                            const parentId = typeof currentCategory.parent === 'object'
-                                ? currentCategory.parent._id
-                                : currentCategory.parent;
+                            const parentId = getEntityId(currentCategory.parent);
                             setParentCategoryEdit(parentId);
                             setSelectedChildCategoryEdit(currentCategory._id);
                             const children = allCategories.filter(cat =>
                                 cat.parent &&
-                                ((typeof cat.parent === 'object'
-                                    ? cat.parent._id
-                                    : cat.parent) === parentId)
+                                (getEntityId(cat.parent) === parentId)
                             );
                             setChildCategoriesEdit(children);
                             // Set giá trị cho form
@@ -670,7 +656,7 @@ const AdminProductComponent = () => {
         setParentCategoryEdit(value);
         const children = allCategories.filter(cat => {
             if (!cat.parent) return false;
-            return (cat.parent._id || cat.parent) === value;
+            return getEntityId(cat.parent) === value;
         });
         setChildCategoriesEdit(children);
         setSelectedChildCategoryEdit('');
@@ -689,13 +675,14 @@ const AdminProductComponent = () => {
 
     return (
         <div className="admin-product-page">
+            <AdminProductPageGlobalStyle />
             <WrapperHeader>Quản lý sản phẩm</WrapperHeader>
-            <div className="admin-product-toolbar" style={{ marginTop: '10px' }}>
-                <Button className="admin-product-add-btn" onClick={showModal} style={{ height: '50px', borderRadius: '6px', borderStyle: 'dashed' }}>
-                    <PlusOutlined style={{ fontSize: '20px' }} />Thêm sản phẩm
+            <div className="admin-product-toolbar">
+                <Button className="admin-product-add-btn" onClick={showModal}>
+                    <PlusOutlined />Thêm sản phẩm
                 </Button>
             </div>
-            <div className="admin-product-table-wrap" style={{ marginTop: '20px' }}>
+            <div className="admin-product-table-wrap">
                 <TableComponent
                     handleDeleteMany={handleDeleteManyProduct}
                     columns={columns}
@@ -713,7 +700,7 @@ const AdminProductComponent = () => {
             </div>
 
             <ModalComponent
-                title={<div style={{ textAlign: 'center', fontWeight: 600, fontSize: 22 }}>Tạo sản phẩm mới</div>}
+                title={<div className="admin-product-modal-title">Tạo sản phẩm mới</div>}
                 open={isModalOpen}
                 onCancel={handleCancel}
                 footer={null}
@@ -726,15 +713,15 @@ const AdminProductComponent = () => {
                 <LoadingComponent isPending={isPending}>
                     <Form
                         layout="vertical"
-                        style={{ maxWidth: 600 }}
+                        className="admin-product-form"
                         onFinish={onFinish}
                         autoComplete="off"
                         form={form}
                     >
-                        <Form.Item label="Tên sản phẩm" name="name" rules={[{ required: true, message: 'Nhập tên sản phẩm!' }]} style={{ marginBottom: 16 }}>
+                        <Form.Item label="Tên sản phẩm" name="name" rules={[{ required: true, message: 'Nhập tên sản phẩm!' }]}>
                             <Input value={stateProduct.name} onChange={handleOnChange} name='name' />
                         </Form.Item>
-                        <Form.Item label="Phân loại" name="parentCategory" rules={[{ required: true, message: 'Chọn loại sản phẩm cha!' }]} style={{ marginBottom: 16 }}>
+                        <Form.Item label="Phân loại" name="parentCategory" rules={[{ required: true, message: 'Chọn loại sản phẩm cha!' }]}>
                             <Select
                                 value={parentCategory}
                                 onChange={handleParentCategoryChange}
@@ -745,7 +732,7 @@ const AdminProductComponent = () => {
                             />
                         </Form.Item>
                         {childCategories.length > 0 && (
-                            <Form.Item label="Nhóm" name="childCategory" rules={[{ required: true, message: 'Chọn loại sản phẩm con!' }]} style={{ marginBottom: 16 }}>
+                            <Form.Item label="Nhóm" name="childCategory" rules={[{ required: true, message: 'Chọn loại sản phẩm con!' }]}>
                                 <Select
                                     value={selectedChildCategory}
                                     onChange={handleChildCategoryChange}
@@ -756,35 +743,29 @@ const AdminProductComponent = () => {
                                 />
                             </Form.Item>
                         )}
-                        <Form.Item label="Giá tiền" name="price" rules={[{ required: true, message: 'Nhập giá!' }]} style={{ marginBottom: 16 }}>
-                            <InputNumber value={stateProduct.price} onChange={value => handleOnChange({ target: { name: 'price', value } })} name='price' min={0} style={{ width: '100%' }} />
+                        <Form.Item label="Giá tiền" name="price" rules={[{ required: true, message: 'Nhập giá!' }]}>
+                            <InputNumber value={stateProduct.price} onChange={value => handleOnChange({ target: { name: 'price', value } })} name='price' min={0} />
                         </Form.Item>
-                        <Form.Item label="Hàng tồn kho" name="countInStock" rules={[{ required: true, message: 'Nhập số lượng!' }]} style={{ marginBottom: 16 }}>
-                            <InputNumber value={stateProduct.countInStock} onChange={value => handleOnChange({ target: { name: 'countInStock', value } })} name='countInStock' min={0} style={{ width: '100%' }} />
+                        <Form.Item label="Hàng tồn kho" name="countInStock" rules={[{ required: true, message: 'Nhập số lượng!' }]}>
+                            <InputNumber value={stateProduct.countInStock} onChange={value => handleOnChange({ target: { name: 'countInStock', value } })} name='countInStock' min={0} />
                         </Form.Item>
-                        <Form.Item label="Đánh giá" name="rating" rules={[{ required: true, message: 'Nhập đánh giá!' }]} style={{ marginBottom: 16 }}>
-                            <InputNumber value={stateProduct.rating} onChange={value => handleOnChange({ target: { name: 'rating', value } })} name='rating' min={0} max={5} step={0.1} style={{ width: '100%' }} />
+                        <Form.Item label="Đánh giá" name="rating" rules={[{ required: true, message: 'Nhập đánh giá!' }]}>
+                            <InputNumber value={stateProduct.rating} onChange={value => handleOnChange({ target: { name: 'rating', value } })} name='rating' min={0} max={5} step={0.1} />
                         </Form.Item>
-                        <Form.Item label="Mô tả" name="description" rules={[{ required: true, message: 'Nhập mô tả!' }]} style={{ marginBottom: 16 }}>
+                        <Form.Item label="Mô tả" name="description" rules={[{ required: true, message: 'Nhập mô tả!' }]}>
                             <Input.TextArea value={stateProduct.description} onChange={handleOnChange} name='description' rows={3} />
                         </Form.Item>
-                        <Form.Item label="Đã bán" name="sold" rules={[{ required: true, message: 'Nhập số đã bán!' }]} style={{ marginBottom: 16 }}>
-                            <InputNumber value={stateProduct.sold} onChange={value => handleOnChange({ target: { name: 'sold', value } })} name='sold' min={0} style={{ width: '100%' }} />
+                        <Form.Item label="Đã bán" name="sold" rules={[{ required: true, message: 'Nhập số đã bán!' }]}>
+                            <InputNumber value={stateProduct.sold} onChange={value => handleOnChange({ target: { name: 'sold', value } })} name='sold' min={0} />
                         </Form.Item>
-                        <Form.Item label="Giảm giá (%)" name="discount" rules={[{ required: true, message: 'Nhập giảm giá!' }]} style={{ marginBottom: 16 }}>
-                            <InputNumber value={stateProduct.discount} onChange={value => handleOnChange({ target: { name: 'discount', value } })} name='discount' min={0} max={100} style={{ width: '100%' }} />
+                        <Form.Item label="Giảm giá (%)" name="discount" rules={[{ required: true, message: 'Nhập giảm giá!' }]}>
+                            <InputNumber value={stateProduct.discount} onChange={value => handleOnChange({ target: { name: 'discount', value } })} name='discount' min={0} max={100} />
                         </Form.Item>
-                        <Form.Item label="Hình ảnh" name="images" rules={[{ required: true, message: 'Chọn hình ảnh!' }]} style={{ marginBottom: 16 }}>
+                        <Form.Item label="Hình ảnh" name="images" rules={[{ required: true, message: 'Chọn hình ảnh!' }]}>
                             <WrapperUploadFile onChange={handleOnchangeAvatar} maxCount={5} multiple>
                                 <Button className="admin-product-upload-btn">Upload</Button>
                                 {stateProduct?.images?.map((image, index) => (
-                                    <img key={index} src={image} style={{
-                                        height: '60px',
-                                        width: '60px',
-                                        borderRadius: '50%',
-                                        objectFit: 'cover',
-                                        marginLeft: '10px'
-                                    }} alt={`Product Image ${index + 1}`} />
+                                    <img key={index} src={image} className="admin-product-preview-image" alt={`Product Image ${index + 1}`} />
                                 ))}
                             </WrapperUploadFile>
                         </Form.Item>
@@ -797,7 +778,7 @@ const AdminProductComponent = () => {
                 </LoadingComponent>
             </ModalComponent>
             <ModalComponent
-                title={<div style={{ textAlign: 'center', fontWeight: 600, fontSize: 22 }}>Chi tiết sản phẩm</div>}
+                title={<div className="admin-product-modal-title">Chi tiết sản phẩm</div>}
                 open={isOpenDrawer}
                 onCancel={() => setIsOpenDrawer(false)}
                 width={600}
@@ -810,12 +791,12 @@ const AdminProductComponent = () => {
                         layout="vertical"
                         onFinish={onUpdateProduct}
                         autoComplete="off"
-                        style={{ maxWidth: 600 }}
+                        className="admin-product-form"
                     >
-                        <Form.Item label="Tên sản phẩm" name="name" rules={[{ required: true, message: 'Nhập tên sản phẩm!' }]} style={{ marginBottom: 16 }}>
+                        <Form.Item label="Tên sản phẩm" name="name" rules={[{ required: true, message: 'Nhập tên sản phẩm!' }]}>
                             <Input value={stateDetailProduct.name} onChange={handleOnChangeDetailProduct} name='name' />
                         </Form.Item>
-                        <Form.Item label="Phân loại" name="parentCategoryEdit" rules={[{ required: true, message: 'Chọn loại sản phẩm cha!' }]} style={{ marginBottom: 16 }}>
+                        <Form.Item label="Phân loại" name="parentCategoryEdit" rules={[{ required: true, message: 'Chọn loại sản phẩm cha!' }]}>
                             <Select
                                 value={parentCategoryEdit}
                                 onChange={handleParentCategoryEditChange}
@@ -826,7 +807,7 @@ const AdminProductComponent = () => {
                             />
                         </Form.Item>
                         {childCategoriesEdit.length > 0 && (
-                            <Form.Item label="Nhóm" name="childCategoryEdit" rules={[{ required: true, message: 'Chọn loại sản phẩm con!' }]} style={{ marginBottom: 16 }}>
+                            <Form.Item label="Nhóm" name="childCategoryEdit" rules={[{ required: true, message: 'Chọn loại sản phẩm con!' }]}>
                                 <Select
                                     value={selectedChildCategoryEdit}
                                     onChange={handleChildCategoryEditChange}
@@ -837,35 +818,29 @@ const AdminProductComponent = () => {
                                 />
                             </Form.Item>
                         )}
-                        <Form.Item label="Giá tiền" name="price" rules={[{ required: true, message: 'Nhập giá!' }]} style={{ marginBottom: 16 }}>
-                            <InputNumber value={stateDetailProduct.price} onChange={value => handleOnChangeDetailProduct({ target: { name: 'price', value } })} name='price' min={0} style={{ width: '100%' }} />
+                        <Form.Item label="Giá tiền" name="price" rules={[{ required: true, message: 'Nhập giá!' }]}>
+                            <InputNumber value={stateDetailProduct.price} onChange={value => handleOnChangeDetailProduct({ target: { name: 'price', value } })} name='price' min={0} />
                         </Form.Item>
-                        <Form.Item label="Hàng tồn kho" name="countInStock" rules={[{ required: true, message: 'Nhập số lượng!' }]} style={{ marginBottom: 16 }}>
-                            <InputNumber value={stateDetailProduct.countInStock} onChange={value => handleOnChangeDetailProduct({ target: { name: 'countInStock', value } })} name='countInStock' min={0} style={{ width: '100%' }} />
+                        <Form.Item label="Hàng tồn kho" name="countInStock" rules={[{ required: true, message: 'Nhập số lượng!' }]}>
+                            <InputNumber value={stateDetailProduct.countInStock} onChange={value => handleOnChangeDetailProduct({ target: { name: 'countInStock', value } })} name='countInStock' min={0} />
                         </Form.Item>
-                        <Form.Item label="Đánh giá" name="rating" rules={[{ required: true, message: 'Nhập đánh giá!' }]} style={{ marginBottom: 16 }}>
-                            <InputNumber value={stateDetailProduct.rating} onChange={value => handleOnChangeDetailProduct({ target: { name: 'rating', value } })} name='rating' min={0} max={5} step={0.1} style={{ width: '100%' }} />
+                        <Form.Item label="Đánh giá" name="rating" rules={[{ required: true, message: 'Nhập đánh giá!' }]}>
+                            <InputNumber value={stateDetailProduct.rating} onChange={value => handleOnChangeDetailProduct({ target: { name: 'rating', value } })} name='rating' min={0} max={5} step={0.1} />
                         </Form.Item>
-                        <Form.Item label="Mô tả" name="description" rules={[{ required: true, message: 'Nhập mô tả!' }]} style={{ marginBottom: 16 }}>
+                        <Form.Item label="Mô tả" name="description" rules={[{ required: true, message: 'Nhập mô tả!' }]}>
                             <Input.TextArea value={stateDetailProduct.description} onChange={handleOnChangeDetailProduct} name='description' rows={3} />
                         </Form.Item>
-                        <Form.Item label="Đã bán" name="sold" rules={[{ required: true, message: 'Nhập số đã bán!' }]} style={{ marginBottom: 16 }}>
-                            <InputNumber value={stateDetailProduct.sold} onChange={value => handleOnChangeDetailProduct({ target: { name: 'sold', value } })} name='sold' min={0} style={{ width: '100%' }} />
+                        <Form.Item label="Đã bán" name="sold" rules={[{ required: true, message: 'Nhập số đã bán!' }]}>
+                            <InputNumber value={stateDetailProduct.sold} onChange={value => handleOnChangeDetailProduct({ target: { name: 'sold', value } })} name='sold' min={0} />
                         </Form.Item>
-                        <Form.Item label="Giảm giá (%)" name="discount" rules={[{ required: true, message: 'Nhập giảm giá!' }]} style={{ marginBottom: 16 }}>
-                            <InputNumber value={stateDetailProduct.discount} onChange={value => handleOnChangeDetailProduct({ target: { name: 'discount', value } })} name='discount' min={0} max={100} style={{ width: '100%' }} />
+                        <Form.Item label="Giảm giá (%)" name="discount" rules={[{ required: true, message: 'Nhập giảm giá!' }]}>
+                            <InputNumber value={stateDetailProduct.discount} onChange={value => handleOnChangeDetailProduct({ target: { name: 'discount', value } })} name='discount' min={0} max={100} />
                         </Form.Item>
-                        <Form.Item label="Hình ảnh" name="images" rules={[{ required: true, message: 'Chọn hình ảnh!' }]} style={{ marginBottom: 16 }}>
+                        <Form.Item label="Hình ảnh" name="images" rules={[{ required: true, message: 'Chọn hình ảnh!' }]}>
                             <WrapperUploadFile onChange={handleOnchangeDetailAvatar} maxCount={5} multiple>
                                 <Button className="admin-product-upload-btn">Upload</Button>
                                 {stateDetailProduct?.images?.map((image, index) => (
-                                    <img key={index} src={image} style={{
-                                        height: '60px',
-                                        width: '60px',
-                                        borderRadius: '50%',
-                                        objectFit: 'cover',
-                                        marginLeft: '10px'
-                                    }} alt={`Product Image ${index + 1}`} />
+                                    <img key={index} src={image} className="admin-product-preview-image" alt={`Product Image ${index + 1}`} />
                                 ))}
                             </WrapperUploadFile>
                         </Form.Item>
@@ -890,142 +865,6 @@ const AdminProductComponent = () => {
                     <div>Bạn có chắc muốn xóa sản phẩm này không?</div>
                 </LoadingComponent>
             </ModalComponent>
-            <style>{`
-                .admin-product-page {
-                    --admin-emerald: #10B981;
-                    --admin-blue: #0284C7;
-                    --admin-orange: #F59E0B;
-                    --admin-bg: #F8FAFC;
-                    --admin-text: #1E293B;
-                    color: var(--admin-text);
-                    padding: 18px;
-                }
-                .admin-product-page .admin-product-toolbar {
-                    display: flex;
-                    justify-content: flex-end;
-                }
-                .admin-product-page .admin-product-add-btn {
-                    border-color: rgba(16, 185, 129, 0.54) !important;
-                    color: #0F766E !important;
-                    background: linear-gradient(120deg, rgba(16, 185, 129, 0.2), rgba(2, 132, 199, 0.1));
-                    font-weight: 600;
-                    transition: all 0.25s ease;
-                }
-                .admin-product-page .admin-product-add-btn:hover {
-                    transform: translateY(-2px);
-                    box-shadow: 0 12px 22px rgba(2, 132, 199, 0.16);
-                }
-                .admin-product-page .admin-product-table-wrap {
-                    border: 1px solid rgba(2, 132, 199, 0.16);
-                    border-radius: 16px;
-                    padding: 12px;
-                    background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(248, 250, 252, 0.96));
-                    box-shadow: 0 16px 30px rgba(15, 23, 42, 0.08);
-                    animation: adminProductFadeIn 0.35s ease;
-                }
-                .admin-product-page .admin-product-table-wrap .ant-table-wrapper {
-                    overflow: auto;
-                    border-radius: 12px;
-                }
-                .admin-product-page .admin-product-table-wrap .ant-table-thead > tr > th {
-                    color: #0369A1;
-                    background: rgba(2, 132, 199, 0.08);
-                    font-weight: 700;
-                }
-                .admin-product-page .admin-product-action-btn {
-                    width: 36px;
-                    height: 36px;
-                    border-radius: 10px;
-                    display: inline-flex;
-                    align-items: center;
-                    justify-content: center;
-                    background: #fff;
-                    border-color: rgba(2, 132, 199, 0.28);
-                    color: #0369A1;
-                    transition: all 0.2s ease;
-                }
-                .admin-product-page .admin-product-action-btn:hover {
-                    border-color: rgba(2, 132, 199, 0.5) !important;
-                    color: #0C4A6E !important;
-                    transform: translateY(-1px);
-                }
-                .admin-product-page .admin-product-action-btn-danger {
-                    border-color: rgba(245, 158, 11, 0.5) !important;
-                    color: #B45309 !important;
-                }
-                .admin-product-page .admin-product-action-btn-danger:hover {
-                    border-color: #F59E0B !important;
-                    color: #92400E !important;
-                }
-                .admin-product-page .admin-product-submit-btn {
-                    background: linear-gradient(135deg, #10B981, #0284C7) !important;
-                    border: none !important;
-                    box-shadow: 0 12px 22px rgba(16, 185, 129, 0.24);
-                    min-height: 40px;
-                    border-radius: 10px;
-                    font-weight: 600;
-                }
-                .admin-product-page .admin-product-upload-btn {
-                    border-color: rgba(2, 132, 199, 0.35);
-                    color: #0369A1;
-                    font-weight: 600;
-                }
-                .admin-product-page .admin-product-upload-btn:hover {
-                    border-color: rgba(16, 185, 129, 0.55) !important;
-                    color: #0F766E !important;
-                }
-                .admin-product-modal .ant-modal-content {
-                    border-radius: 18px;
-                    overflow: hidden;
-                    border: 1px solid rgba(16, 185, 129, 0.18);
-                }
-                .admin-product-modal .ant-modal-header {
-                    background: linear-gradient(130deg, rgba(16, 185, 129, 0.15), rgba(2, 132, 199, 0.12));
-                    border-bottom: 1px solid rgba(2, 132, 199, 0.12);
-                }
-                .admin-product-modal .ant-modal-footer {
-                    border-top: 1px solid rgba(2, 132, 199, 0.12);
-                    padding: 14px 20px;
-                    display: flex;
-                    justify-content: flex-end;
-                    gap: 10px;
-                }
-                .admin-product-modal .ant-modal-footer .ant-btn {
-                    height: 38px;
-                    border-radius: 10px;
-                    font-weight: 600;
-                }
-                .admin-product-modal .ant-modal-footer .ant-btn-default {
-                    border-color: rgba(2, 132, 199, 0.28);
-                    color: #0369A1;
-                }
-                .admin-product-modal .ant-modal-footer .ant-btn-primary {
-                    border: none;
-                    background: linear-gradient(135deg, #10B981, #0284C7);
-                    box-shadow: 0 10px 20px rgba(16, 185, 129, 0.2);
-                }
-                @keyframes adminProductFadeIn {
-                    from {
-                        opacity: 0;
-                        transform: translateY(8px);
-                    }
-                    to {
-                        opacity: 1;
-                        transform: translateY(0);
-                    }
-                }
-                @media (max-width: 768px) {
-                    .admin-product-page {
-                        padding: 10px;
-                    }
-                    .admin-product-page .admin-product-toolbar {
-                        justify-content: stretch;
-                    }
-                    .admin-product-page .admin-product-add-btn {
-                        width: 100%;
-                    }
-                }
-            `}</style>
         </div>
     )
 }

@@ -22,6 +22,7 @@
     "react-scripts": "5.0.1",
     "react-slick": "^0.31.0",
     "redux-persist": "^6.0.0",
+    "slick-carousel": "^1.8.1",
     "styled-components": "^6.3.11",
     "web-vitals": "^2.1.4"
   },

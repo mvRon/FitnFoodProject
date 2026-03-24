@@ -5,6 +5,8 @@ import { WrapperSliderStyle } from './Style';
 
 const SliderComponent = ({ arrImages, selectedImage }) => {
 
+    const safeImages = Array.isArray(arrImages) ? arrImages.filter(Boolean) : [];
+
     const settings = {
         dots: true,
         infinite: true,
@@ -15,12 +17,14 @@ const SliderComponent = ({ arrImages, selectedImage }) => {
         autoplaySpeed: 3000,
     };
 
-    const imagesToDisplay = selectedImage ? [selectedImage, ...arrImages.filter(image => image !== selectedImage)] : arrImages;
+    const imagesToDisplay = selectedImage
+        ? [selectedImage, ...safeImages.filter((image) => image !== selectedImage)]
+        : safeImages;
 
     return (
         <WrapperSliderStyle {...settings} style={{
             width: '100%',
-            maxHeight: '100%',
+            minHeight: 320,
             maxWidth: '1920px',
             overflow: 'hidden',
             borderRadius: 8
@@ -32,9 +36,9 @@ const SliderComponent = ({ arrImages, selectedImage }) => {
                     alt='Slider'
                     preview={false}
                     width='100%'
-                    height='100%'
+                    height={420}
                     style={{
-                        objectFit: 'fit',
+                        objectFit: 'contain',
                     }}
                 />
             ))}

@@ -43,16 +43,13 @@ const ProductDetailPage = () => {
             try {
                 const res = await ProductService.getDetailProduct(id);
                 setProduct(res?.data);
-                setProductImageList(
+                const normalizedImages = (
                     res?.data?.images && Array.isArray(res.data.images) && res.data.images.length > 0
                         ? res.data.images
                         : [res?.data?.image]
-                );
-                setSelectedImage(
-                    res?.data?.images && Array.isArray(res.data.images) && res.data.images.length > 0
-                        ? res.data.images[0]
-                        : res?.data?.image
-                );
+                ).filter(Boolean);
+                setProductImageList(normalizedImages);
+                setSelectedImage(normalizedImages[0] || null);
             } catch (err) {
                 console.error('Lỗi khi lấy chi tiết sản phẩm:', err);
                 message.error('Không thể tải sản phẩm.');
@@ -208,7 +205,9 @@ const ProductDetailPage = () => {
                         <ProductImageWrapper>
                             {productImageList.length > 1
                                 ? <SliderComponent arrImages={productImageList} selectedImage={selectedImage} /> // Hiển thị slider nếu có nhiều hình ảnh
-                                : <Image src={productImageList[0]} alt={product?.name} preview /> // Hiển thị hình ảnh đơn nếu chỉ có một hình ảnh
+                                : productImageList.length === 1
+                                    ? <Image src={productImageList[0]} alt={product?.name} preview />
+                                    : <Text type="secondary">Sản phẩm chưa có hình ảnh.</Text>
                             }
                         </ProductImageWrapper>
                         <div style={{ width: '100%', marginTop: 16, display: 'flex', gap: 8, border: '1px solid #e8e8e8', padding: 8, borderRadius: 6, backgroundColor: '#fff' }}>
