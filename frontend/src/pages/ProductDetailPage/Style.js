@@ -221,6 +221,49 @@ export const LeftColumnWrapper = styled.div`
   gap: 18px;
 `;
 
+export const ProductDescriptionSection = styled.div`
+  margin-top: 4px;
+  padding: 20px;
+  border-radius: 18px;
+  border: 1px solid rgba(2, 132, 199, 0.2);
+  background: linear-gradient(165deg, #ffffff, rgba(248, 250, 252, 0.96));
+  box-shadow: 0 14px 30px rgba(30, 41, 59, 0.08);
+
+  @media (max-width: 768px) {
+    padding: 14px;
+  }
+`;
+
+export const ProductDescriptionTitle = styled.h3`
+  margin: 0 0 10px;
+  color: var(--color-secondary);
+  font-size: 20px;
+  font-weight: 700;
+`;
+
+export const ProductDescriptionContent = styled.p`
+  margin: 0;
+  white-space: pre-line;
+  color: var(--color-text);
+  line-height: 1.8;
+  font-size: 16px;
+`;
+
+export const ProductDescriptionToggleButton = styled(Button)`
+  margin-top: 14px;
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  color: #0F766E;
+  background: rgba(16, 185, 129, 0.08);
+  border-radius: 10px;
+  font-weight: 600;
+
+  &:hover {
+    border-color: rgba(2, 132, 199, 0.4) !important;
+    color: #0369A1 !important;
+    background: rgba(2, 132, 199, 0.09) !important;
+  }
+`;
+
 export const WrapperDiscountText = styled.span`
     color: var(--color-accent);
     font-size: 16px;

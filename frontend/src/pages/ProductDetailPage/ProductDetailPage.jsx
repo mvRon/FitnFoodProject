@@ -12,7 +12,8 @@ import ReviewComponent from '../../components/ReviewComponent/ReviewComponent';
 import {
     Container, ProductImageWrapper, ProductInfoWrapper,
     StyledAddButton, RatingSection,
-    LeftColumnWrapper, WrapperDiscountText,
+    LeftColumnWrapper, ProductDescriptionContent, ProductDescriptionSection,
+    ProductDescriptionTitle, ProductDescriptionToggleButton, WrapperDiscountText,
 } from './Style';
 import * as CategoryService from '../../services/CategoryService';
 import * as ProductService from '../../services/ProductService';
@@ -30,6 +31,7 @@ const ProductDetailPage = () => {
     const [quantity, setQuantity] = useState(1);
     const [reviews, setReviews] = useState([]);
     const [selectedImage, setSelectedImage] = useState(null);
+    const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
     // const access_token = useSelector((state) => state.user.access_token);
     const access_token = localStorage.getItem('access_token');
     const user = useSelector((state) => state.user);
@@ -167,6 +169,14 @@ const ProductDetailPage = () => {
             </Container>
         );
     }
+
+    const fullDescription = product?.description || '';
+    const previewLength = Math.ceil(fullDescription.length / 3);
+    const shortDescription = fullDescription.length > previewLength
+        ? `${fullDescription.slice(0, previewLength).trim()}...`
+        : fullDescription;
+    const shouldShowToggle = fullDescription.length > previewLength;
+
     const priceAfterDiscount = product.price - (product.price * (product.discount / 100));
     return (
         <Container>
@@ -232,10 +242,6 @@ const ProductDetailPage = () => {
                         <Divider />
                         <Text delete className="price" style={{ color: 'black' }}>{product.price.toLocaleString('vi-VN')} VNĐ</Text>
                         <div className="price">{priceAfterDiscount.toLocaleString('vi-VN')} VNĐ <WrapperDiscountText> - {product.discount}%</WrapperDiscountText></div>
-                        <div>
-                            <span className="label">Mô tả:</span>
-                            <div className="description">{product.description}</div>
-                        </div>
                         <div className="sold">Đã bán: {product.sold || 0}</div>
                         <div style={{ margin: '20px 0' }}>
                             <span className="label">Số lượng: </span>
@@ -250,8 +256,22 @@ const ProductDetailPage = () => {
                     </ProductInfoWrapper>
                 </Col>
 
-                {/* Đánh giá sản phẩm */}
                 <Col xs={{ span: 24, order: 3 }} md={{ span: 20, order: 3 }}>
+                    <ProductDescriptionSection>
+                        <ProductDescriptionTitle>Mô tả sản phẩm</ProductDescriptionTitle>
+                        <ProductDescriptionContent>
+                            {isDescriptionExpanded ? fullDescription : shortDescription}
+                        </ProductDescriptionContent>
+                        {shouldShowToggle && (
+                            <ProductDescriptionToggleButton onClick={() => setIsDescriptionExpanded((prev) => !prev)}>
+                                {isDescriptionExpanded ? 'Thu gọn' : 'Xem thêm'}
+                            </ProductDescriptionToggleButton>
+                        )}
+                    </ProductDescriptionSection>
+                </Col>
+
+                {/* Đánh giá sản phẩm */}
+                <Col xs={{ span: 24, order: 4 }} md={{ span: 20, order: 4 }}>
                     <RatingSection>
                         <ReviewComponent
                             productId={product._id}
