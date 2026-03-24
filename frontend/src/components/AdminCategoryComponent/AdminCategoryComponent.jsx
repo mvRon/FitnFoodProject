@@ -243,7 +243,29 @@ const AdminCategoryComponent = () => {
     };
     const handleDeleteCategory = (record, token) => {
         Modal.confirm({
+            className: 'admin-category-modal',
             title: `Bạn có chắc muốn xóa loại sản phẩm  ${record.name} này không?`,
+            okText: 'Xóa',
+            cancelText: 'Hủy',
+            okButtonProps: {
+                style: {
+                    border: 'none',
+                    borderRadius: 10,
+                    minHeight: 38,
+                    fontWeight: 600,
+                    background: 'linear-gradient(135deg, #10B981, #0284C7)',
+                    boxShadow: '0 10px 20px rgba(16, 185, 129, 0.2)',
+                }
+            },
+            cancelButtonProps: {
+                style: {
+                    borderRadius: 10,
+                    minHeight: 38,
+                    borderColor: 'rgba(2, 132, 199, 0.4)',
+                    color: '#0369A1',
+                    fontWeight: 600,
+                }
+            },
             onOk: async () => {
                 try {
                     const res = await deleteCategory(record._id, token);
@@ -404,12 +426,21 @@ const AdminCategoryComponent = () => {
                     font-weight: 700;
                 }
                 .admin-category-page .admin-category-action-btn {
+                    width: 36px;
+                    height: 36px;
+                    border-radius: 10px;
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    background: #fff;
                     border-color: rgba(2, 132, 199, 0.28);
                     color: #0369A1;
+                    transition: all 0.2s ease;
                 }
                 .admin-category-page .admin-category-action-btn:hover {
                     border-color: rgba(2, 132, 199, 0.5) !important;
                     color: #0C4A6E !important;
+                    transform: translateY(-1px);
                 }
                 .admin-category-page .admin-category-action-btn-danger {
                     border-color: rgba(245, 158, 11, 0.5) !important;
@@ -423,6 +454,9 @@ const AdminCategoryComponent = () => {
                     background: linear-gradient(135deg, #10B981, #0284C7) !important;
                     border: none !important;
                     box-shadow: 0 12px 22px rgba(16, 185, 129, 0.24);
+                    min-height: 40px;
+                    border-radius: 10px;
+                    font-weight: 600;
                 }
                 .admin-category-modal .ant-modal-content {
                     border-radius: 18px;
@@ -432,6 +466,32 @@ const AdminCategoryComponent = () => {
                 .admin-category-modal .ant-modal-header {
                     background: linear-gradient(130deg, rgba(16, 185, 129, 0.15), rgba(2, 132, 199, 0.12));
                     border-bottom: 1px solid rgba(2, 132, 199, 0.12);
+                }
+                .admin-category-modal .ant-modal-footer {
+                    border-top: 1px solid rgba(2, 132, 199, 0.12);
+                    padding: 14px 20px;
+                    display: flex;
+                    justify-content: flex-end;
+                    gap: 10px;
+                }
+                .admin-category-modal .ant-modal-footer .ant-btn {
+                    height: 38px;
+                    border-radius: 10px;
+                    font-weight: 600;
+                }
+                .admin-category-modal .ant-modal-footer .ant-btn-default {
+                    border-color: rgba(2, 132, 199, 0.28);
+                    color: #0369A1;
+                }
+                .admin-category-modal .ant-modal-footer .ant-btn-primary {
+                    border: none;
+                    background: linear-gradient(135deg, #10B981, #0284C7);
+                    box-shadow: 0 10px 20px rgba(16, 185, 129, 0.2);
+                }
+                .admin-category-modal .ant-modal-confirm-btns {
+                    display: flex;
+                    justify-content: flex-end;
+                    gap: 10px;
                 }
                 @keyframes adminCategoryFadeIn {
                     from {

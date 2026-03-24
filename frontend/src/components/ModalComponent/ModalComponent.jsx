@@ -2,6 +2,8 @@ import { Modal } from 'antd'
 import React from 'react'
 
 const ModalComponent = ({ title = 'Modal', open = false, children, ...rests }) => {
+    const { okButtonProps, cancelButtonProps, ...modalProps } = rests
+
     const defaultStyles = {
         header: {
             borderBottom: '1px solid rgba(2, 132, 199, 0.16)',
@@ -33,22 +35,29 @@ const ModalComponent = ({ title = 'Modal', open = false, children, ...rests }) =
             open={open}
             styles={defaultStyles}
             okButtonProps={{
+                ...okButtonProps,
                 style: {
-                    background: 'var(--color-primary)',
-                    borderColor: 'var(--color-primary)',
+                    background: 'linear-gradient(135deg, #10B981, #0284C7)',
+                    border: 'none',
+                    boxShadow: '0 10px 20px rgba(16, 185, 129, 0.2)',
                     borderRadius: 10,
+                    minHeight: 38,
                     fontWeight: 600,
+                    ...(okButtonProps?.style || {}),
                 },
             }}
             cancelButtonProps={{
+                ...cancelButtonProps,
                 style: {
                     borderRadius: 10,
+                    minHeight: 38,
                     borderColor: 'rgba(2, 132, 199, 0.4)',
-                    color: 'var(--color-text)',
+                    color: '#0369A1',
                     fontWeight: 600,
+                    ...(cancelButtonProps?.style || {}),
                 },
             }}
-            {...rests}
+            {...modalProps}
         >
             {children}
         </Modal>

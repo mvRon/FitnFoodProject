@@ -933,12 +933,21 @@ const AdminProductComponent = () => {
                     font-weight: 700;
                 }
                 .admin-product-page .admin-product-action-btn {
+                    width: 36px;
+                    height: 36px;
+                    border-radius: 10px;
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    background: #fff;
                     border-color: rgba(2, 132, 199, 0.28);
                     color: #0369A1;
+                    transition: all 0.2s ease;
                 }
                 .admin-product-page .admin-product-action-btn:hover {
                     border-color: rgba(2, 132, 199, 0.5) !important;
                     color: #0C4A6E !important;
+                    transform: translateY(-1px);
                 }
                 .admin-product-page .admin-product-action-btn-danger {
                     border-color: rgba(245, 158, 11, 0.5) !important;
@@ -952,6 +961,9 @@ const AdminProductComponent = () => {
                     background: linear-gradient(135deg, #10B981, #0284C7) !important;
                     border: none !important;
                     box-shadow: 0 12px 22px rgba(16, 185, 129, 0.24);
+                    min-height: 40px;
+                    border-radius: 10px;
+                    font-weight: 600;
                 }
                 .admin-product-page .admin-product-upload-btn {
                     border-color: rgba(2, 132, 199, 0.35);
@@ -970,6 +982,27 @@ const AdminProductComponent = () => {
                 .admin-product-modal .ant-modal-header {
                     background: linear-gradient(130deg, rgba(16, 185, 129, 0.15), rgba(2, 132, 199, 0.12));
                     border-bottom: 1px solid rgba(2, 132, 199, 0.12);
+                }
+                .admin-product-modal .ant-modal-footer {
+                    border-top: 1px solid rgba(2, 132, 199, 0.12);
+                    padding: 14px 20px;
+                    display: flex;
+                    justify-content: flex-end;
+                    gap: 10px;
+                }
+                .admin-product-modal .ant-modal-footer .ant-btn {
+                    height: 38px;
+                    border-radius: 10px;
+                    font-weight: 600;
+                }
+                .admin-product-modal .ant-modal-footer .ant-btn-default {
+                    border-color: rgba(2, 132, 199, 0.28);
+                    color: #0369A1;
+                }
+                .admin-product-modal .ant-modal-footer .ant-btn-primary {
+                    border: none;
+                    background: linear-gradient(135deg, #10B981, #0284C7);
+                    box-shadow: 0 10px 20px rgba(16, 185, 129, 0.2);
                 }
                 @keyframes adminProductFadeIn {
                     from {
