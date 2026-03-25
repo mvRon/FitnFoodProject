@@ -2,6 +2,22 @@ import Slider from "react-slick";
 import styled from "styled-components";
 
 export const WrapperSliderStyle = styled(Slider)`
+    width: 100%;
+
+    & .slick-list {
+        overflow: hidden;
+        border-radius: 8px;
+    }
+
+    & .slick-track {
+        display: flex !important;
+        align-items: center;
+    }
+
+    & .slick-slide > div {
+        width: 100%;
+    }
+
     & .slick-arrow.slick-prev {
         left: 12px;
         top: 50%;
@@ -33,7 +49,7 @@ export const WrapperSliderStyle = styled(Slider)`
             }
         }
 
-        li.active {
+        li.slick-active {
             button {
                 &::before {
                     color: #fff;

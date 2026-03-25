@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { List, Avatar, Space, message, Dropdown } from 'antd';
+import { List, Avatar, Space, message, Dropdown, Button } from 'antd';
 import { UserOutlined, MoreOutlined } from '@ant-design/icons';
 import moment from 'moment';
 import * as ProductService from '../../services/ProductService';
@@ -140,7 +140,12 @@ const ReplyComponent = ({ productId, reviewId, replies, access_token, userId, fe
                                             trigger={['click']}
                                             placement="bottomRight"
                                         >
-                                            <MoreOutlined style={{ fontSize: '16px', cursor: 'pointer', color: '#666' }} />
+                                            <Button
+                                                icon={<MoreOutlined />}
+                                                type="text"
+                                                size="small"
+                                                style={{ color: '#0284C7', borderRadius: 8 }}
+                                            />
                                         </Dropdown>
                                     )}</ReplyText>}
                                 />
@@ -177,13 +182,13 @@ const ReplyComponent = ({ productId, reviewId, replies, access_token, userId, fe
                 <>
                     <ReplyText
                         onClick={() => setShowReplyBox(!showReplyBox)}
-                        style={{ cursor: 'pointer', fontSize: 12, color: '#1890ff', marginTop: 6 }}
+                        style={{ cursor: 'pointer', fontSize: 12, color: '#0284C7', marginTop: 6, fontWeight: 600 }}
                     >
                         Reply
                     </ReplyText>
 
                     {showReplyBox && (
-                        <ReplyContainer style={{ marginTop: 8 }}>
+                        <ReplyContainer style={{ marginTop: 8, border: '1px solid rgba(16,185,129,0.2)', background: 'linear-gradient(165deg, rgba(16,185,129,0.07), rgba(248,250,252,0.9))' }}>
                             <ReplyInput
                                 rows={2}
                                 value={replyContent}

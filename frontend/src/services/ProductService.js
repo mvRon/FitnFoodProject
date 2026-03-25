@@ -30,11 +30,15 @@ export const getProductByType = async (typeId, page, limit) => {
     return res.data;
 };
 
-export const createProduct = async (data) => {
-    const res = await axios.post(
-        `${process.env.REACT_APP_API_URL_BACKEND}/product/createProduct`,
+export const createProduct = async (data, access_token) => {
+    const res = await axiosJWT.post(
+        `${process.env.REACT_APP_API_URL_BACKEND}/product/create-product`,
         data,
-        { withCredentials: true }
+        {
+            headers: {
+                token: `Bearer ${access_token}`,
+            },
+        }
     );
     return res.data;
 };
@@ -70,7 +74,7 @@ export const getDetailProduct = async (id) => {
 
 export const updateProduct = async (id, access_token, data) => {
     const res = await axiosJWT.put(
-        `${process.env.REACT_APP_API_URL_BACKEND}/product/updateProduct/${id}`,
+        `${process.env.REACT_APP_API_URL_BACKEND}/product/update-product/${id}`,
         data,
         {
             headers: {
@@ -83,7 +87,7 @@ export const updateProduct = async (id, access_token, data) => {
 
 export const deleteProduct = async (id, access_token) => {
     const res = await axiosJWT.delete(
-        `${process.env.REACT_APP_API_URL_BACKEND}/product/deleteProduct/${id}`,
+        `${process.env.REACT_APP_API_URL_BACKEND}/product/delete-product/${id}`,
         {
             headers: {
                 token: `Bearer ${access_token}`,
@@ -95,7 +99,7 @@ export const deleteProduct = async (id, access_token) => {
 
 export const deleteManyProduct = async (ids, access_token) => {
     const res = await axiosJWT.post(
-        `${process.env.REACT_APP_API_URL_BACKEND}/product/deleteManyProduct`,
+        `${process.env.REACT_APP_API_URL_BACKEND}/product/delete-many-products`,
         ids,
         {
             headers: {
@@ -108,7 +112,7 @@ export const deleteManyProduct = async (ids, access_token) => {
 
 export const getAllTypeProduct = async () => {
     const res = await axios.get(
-        `${process.env.REACT_APP_API_URL_BACKEND}/product/getAllTypeProduct`
+        `${process.env.REACT_APP_API_URL_BACKEND}/product/get-all-type-products`,
     );
     return res.data;
 };

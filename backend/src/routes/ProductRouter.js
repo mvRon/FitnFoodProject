@@ -8,6 +8,7 @@ router.put('/update-product/:id', authMiddleWare, ProductController.updateProduc
 router.delete('/delete-product/:id', authMiddleWare, ProductController.deleteProduct);
 router.get('/get-details-product/:id', ProductController.getDetailsProduct);
 router.get('/get-all-products', ProductController.getAllProducts);
+router.get('/get-all-type-products', ProductController.getAllTypeProducts);
 
 // Toàn bộ phần này là phần review và comment của sản phẩm
 router.post('/:productId/comment', authUserMiddleWare, ProductController.addComment);

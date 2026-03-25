@@ -1,3 +1,4 @@
+import AdminPage from "../pages/AdminPage/AdminPage";
 import HomePage from "../pages/HomePage/HomePage";
 import LoginPage from "../pages/LoginPage/LoginPage";
 import OrderPage from "../pages/OrderPage/OrderPage";
@@ -33,6 +34,12 @@ export const routes = [
     {
         path: '/order',
         page: OrderPage,
+        isShowHeader: true,
+        isPrivate: false
+    },
+    {
+        path: '/system/admin',
+        page: AdminPage,
         isShowHeader: true,
         isPrivate: false
     },

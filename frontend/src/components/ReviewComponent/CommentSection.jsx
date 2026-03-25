@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState, useCallback } from 'react';
-import { List, Avatar, Space, message, Typography, Rate, Dropdown, Menu, Button } from 'antd';
+import { List, Avatar, Space, message, Typography, Rate, Dropdown, Button } from 'antd';
 import { UserOutlined, MoreOutlined } from '@ant-design/icons';
 import { useSelector, useDispatch } from 'react-redux';
 import * as ProductService from '../../services/ProductService';
@@ -191,13 +191,13 @@ const CommentSection = ({ productId, refreshTrigger }) => {
                                 description={
                                     <div>
                                         {item.rating > 0 && (
-                                            <div style={{ marginBottom: 4 }}>
-                                                <Rate disabled value={Number(item.rating)} style={{ fontSize: 16, color: '#f6ad55' }} />
+                                            <div style={{ marginBottom: 6 }}>
+                                                <Rate disabled value={Number(item.rating)} style={{ fontSize: 16, color: '#F59E0B' }} />
                                             </div>
                                         )}
                                         <CommentContentText>{item.comment}</CommentContentText>
 
-                                        <Space style={{ justifyContent: 'space-between', marginTop: 8, width: '100%' }}>
+                                        <Space style={{ justifyContent: 'space-between', marginTop: 10, width: '100%', padding: '8px 10px', borderRadius: 10, background: 'linear-gradient(90deg, rgba(2,132,199,0.06), rgba(16,185,129,0.06))', border: '1px solid rgba(2,132,199,0.14)' }}>
                                             <ReplyComponent
                                                 productId={productId}
                                                 reviewId={item._id}
@@ -210,14 +210,23 @@ const CommentSection = ({ productId, refreshTrigger }) => {
                                                 <Dropdown
                                                     trigger={['click']}
                                                     placement="bottomRight"
-                                                    overlay={
-                                                        <Menu>
-                                                            <Menu.Item key="edit" onClick={() => handleEditComment(item._id, item.comment)}>Sửa</Menu.Item>
-                                                            <Menu.Item key="delete" onClick={() => handleDeleteComment(item._id)}>Xóa</Menu.Item>
-                                                        </Menu>
-                                                    }
+                                                    menu={{
+                                                        items: [
+                                                            {
+                                                                key: 'edit',
+                                                                label: 'Sửa',
+                                                                onClick: () => handleEditComment(item._id, item.comment),
+                                                            },
+                                                            {
+                                                                key: 'delete',
+                                                                label: 'Xóa',
+                                                                danger: true,
+                                                                onClick: () => handleDeleteComment(item._id),
+                                                            },
+                                                        ],
+                                                    }}
                                                 >
-                                                    <Button icon={<MoreOutlined />} type="text" size="small" />
+                                                    <Button icon={<MoreOutlined />} type="text" size="small" style={{ color: '#0284C7', borderRadius: 8 }} />
                                                 </Dropdown>
                                             )}
                                         </Space>

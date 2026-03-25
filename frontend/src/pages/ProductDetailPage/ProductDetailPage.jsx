@@ -12,7 +12,8 @@ import ReviewComponent from '../../components/ReviewComponent/ReviewComponent';
 import {
     Container, ProductImageWrapper, ProductInfoWrapper,
     StyledAddButton, RatingSection,
-    LeftColumnWrapper, WrapperDiscountText,
+    LeftColumnWrapper, ProductDescriptionContent, ProductDescriptionSection,
+    ProductDescriptionTitle, ProductDescriptionToggleButton, WrapperDiscountText,
 } from './Style';
 import * as CategoryService from '../../services/CategoryService';
 import * as ProductService from '../../services/ProductService';
@@ -30,6 +31,7 @@ const ProductDetailPage = () => {
     const [quantity, setQuantity] = useState(1);
     const [reviews, setReviews] = useState([]);
     const [selectedImage, setSelectedImage] = useState(null);
+    const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
     // const access_token = useSelector((state) => state.user.access_token);
     const access_token = localStorage.getItem('access_token');
     const user = useSelector((state) => state.user);
@@ -43,16 +45,13 @@ const ProductDetailPage = () => {
             try {
                 const res = await ProductService.getDetailProduct(id);
                 setProduct(res?.data);
-                setProductImageList(
+                const normalizedImages = (
                     res?.data?.images && Array.isArray(res.data.images) && res.data.images.length > 0
                         ? res.data.images
                         : [res?.data?.image]
-                );
-                setSelectedImage(
-                    res?.data?.images && Array.isArray(res.data.images) && res.data.images.length > 0
-                        ? res.data.images[0]
-                        : res?.data?.image
-                );
+                ).filter(Boolean);
+                setProductImageList(normalizedImages);
+                setSelectedImage(normalizedImages[0] || null);
             } catch (err) {
                 console.error('Lỗi khi lấy chi tiết sản phẩm:', err);
                 message.error('Không thể tải sản phẩm.');
@@ -170,6 +169,14 @@ const ProductDetailPage = () => {
             </Container>
         );
     }
+
+    const fullDescription = product?.description || '';
+    const previewLength = Math.ceil(fullDescription.length / 3);
+    const shortDescription = fullDescription.length > previewLength
+        ? `${fullDescription.slice(0, previewLength).trim()}...`
+        : fullDescription;
+    const shouldShowToggle = fullDescription.length > previewLength;
+
     const priceAfterDiscount = product.price - (product.price * (product.discount / 100));
     return (
         <Container>
@@ -187,7 +194,7 @@ const ProductDetailPage = () => {
       </Breadcrumb> */}
 
             <div style={{ maxWidth: '1270px', width: '100%', margin: '0 auto', padding: '0 16px' }}>
-                <Breadcrumb style={{ background: 'transparent', padding: 0, marginBottom: 12, cursor: 'pointer' }}>
+                <Breadcrumb style={{ background: 'linear-gradient(90deg, rgba(2,132,199,0.08), rgba(16,185,129,0.08))', border: '1px solid rgba(2,132,199,0.18)', borderRadius: 12, padding: '10px 14px', marginBottom: 12, cursor: 'pointer' }}>
                     <Breadcrumb.Item onClick={handleNavigateHome}>Trang chủ</Breadcrumb.Item>
                     {categoryPath.map((cat) => (
                         <Breadcrumb.Item
@@ -208,16 +215,18 @@ const ProductDetailPage = () => {
                         <ProductImageWrapper>
                             {productImageList.length > 1
                                 ? <SliderComponent arrImages={productImageList} selectedImage={selectedImage} /> // Hiển thị slider nếu có nhiều hình ảnh
-                                : <Image src={productImageList[0]} alt={product?.name} preview /> // Hiển thị hình ảnh đơn nếu chỉ có một hình ảnh
+                                : productImageList.length === 1
+                                    ? <Image src={productImageList[0]} alt={product?.name} preview />
+                                    : <Text type="secondary">Sản phẩm chưa có hình ảnh.</Text>
                             }
                         </ProductImageWrapper>
-                        <div style={{ width: '100%', marginTop: 16, display: 'flex', gap: 8, border: '1px solid #e8e8e8', padding: 8, borderRadius: 6, backgroundColor: '#fff' }}>
+                        <div style={{ width: '100%', marginTop: 16, display: 'flex', gap: 10, border: '1px solid rgba(2,132,199,0.2)', padding: 10, borderRadius: 12, background: 'linear-gradient(160deg, #FFFFFF, #F8FAFC)' }}>
                             {productImageList.map((image, index) => (
                                 <Image
                                     key={index}
                                     src={image}
                                     alt={`${product?.name} - ${index + 1}`}
-                                    style={{ width: 60, height: 60, objectFit: 'cover', borderRadius: 6, cursor: 'pointer', border: selectedImage === image ? '2px solid #1890ff' : 'none' }}
+                                    style={{ width: 62, height: 62, objectFit: 'cover', borderRadius: 10, cursor: 'pointer', border: selectedImage === image ? '2px solid #10B981' : '1px solid rgba(2,132,199,0.16)', boxShadow: selectedImage === image ? '0 8px 14px rgba(16,185,129,0.2)' : 'none' }}
                                     onClick={() => setSelectedImage(image)}
                                     preview={false}
                                 />
@@ -231,28 +240,38 @@ const ProductDetailPage = () => {
                     <ProductInfoWrapper>
                         <h2>{product.name}</h2>
                         <Divider />
-                        <Text delete className="price" style={{ color: 'black' }}>{product.price.toLocaleString('vi-VN')} VNĐ</Text>
+                        <Text delete className="price" style={{ color: '#64748B' }}>{product.price.toLocaleString('vi-VN')} VNĐ</Text>
                         <div className="price">{priceAfterDiscount.toLocaleString('vi-VN')} VNĐ <WrapperDiscountText> - {product.discount}%</WrapperDiscountText></div>
-                        <div>
-                            <span className="label">Mô tả:</span>
-                            <div className="description">{product.description}</div>
-                        </div>
                         <div className="sold">Đã bán: {product.sold || 0}</div>
-                        <div style={{ margin: '20px 0' }}>
+                        <div style={{ margin: '20px 0', padding: '10px 12px', borderRadius: 10, border: '1px solid rgba(2,132,199,0.16)', background: 'rgba(248,250,252,0.8)' }}>
                             <span className="label">Số lượng: </span>
                             <InputNumber min={1} value={quantity} onChange={(value) => setQuantity(value)} />
                         </div>
-                        <StyledAddButton onClick={handleAddToCart} style={{ marginRight: 16 }}>
+                        <StyledAddButton onClick={handleAddToCart} style={{ marginRight: 16, background: '#F59E0B', borderColor: '#F59E0B', boxShadow: '0 10px 22px rgba(245,158,11,0.32)' }}>
                             Thêm vào giỏ hàng
                         </StyledAddButton>
-                        <StyledAddButton onClick={handleBuyNow} style={{ background: '#78C841' }}>
+                        <StyledAddButton onClick={handleBuyNow} style={{ background: '#10B981', borderColor: '#10B981', boxShadow: '0 10px 22px rgba(16,185,129,0.28)' }}>
                             Mua ngay
                         </StyledAddButton>
                     </ProductInfoWrapper>
                 </Col>
 
-                {/* Đánh giá sản phẩm */}
                 <Col xs={{ span: 24, order: 3 }} md={{ span: 20, order: 3 }}>
+                    <ProductDescriptionSection>
+                        <ProductDescriptionTitle>Mô tả sản phẩm</ProductDescriptionTitle>
+                        <ProductDescriptionContent>
+                            {isDescriptionExpanded ? fullDescription : shortDescription}
+                        </ProductDescriptionContent>
+                        {shouldShowToggle && (
+                            <ProductDescriptionToggleButton onClick={() => setIsDescriptionExpanded((prev) => !prev)}>
+                                {isDescriptionExpanded ? 'Thu gọn' : 'Xem thêm'}
+                            </ProductDescriptionToggleButton>
+                        )}
+                    </ProductDescriptionSection>
+                </Col>
+
+                {/* Đánh giá sản phẩm */}
+                <Col xs={{ span: 24, order: 4 }} md={{ span: 20, order: 4 }}>
                     <RatingSection>
                         <ReviewComponent
                             productId={product._id}

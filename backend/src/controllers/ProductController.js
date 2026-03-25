@@ -170,6 +170,20 @@ const checkRatingPermission = async (req, res) => {
     res.status(result.status === 'OK' ? 200 : 400).json(result);
 };
 
+const getAllTypeProducts = async (req, res) => {
+    try {
+        const response = await ProducService.getAllTypeProducts()
+        return res.status(200).json(response)
+    } catch (e) {
+        return res.status(404).json({
+            message: e
+        })
+    }
+}
+
+
+
+
 module.exports = {
     createProduct,
     updateProduct,
@@ -183,6 +197,7 @@ module.exports = {
     addReplyToReview,
     updateReplyOfReview,
     deleteReplyOfReview,
-    deleteReview, 
-    checkRatingPermission
+    deleteReview,
+    checkRatingPermission,
+    getAllTypeProducts
 }
