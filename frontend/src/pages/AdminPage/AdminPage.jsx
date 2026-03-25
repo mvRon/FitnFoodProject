@@ -12,7 +12,7 @@ import AdminOrderComponent from '../../components/AdminOrderComponent/AdminOrder
 import AdminCategoryComponent from '../../components/AdminCategoryComponent/AdminCategoryComponent.jsx';
 import { AdminPageGlobalStyle, AdminPageShell } from './Style';
 // import AdminBannerComponent from '../../components/AdminBannerComponent/AdminBannerComponent.jsx';
-// import AdminDiscountComponent from '../../components/AdminDiscountComponent/AdminDiscountComponent.jsx';
+import AdminDiscountComponent from '../../components/AdminDiscountComponent/AdminDiscountComponent.jsx';
 
 const AdminPage = () => {
     // const navigate = useNavigate()
@@ -34,10 +34,10 @@ const AdminPage = () => {
                 return (
                     <AdminOrderComponent />
                 )
-            // case 'Discount':
-            //     return (
-            //         <AdminDiscountComponent />
-            //     )
+            case 'Discount':
+                return (
+                    <AdminDiscountComponent />
+                )
             // case 'Banner':
             //     return (
             //         <AdminBannerComponent />

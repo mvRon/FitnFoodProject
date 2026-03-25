@@ -2,7 +2,8 @@ import { Modal } from 'antd'
 import React from 'react'
 
 const ModalComponent = ({ title = 'Modal', open = false, children, ...rests }) => {
-    const { okButtonProps, cancelButtonProps, ...modalProps } = rests
+    const { okButtonProps, cancelButtonProps, className, rootClassName, ...modalProps } = rests
+    const mergedRootClassName = [rootClassName, className].filter(Boolean).join(' ') || undefined
 
     const defaultStyles = {
         header: {
@@ -33,6 +34,8 @@ const ModalComponent = ({ title = 'Modal', open = false, children, ...rests }) =
         <Modal
             title={title}
             open={open}
+            className={className}
+            rootClassName={mergedRootClassName}
             styles={defaultStyles}
             okButtonProps={{
                 ...okButtonProps,
