@@ -87,7 +87,8 @@ const getDetailsProduct = async (req, res) => {
 
 const getAllProducts = async (req, res) => {
     try {
-        const products = await ProducService.getAllProducts();
+        const { limit, page, sort, filter } = req.query;
+        const products = await ProducService.getAllProducts(limit || 5, page || 1, sort, filter);
         return res.status(200).json(products);
     } catch (e) {
         return res.status(404).json({

@@ -1,4 +1,6 @@
 const Product = require("../models/ProductModel");
+const Category = require("../models/CategoryModel");
+const Order = require("../models/OrderModel");
 const InventoryService = require("./InventoryService");
 
 
@@ -181,19 +183,100 @@ const getDetailsProduct = (productId) => {
     });
 }
 
-const getAllProducts = () => {
+// const getAllProducts = () => {
+//     return new Promise(async (resolve, reject) => {
+//         try {
+//             const allProducts = await Product.find().populate('type');
+//             resolve({
+//                 status: "OK",
+//                 message: "All products retrieved successfully!",
+//                 data: allProducts
+//             });
+//         } catch (e) {
+//             reject(e);
+//         }
+//     });
+// }
+
+
+const getAllProducts = (limit, page, sort, filter) => {
     return new Promise(async (resolve, reject) => {
         try {
-            const allProducts = await Product.find().populate('type');
+            const parsedLimit = Number(limit) > 0 ? Number(limit) : 5;
+            const parsedPage = Number(page) > 0 ? Number(page) : 1;
+            const skip = (parsedPage - 1) * parsedLimit;
+
+            const query = {};
+            const populateType = true;
+
+            if (Array.isArray(filter) && filter.length >= 2) {
+                if (filter[0] === "type") {
+                    const parentCategory = await Category.findOne({ name: filter[1] });
+                    if (!parentCategory) {
+                        return resolve({
+                            status: "OK",
+                            message: "Product type not found!",
+                            total: 0,
+                            data: [],
+                            currentPage: parsedPage,
+                            totalPage: 0
+                        });
+                    }
+                    const childCategories = await Category.find({ parent: parentCategory._id });
+                    const categoryIds = [parentCategory._id, ...childCategories.map(cat => cat._id)];
+                    query.type = { $in: categoryIds };
+                }
+
+                if (filter[0] === "typeId") {
+                    const parentCategory = await Category.findById(filter[1]);
+                    if (!parentCategory) {
+                        return resolve({
+                            status: "OK",
+                            message: "Product type not found!",
+                            total: 0,
+                            data: [],
+                            currentPage: parsedPage,
+                            totalPage: 0
+                        });
+                    }
+                    const childCategories = await Category.find({ parent: parentCategory._id });
+                    const categoryIds = [parentCategory._id, ...childCategories.map(cat => cat._id)];
+                    query.type = { $in: categoryIds };
+                }
+
+                if (filter[0] === "name") {
+                    query.name = { $regex: filter[1], $options: 'i' };
+                }
+            }
+
+            let sortObject = { name: 1 };
+            if (Array.isArray(sort) && sort.length >= 2) {
+                sortObject = { [sort[1]]: sort[0] };
+            }
+
+            const totalProduct = await Product.countDocuments(query);
+            let productQuery = Product.find(query)
+                .limit(parsedLimit)
+                .skip(skip)
+                .sort(sortObject);
+
+            if (populateType) {
+                productQuery = productQuery.populate("type");
+            }
+
+            const allProduct = await productQuery;
             resolve({
                 status: "OK",
-                message: "All products retrieved successfully!",
-                data: allProducts
-            });
+                message: "Get all products successfully!",
+                total: totalProduct,
+                data: allProduct,
+                currentPage: parsedPage,
+                totalPage: Math.ceil(totalProduct / parsedLimit)
+            })
         } catch (e) {
             reject(e);
         }
-    });
+    })
 }
 
 const getAllTypeProducts = () => {

@@ -9,26 +9,27 @@ import { useSelector } from "react-redux";
 import * as ProductService from '../../services/ProductService.js'
 import * as CategoryService from '../../services/CategoryService.js'
 
-import { useQuery, keepPreviousData } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import LoadingComponent from '../../components/LoadingComponent/LoadingComponent.jsx'
-import { Breadcrumb } from 'antd';
+import { Breadcrumb, Spin } from 'antd';
 
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { slugify } from '../../utils';
 
 
 const HomePage = () => {
+  const PAGE_SIZE = 5
 
   // const [typeProduct, setTypeProduct] = useState(['Máy giặt', 'Tivi', 'Tủ lạnh'])
 
   const searchProduct = useSelector((state) => state?.product?.search)
   const searchDebounce = useDebounce(searchProduct, 500)
-  const [limit, setLimit] = useState(5)
+  const [page, setPage] = useState(1)
+  const [displayProducts, setDisplayProducts] = useState([])
   const [typeProduct, setTypeProduct] = useState([])
-  const [slide, setSlide] = useState([])
 
-  const fetchProductAll = async (search) => {
-    const res = await ProductService.getAllProduct(search, limit)
+  const fetchProductAll = async (search, currentPage) => {
+    const res = await ProductService.getAllProduct(search, currentPage, PAGE_SIZE)
     return res
   }
 
@@ -45,14 +46,37 @@ const HomePage = () => {
     fetchAllTypeProduct()
   }, [])
 
+  useEffect(() => {
+    setPage(1)
+    setDisplayProducts([])
+  }, [searchDebounce])
 
-  const { data: products, isPending, isPlaceholderData } = useQuery({
-    queryKey: ['products', searchDebounce, limit],
-    queryFn: () => fetchProductAll(searchDebounce),
+
+  const { data: products, isPending, isFetching } = useQuery({
+    queryKey: ['products', searchDebounce, page],
+    queryFn: () => fetchProductAll(searchDebounce, page),
     retry: 3,
     retryDelay: 1000,
-    placeholderData: keepPreviousData,
   });
+
+  const isLoadingMore = isFetching && page > 1
+
+  useEffect(() => {
+    if (!products?.data) return
+
+    if (page === 1) {
+      setDisplayProducts(products.data)
+      return
+    }
+
+    setDisplayProducts((prev) => {
+      const productMap = new Map(prev.map((item) => [item._id, item]))
+      products.data.forEach((item) => {
+        productMap.set(item._id, item)
+      })
+      return Array.from(productMap.values())
+    })
+  }, [products, page])
 
   // console.log('products', products)
   //Chỉ lọc ra những Category cha
@@ -64,7 +88,7 @@ const HomePage = () => {
 
   return (
     <div>
-      <LoadingComponent isPending={isPending}>
+      <LoadingComponent isPending={false}>
         <div style={{ maxWidth: '1270px', width: '100%', margin: '0 auto', padding: '0 16px' }}>
           <Breadcrumb style={{ background: 'transparent', padding: 0, marginBottom: 12 }}>
             <Breadcrumb.Item>Trang chủ</Breadcrumb.Item>
@@ -106,7 +130,7 @@ const HomePage = () => {
                   </WrapperTypeProduct>
                 </div>
               </div>
-              {products?.data?.length > 0 ? products?.data?.map((product) => {
+              {displayProducts?.length > 0 ? displayProducts?.map((product) => {
                 return <CardComponent
                   key={product?._id}
                   countInStock={product.countInStock}
@@ -128,9 +152,12 @@ const HomePage = () => {
             </WrapperProducts>
             <div style={{ width: '100%', display: 'flex', marginTop: '10px', justifyContent: 'center' }}>
               <WrapperButtonMore
-                disabled={products?.total === products?.data?.length || products?.totalPage === 1}
-                onClick={() => setLimit((prev) => prev + 6)}>
-                <span>{isPlaceholderData ? 'Đang tải' : 'Xem thêm'}</span>
+                disabled={!products?.total || displayProducts.length >= products.total || isFetching}
+                onClick={() => setPage((prev) => prev + 1)}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                  {isLoadingMore && <Spin size="small" />}
+                  <span>{isLoadingMore ? 'Đang tải thêm' : 'Xem thêm'}</span>
+                </span>
               </WrapperButtonMore>
             </div>
 
