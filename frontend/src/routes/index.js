@@ -4,6 +4,7 @@ import LoginPage from "../pages/LoginPage/LoginPage";
 import OrderPage from "../pages/OrderPage/OrderPage";
 import ProductDetailPage from "../pages/ProductDetailPage/ProductDetailPage";
 import RegisterPage from "../pages/RegisterPage/RegisterPage";
+import TypeProductPage from "../pages/TypeProductPage/TypeProductPage";
 
 
 export const routes = [
@@ -42,5 +43,11 @@ export const routes = [
         page: AdminPage,
         isShowHeader: true,
         isPrivate: false
+    },
+    {
+        path: '/product/:type',
+        page: TypeProductPage,
+        isPrivate: false,
+        isShowHeader: true
     },
 ]

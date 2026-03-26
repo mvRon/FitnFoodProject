@@ -1,28 +1,35 @@
 import axios from "axios";
 import { axiosJWT } from "./UserService";
 
-export const getAllProduct = async (search, limit) => {
-    let res = {};
+export const getAllProduct = async (search, page = 1, limit = 5) => {
+    const queryParams = new URLSearchParams();
+    queryParams.append("page", String(page));
+    queryParams.append("limit", String(limit));
+
     if (search) {
-        res = await axios.get(
-            `${process.env.REACT_APP_API_URL_BACKEND}/product/get-all-products?filter=name&filter=${search}&limit=${limit}`,
-            { withCredentials: true }
-        );
-        return res.data;
-    } else {
-        res = await axios.get(
-            `${process.env.REACT_APP_API_URL_BACKEND}/product/get-all-products?limit=${limit || 1000}`,
-            { withCredentials: true }
-        );
-        return res.data;
+        queryParams.append("filter", "name");
+        queryParams.append("filter", search);
     }
+
+    const res = await axios.get(
+        `${process.env.REACT_APP_API_URL_BACKEND}/product/get-all-products?${queryParams.toString()}`,
+        { withCredentials: true }
+    );
+
+    return res.data;
 };
 
 export const getProductByType = async (typeId, page, limit) => {
     let res = {};
     if (typeId) {
+        const queryParams = new URLSearchParams();
+        queryParams.append("filter", "typeId");
+        queryParams.append("filter", typeId);
+        queryParams.append("limit", String(limit || 5));
+        queryParams.append("page", String(page || 1));
+
         res = await axios.get(
-            `${process.env.REACT_APP_API_URL_BACKEND}/product/get-all-products?filter=typeId&filter=${typeId}&limit=${limit}&page=${page}`,
+            `${process.env.REACT_APP_API_URL_BACKEND}/product/get-all-products?${queryParams.toString()}`,
             { withCredentials: true }
         );
         return res.data;

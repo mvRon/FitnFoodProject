@@ -9,7 +9,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import * as UserService from '../../services/UserService'
 import { resetUser } from '../../redux/slice/userSlice';
 import { searchProduct } from '../../redux/slice/productSlice';
-import Logo from '../../logo.svg'
+import Logo from '../../assets/logoFitnFood.jpg'
 import { clearOrder, syncCart } from '../../redux/slice/orderSlice';
 
 // import {

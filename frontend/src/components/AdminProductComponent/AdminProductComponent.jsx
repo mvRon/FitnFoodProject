@@ -9,11 +9,10 @@ import * as ProductService from '../../services/ProductService'
 import { useMutationHook } from '../../hooks/useMutationHook'
 // import * as message from '../../components/MessageComponent/MessageComponent'
 import LoadingComponent from '../LoadingComponent/LoadingComponent'
-import { keepPreviousData, useQuery } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import DrawerComponent from '../DrawerComponent/DrawerComponent'
 import { useSelector } from 'react-redux'
 import ModalComponent from '../ModalComponent/ModalComponent'
-import { useDebounce } from '../../hooks/useDebounce'
 import { getAllCategories } from '../../services/CategoryService'
 
 const AdminProductComponent = () => {
@@ -233,7 +232,8 @@ const AdminProductComponent = () => {
 
 
     const getAllProducts = async () => {
-        const res = await ProductService.getAllProduct()
+        // Admin table uses client-side pagination, so fetch a large batch.
+        const res = await ProductService.getAllProduct('', 1, 1000)
         return res
     }
 
