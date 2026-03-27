@@ -50,7 +50,15 @@ const createOrder = async (req, res) => {
 const getUserOrders = async (req, res) => {
     try {
         const userId = req.user.id;
-        const response = await OrderService.getUserOrders(userId);
+        const page = req.query.page ? Number(req.query.page) : undefined;
+        const limit = req.query.limit ? Number(req.query.limit) : undefined;
+        const includeImage = req.query.includeImage === 'true';
+
+        const response = await OrderService.getUserOrders(userId, {
+            page,
+            limit,
+            includeImage,
+        });
         
         return res.status(200).json(response);
     } catch (e) {

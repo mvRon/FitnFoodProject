@@ -151,18 +151,58 @@ const createOrder = (newOrder) => {
 
 
 // Lấy toàn bộ đơn hàng của người dùng
-const getUserOrders = (userId) => {
+// Mặc định loại bỏ orderItems.image để giảm payload network.
+const getUserOrders = (userId, options = {}) => {
     return new Promise(async (resolve, reject) => {
         try {
-            // const orders = await Order.find({ user: userId }).populate('orderItems.product');
-            const orders = await Order.find({ user: userId })
+            const includeImage = options.includeImage === true;
+            const page = Number(options.page);
+            const limit = Number(options.limit);
+            const hasPagination = Number.isInteger(page) && page > 0 && Number.isInteger(limit) && limit > 0;
+
+            const query = Order.find({ user: userId }).sort({ createdAt: -1 });
+
+            if (!includeImage) {
+                query.select("-orderItems.image");
+            }
+
+            if (hasPagination) {
+                const skip = (page - 1) * limit;
+                query.skip(skip).limit(limit);
+            }
+
+            const orders = await query.lean();
 
 
             if (!orders || orders.length === 0) {
                 return resolve({
                     status: 'OK',
                     message: 'No orders found',
-                    data: []
+                    data: [],
+                    pagination: hasPagination
+                        ? {
+                            page,
+                            limit,
+                            totalItems: 0,
+                            totalPages: 0,
+                        }
+                        : undefined,
+                });
+            }
+
+            if (hasPagination) {
+                const totalItems = await Order.countDocuments({ user: userId });
+                const totalPages = Math.ceil(totalItems / limit);
+                return resolve({
+                    status: 'OK',
+                    message: 'Get user orders successfully!',
+                    data: orders,
+                    pagination: {
+                        page,
+                        limit,
+                        totalItems,
+                        totalPages,
+                    }
                 });
             }
 
