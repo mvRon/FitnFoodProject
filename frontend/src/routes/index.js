@@ -2,10 +2,15 @@ import AdminPage from "../pages/AdminPage/AdminPage";
 import HomePage from "../pages/HomePage/HomePage";
 import LoginPage from "../pages/LoginPage/LoginPage";
 import OrderPage from "../pages/OrderPage/OrderPage";
+import PaymentPage from "../pages/PaymentPage/PaymentPage";
 import ProductDetailPage from "../pages/ProductDetailPage/ProductDetailPage";
 import ProfileUserPage from "../pages/ProfileUserPage/ProfileUserPage";
 import RegisterPage from "../pages/RegisterPage/RegisterPage";
 import TypeProductPage from "../pages/TypeProductPage/TypeProductPage";
+import OrderSuccessPage from "../pages/OrderSuccessPage/OrderSuccessPage";
+import OrderListPage from "../pages/OrderListPage/OrderListPage";
+import OrderDetailPage from "../pages/OrderDetailPage/OrderDetailPage";
+
 
 
 export const routes = [
@@ -54,6 +59,30 @@ export const routes = [
     {
         path: '/profileUser',
         page: ProfileUserPage,
+        isPrivate: false,
+        isShowHeader: true
+    },
+     {
+        path: '/payment',
+        page: PaymentPage,
+        isPrivate: false,
+        isShowHeader: true
+    },
+    {
+        path: '/orderSuccess',
+        page: OrderSuccessPage,
+        isPrivate: false,
+        isShowHeader: true
+    },
+    {
+        path: '/myOrder',
+        page: OrderListPage,
+        isPrivate: false,
+        isShowHeader: true
+    },
+    {
+        path: '/orderDetail/:orderId',
+        page: OrderDetailPage,
         isPrivate: false,
         isShowHeader: true
     },
