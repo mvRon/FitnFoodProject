@@ -7,6 +7,10 @@ import ProductDetailPage from "../pages/ProductDetailPage/ProductDetailPage";
 import ProfileUserPage from "../pages/ProfileUserPage/ProfileUserPage";
 import RegisterPage from "../pages/RegisterPage/RegisterPage";
 import TypeProductPage from "../pages/TypeProductPage/TypeProductPage";
+import OrderSuccessPage from "../pages/OrderSuccessPage/OrderSuccessPage";
+import OrderListPage from "../pages/OrderListPage/OrderListPage";
+import OrderDetailPage from "../pages/OrderDetailPage/OrderDetailPage";
+
 
 
 export const routes = [
@@ -61,6 +65,24 @@ export const routes = [
      {
         path: '/payment',
         page: PaymentPage,
+        isPrivate: false,
+        isShowHeader: true
+    },
+    {
+        path: '/orderSuccess',
+        page: OrderSuccessPage,
+        isPrivate: false,
+        isShowHeader: true
+    },
+    {
+        path: '/myOrder',
+        page: OrderListPage,
+        isPrivate: false,
+        isShowHeader: true
+    },
+    {
+        path: '/orderDetail/:orderId',
+        page: OrderDetailPage,
         isPrivate: false,
         isShowHeader: true
     },

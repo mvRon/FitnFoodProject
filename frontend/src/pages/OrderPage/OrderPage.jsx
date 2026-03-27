@@ -514,9 +514,9 @@ const OrderPage = () => {
                       <span style={{ color: "rgb(255, 66, 78)", fontSize: 13, fontWeight: 500 }}>{convertPrice(totalItemPrice)}</span>
                       <DeleteOutlined style={{ cursor: "pointer", fontSize: 16 }} onClick={() => handleDeleteOrder(item?.product)} />
                     </div>
-                    <div style={{ display: "flex", gap: 8, marginTop: 8, alignItems: "center" }}>
+                    {/* <div style={{ display: "flex", gap: 8, marginTop: 8, alignItems: "center" }}>
                       <span style={{ fontSize: 12, color: "#64748b" }}>Ưu đãi sản phẩm sẽ cộng dồn với mã giảm giá toàn đơn</span>
-                    </div>
+                    </div> */}
                   </WrapperItemOrder>
                 );
               })}

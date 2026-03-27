@@ -172,7 +172,7 @@ const PaymentPage = () => {
 
         if (userId) {
           try {
-            await CartService.deleteCart(userId);
+            await CartService.deleteCart(userId, storageData);
           } catch (e) {
             console.error(e);
           }
