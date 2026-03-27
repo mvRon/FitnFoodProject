@@ -1,6 +1,6 @@
 
 import { DeleteOutlined, MinusOutlined, PlusOutlined } from "@ant-design/icons";
-import { Button, Card, Checkbox, Form, Input, List, message, Modal, Steps } from "antd";
+import { Button, Card, Checkbox, Form, Input, List, message, Modal } from "antd";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { decreaseAmount, increaseAmount, removeAllOrder, removeOrder, selectedOrder, syncCart } from "../../redux/slice/orderSlice";
@@ -29,8 +29,6 @@ import {
   WrapperTotal,
   WrapperInputNumber,
   DiscountButton,
-  DiscountModalContent,
-  DiscountItem,
 } from "./Style";
 
 const OrderPage = () => {
@@ -41,7 +39,6 @@ const OrderPage = () => {
   const [listChecked, setListChecked] = useState([]);
   const [isOpenModalUpdateInfo, setIsOpenModalUpdateInfo] = useState(false);
   const [isOpenDiscountModal, setIsOpenDiscountModal] = useState(false);
-  const [selectedProductId, setSelectedProductId] = useState(null);
   const navigate = useNavigate();
   let storageData = localStorage.getItem("access_token");
   storageData = storageData ? JSON.parse(storageData) : null;
@@ -53,7 +50,7 @@ const OrderPage = () => {
     phone: "",
     city: "",
   });
-  const [productDiscounts, setProductDiscounts] = useState({});
+  const [selectedDiscount, setSelectedDiscount] = useState(null);
   const [discounts, setDiscounts] = useState([]);
 
 
@@ -113,18 +110,13 @@ const OrderPage = () => {
   const handleDeleteOrder = async (idProduct) => {
     dispatch(removeOrder({ idProduct: idProduct }));
     await CartService.deleteCart(user?.id, storageData);
-    setProductDiscounts((prev) => {
-      const newDiscounts = { ...prev };
-      delete newDiscounts[idProduct];
-      return newDiscounts;
-    });
   };
 
   const handleDeleteAllOrder = async () => {
     if (listChecked?.length >= 1) {
       dispatch(removeAllOrder({ listChecked }));
       await CartService.deleteCart(user?.id, storageData);
-      setProductDiscounts({});
+      setSelectedDiscount(null);
     }
   };
 
@@ -157,26 +149,35 @@ const OrderPage = () => {
     return result || 0;
   }, [order, listChecked]);
 
-  // Tính tổng giảm giá dựa trên discountedPrice của từng sản phẩm
-  const priceDiscountMemo = useMemo(() => {
-    const result = order?.orderItems
+  const itemDiscountMemo = useMemo(() => {
+    const itemDiscount = order?.orderItems
       ?.filter((item) => listChecked.includes(item.product))
       ?.reduce((total, current) => {
-        const productDiscount = productDiscounts[current.product];
         const originalPrice = current.price * current.amount;
         const discountPercent = (current.discount || 0) / 100;
-        let appliedDiscount = discountPercent * originalPrice;
-
-        if (productDiscount) {
-          appliedDiscount += productDiscount.type === "percent"
-            ? (originalPrice * productDiscount.value) / 100
-            : Math.min(productDiscount.value, originalPrice); // Đảm bảo không giảm quá giá gốc
-        }
-
-        return total + appliedDiscount;
+        return total + discountPercent * originalPrice;
       }, 0);
-    return result || 0;
-  }, [order, listChecked, productDiscounts]);
+
+    return Number(itemDiscount || 0);
+  }, [order, listChecked]);
+
+  const couponDiscountMemo = useMemo(() => {
+    if (!selectedDiscount || !priceMemo) {
+      return 0;
+    }
+
+    const discountByCoupon =
+      selectedDiscount.type === "percent"
+        ? (priceMemo * selectedDiscount.value) / 100
+        : Math.min(selectedDiscount.value, priceMemo);
+
+    return Number(discountByCoupon || 0);
+  }, [selectedDiscount, priceMemo]);
+
+  // Tính tổng giảm giá cho toàn bộ đơn hàng: giảm giá sản phẩm + 1 mã giảm giá toàn đơn
+  const priceDiscountMemo = useMemo(() => {
+    return Number(itemDiscountMemo + couponDiscountMemo);
+  }, [itemDiscountMemo, couponDiscountMemo]);
 
   // Tính phí giao hàng
   const deliveryMemo = useMemo(() => {
@@ -207,7 +208,7 @@ const OrderPage = () => {
           priceDiscountMemo: priceDiscountMemo,
           deliveryMemo: deliveryMemo,
           totalPriceMemo: totalPriceMemo,
-          productDiscounts: productDiscounts,
+          orderDiscount: selectedDiscount,
           listChecked: listChecked
         }
       });
@@ -317,36 +318,33 @@ const OrderPage = () => {
     navigate(`/productDetail/${productId}`);
   };
 
-  const handleOpenDiscountModal = (productId) => {
-    setSelectedProductId(productId);
+  const handleOpenDiscountModal = () => {
     setIsOpenDiscountModal(true);
   };
 
   const handleApplyDiscount = (code) => {
-    applyDiscount(selectedProductId, code);
+    applyDiscount(code);
   };
 
-  const applyDiscount = (productId, code) => {
+  const applyDiscount = (code) => {
     const selectedDiscount = discounts.find((d) => d.code === code);
     if (selectedDiscount) {
-      const item = order?.orderItems?.find((item) => item.product === productId);
-      if (!item) return;
-      const itemPrice = item.price * item.amount;
+      if (!priceMemo || !listChecked.length) {
+        message.error("Vui lòng chọn sản phẩm trước khi áp dụng mã giảm giá");
+        return;
+      }
       const now = new Date();
       const isValid =
         new Date(selectedDiscount.startDate) <= now &&
         new Date(selectedDiscount.endDate) >= now &&
-        itemPrice >= selectedDiscount.minValue &&
+        priceMemo >= selectedDiscount.minValue &&
         selectedDiscount.usesLeft > 0;
 
       if (isValid) {
-        setProductDiscounts((prev) => ({
-          ...prev,
-          [productId]: selectedDiscount,
-        }));
-        message.success("Mã giảm giá đã được áp dụng thành công");
+        setSelectedDiscount(selectedDiscount);
+        message.success(`Đã áp dụng mã ${selectedDiscount.code} cho toàn bộ đơn hàng`);
         setIsOpenDiscountModal(false);
-      } else if (itemPrice < selectedDiscount.minValue) {
+      } else if (priceMemo < selectedDiscount.minValue) {
         message.error(`Giá trị đơn hàng tối thiểu phải là ${convertPrice(selectedDiscount.minValue)}`);
       } else if (selectedDiscount.usesLeft <= 0) {
         message.error("Mã giảm giá này đã hết lượt sử dụng");
@@ -387,10 +385,11 @@ const OrderPage = () => {
   return (
     <div
       style={{
-        background: "#f5f5fa",
+        background:
+          "radial-gradient(circle at 12% 8%, rgba(16, 185, 129, 0.2), rgba(16, 185, 129, 0) 34%), radial-gradient(circle at 92% 14%, rgba(2, 132, 199, 0.16), rgba(2, 132, 199, 0) 34%), linear-gradient(180deg, #f8fafc 0%, #eefbf5 100%)",
         width: "100%",
         minHeight: "100vh",
-        padding: "20px 0",
+        padding: "14px 0 20px",
       }}
     >
       <div
@@ -401,7 +400,34 @@ const OrderPage = () => {
           padding: "0 16px",
         }}
       >
-        <h3 style={{ fontSize: "24px", fontWeight: "bold", marginBottom: "16px" }}>Giỏ hàng</h3>
+        <div
+          style={{
+            position: "relative",
+            overflow: "hidden",
+            borderRadius: 18,
+            marginBottom: 16,
+            padding: "16px 18px",
+            border: "1px solid rgba(16, 185, 129, 0.28)",
+            background: "linear-gradient(120deg, rgba(255,255,255,0.92), rgba(240,255,250,0.95))",
+            boxShadow: "0 18px 34px rgba(15, 23, 42, 0.08)",
+          }}
+        >
+          <div
+            style={{
+              position: "absolute",
+              right: -14,
+              top: -20,
+              width: 110,
+              height: 110,
+              borderRadius: "999px",
+              background: "radial-gradient(circle, rgba(2,132,199,0.28), rgba(2,132,199,0))",
+            }}
+          />
+          <h3 style={{ fontSize: "24px", fontWeight: "bold", marginBottom: "6px", color: "#1e293b" }}>Giỏ hàng</h3>
+          <div style={{ color: "#334155", fontSize: 13 }}>
+            Chọn sản phẩm, áp dụng một mã giảm giá cho toàn bộ đơn hàng và tiếp tục thanh toán.
+          </div>
+        </div>
         <div
           className="orderpage-main-wrapper"
           style={{
@@ -443,20 +469,8 @@ const OrderPage = () => {
             </WrapperStyleHeader>
             <WrapperListOrder>
               {order?.orderItems?.map((item) => {
-                const productDiscount = productDiscounts[item?.product];
-                const originalPrice = item.price * item.amount;
                 const discountPercent = (item.discount || 0) / 100;
-                let appliedDiscount = discountPercent * originalPrice;
-                let discountedPrice = item.price;
-
-                if (productDiscount) {
-                  appliedDiscount += productDiscount.type === "percent"
-                    ? (originalPrice * productDiscount.value) / 100
-                    : Math.min(productDiscount.value, originalPrice);
-                  discountedPrice = productDiscount.type === "percent"
-                    ? item.price * (1 - productDiscount.value / 100)
-                    : Math.max(0, item.price - productDiscount.value / item.amount);
-                }
+                const discountedPrice = item.price * (1 - discountPercent);
 
                 const totalItemPrice = discountedPrice * item.amount;
 
@@ -501,123 +515,110 @@ const OrderPage = () => {
                       <DeleteOutlined style={{ cursor: "pointer", fontSize: 16 }} onClick={() => handleDeleteOrder(item?.product)} />
                     </div>
                     <div style={{ display: "flex", gap: 8, marginTop: 8, alignItems: "center" }}>
-                      <DiscountButton onClick={() => handleOpenDiscountModal(item?.product)}>
-                        Mã giảm giá
-                      </DiscountButton>
+                      <span style={{ fontSize: 12, color: "#64748b" }}>Ưu đãi sản phẩm sẽ cộng dồn với mã giảm giá toàn đơn</span>
                     </div>
-                    <Modal
-                      title={<span style={{ fontSize: "18px", fontWeight: "bold", color: "#333" }}>Chọn mã giảm giá</span>}
-                      open={isOpenDiscountModal && selectedProductId === item?.product}
-                      onCancel={() => setIsOpenDiscountModal(false)}
-                      footer={null}
-                      width={450}
-                      style={{ top: 20 }}
-                      bodyStyle={{ padding: 0 }}
-                    >
-                      <Card
-                        style={{
-                          borderRadius: 8,
-                          boxShadow: "0 4px 12px rgba(0, 0, 0, 0.1)",
-                          overflow: "hidden",
-                        }}
-                      >
-                        <List
-                          style={{ maxHeight: "400px", overflowY: "auto" }}
-                          dataSource={discounts}
-                          renderItem={(discount) => {
-                            const itemPrice = item.price * item.amount;
-                            const now = new Date();
-                            const isValid =
-                              new Date(discount.startDate) <= now &&
-                              new Date(discount.endDate) >= now &&
-                              itemPrice >= discount.minValue &&
-                              discount.usesLeft > 0;
-                            const isApplied = productDiscounts[item?.product]?.code === discount.code;
-
-                            return (
-                              <List.Item
-                                style={{
-                                  padding: "12px 16px",
-                                  borderBottom: "1px solid #f0f0f0",
-                                  cursor: isValid ? "pointer" : "not-allowed",
-                                  background: isApplied ? "#e6f7ff" : "transparent",
-                                  transition: "background 0.3s",
-                                }}
-                                onClick={() => isValid && handleApplyDiscount(discount.code)}
-                              >
-                                <div style={{ display: "flex", justifyContent: "space-between", width: "100%", alignItems: "center" }}>
-                                  <span style={{ fontSize: "14px", color: isValid ? "#333" : "#999" }}>
-                                    {`${discount.code} - ${discount.type === "percent" ? `${discount.value}%` : convertPrice(discount.value)}`}
-                                    <br />
-                                    <span style={{ fontSize: "12px", color: "#666" }}>
-                                      (Tối thiểu: {convertPrice(discount.minValue)}, Còn lại: {discount.usesLeft})
-                                    </span>
-                                  </span>
-                                  {isApplied && (
-                                    <Button type="primary" size="small" style={{ background: "#52c41a", borderColor: "#52c41a" }}>
-                                      Đã áp dụng
-                                    </Button>
-                                  )}
-                                </div>
-                              </List.Item>
-                            );
-                          }}
-                        />
-                      </Card>
-                    </Modal>
                   </WrapperItemOrder>
                 );
               })}
             </WrapperListOrder>
           </div>
           <div style={{ flex: 1, minWidth: 260, maxWidth: 400, width: "100%" }}>
-            <Card title="Thông tin đơn hàng" style={{ borderRadius: 8, boxShadow: "0 2px 8px rgba(0, 0, 0, 0.1)" }}>
-              <WrapperInfo>
-                <div>
-                  <span>Địa chỉ: </span>
-                  <span style={{ fontWeight: "bold" }}>{` ${user?.address}, ${user?.city} `}</span>
-                  <span onClick={handleChangeAddress} style={{ color: "#1890ff", cursor: "pointer" }}>
-                    Thay đổi
+            <WrapperRight>
+              <div style={{ width: "100%" }}>
+                <div
+                  style={{
+                    width: "100%",
+                    marginBottom: 8,
+                    padding: "10px 14px",
+                    borderRadius: 12,
+                    background: "linear-gradient(135deg, rgba(16, 185, 129, 0.16), rgba(2, 132, 199, 0.16))",
+                    border: "1px solid rgba(16, 185, 129, 0.28)",
+                    color: "#0f172a",
+                    fontWeight: 700,
+                    fontSize: 14,
+                  }}
+                >
+                  Thông tin đơn hàng
+                </div>
+                <WrapperInfo>
+                  <div>
+                    <span>Địa chỉ: </span>
+                    <span style={{ fontWeight: "bold" }}>{` ${user?.address}, ${user?.city} `}</span>
+                    <span onClick={handleChangeAddress} style={{ color: "#0284c7", cursor: "pointer", marginLeft: 8 }}>
+                      Thay đổi
+                    </span>
+                  </div>
+                </WrapperInfo>
+                <WrapperInfo>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+                    <span style={{ color: "#334155", fontWeight: 700 }}>Mã giảm giá toàn đơn</span>
+                    {selectedDiscount ? (
+                      <span style={{ color: "#16a34a", fontSize: 12, fontWeight: 700 }}>{selectedDiscount.code}</span>
+                    ) : (
+                      <span style={{ color: "#94a3b8", fontSize: 12 }}>Chưa áp dụng</span>
+                    )}
+                  </div>
+                  <DiscountButton
+                    onClick={handleOpenDiscountModal}
+                    style={{
+                      height: 36,
+                      borderRadius: 12,
+                      fontWeight: 700,
+                      background: "linear-gradient(135deg, rgba(245, 158, 11, 0.16), rgba(251, 191, 36, 0.1))",
+                      border: "1px solid rgba(245, 158, 11, 0.55)",
+                    }}
+                  >
+                    {selectedDiscount ? "Đổi mã giảm giá" : "Chọn mã giảm giá"}
+                  </DiscountButton>
+                </WrapperInfo>
+
+                <WrapperInfo>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <span>Tạm tính</span>
+                    <span style={{ color: "#000", fontSize: 14, fontWeight: "bold" }}>{convertPrice(priceMemo)}</span>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <span>Giảm giá</span>
+                    <span style={{ color: "#000", fontSize: 14, fontWeight: "bold" }}>{convertPrice(priceDiscountMemo)}</span>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 4 }}>
+                    <span style={{ color: "#64748b", fontSize: 12 }}>Giảm giá sản phẩm</span>
+                    <span style={{ color: "#0284c7", fontSize: 12, fontWeight: 600 }}>{convertPrice(itemDiscountMemo)}</span>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 2 }}>
+                    <span style={{ color: "#64748b", fontSize: 12 }}>Giảm từ mã toàn đơn</span>
+                    <span style={{ color: "#0284c7", fontSize: 12, fontWeight: 600 }}>{convertPrice(couponDiscountMemo)}</span>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <span>Phí giao hàng</span>
+                    <span style={{ color: "#000", fontSize: 14, fontWeight: "bold" }}>{convertPrice(deliveryMemo)}</span>
+                  </div>
+                </WrapperInfo>
+                <WrapperTotal>
+                  <span>Tổng tiền</span>
+                  <span style={{ display: "flex", flexDirection: "column" }}>
+                    <span style={{ color: "rgb(254, 56, 52)", fontSize: 24, fontWeight: "bold" }}>{convertPrice(totalPriceMemo)}</span>
+                    <span style={{ color: "#000", fontSize: 11 }}>(Đã bao gồm thuế nếu có)</span>
                   </span>
-                </div>
-              </WrapperInfo>
-              <WrapperInfo>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <span>Tạm tính</span>
-                  <span style={{ color: "#000", fontSize: 14, fontWeight: "bold" }}>{convertPrice(priceMemo)}</span>
-                </div>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <span>Giảm giá</span>
-                  <span style={{ color: "#000", fontSize: 14, fontWeight: "bold" }}>{convertPrice(priceDiscountMemo)}</span>
-                </div>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <span>Phí giao hàng</span>
-                  <span style={{ color: "#000", fontSize: 14, fontWeight: "bold" }}>{convertPrice(deliveryMemo)}</span>
-                </div>
-              </WrapperInfo>
-              <WrapperTotal>
-                <span>Tổng tiền</span>
-                <span style={{ display: "flex", flexDirection: "column" }}>
-                  <span style={{ color: "rgb(254, 56, 52)", fontSize: 24, fontWeight: "bold" }}>{convertPrice(totalPriceMemo)}</span>
-                  <span style={{ color: "#000", fontSize: 11 }}>(Đã bao gồm thuế nếu có)</span>
-                </span>
-              </WrapperTotal>
+                </WrapperTotal>
+              </div>
               <Button
                 type="primary"
                 onClick={() => handleAddCart()}
                 style={{
-                  background: "rgb(255, 57, 69)",
+                  background: "linear-gradient(135deg, #10b981, #0284c7)",
                   height: 48,
                   width: "100%",
                   border: "none",
-                  borderRadius: 4,
+                  borderRadius: 12,
                   fontWeight: "bold",
-                  marginTop: 16,
+                  marginTop: 12,
+                  boxShadow: "0 12px 24px rgba(2, 132, 199, 0.25)",
                 }}
               >
                 Mua hàng
               </Button>
-            </Card>
+            </WrapperRight>
           </div>
         </div>
       </div>
@@ -626,7 +627,8 @@ const OrderPage = () => {
         title="Cập nhật thông tin giao hàng"
         open={isOpenModalUpdateInfo}
         onCancel={handleCancelUpdateInfo}
-        okText="Yes"
+        okText="Cập nhật"
+        cancelText="Hủy"
         onOk={handleUpdateUserInfo}
       >
         <LoadingComponent isPending={isPending}>
@@ -638,21 +640,109 @@ const OrderPage = () => {
             autoComplete="off"
             form={form}
           >
-            <Form.Item label="Name" name="name" rules={[{ required: true, message: "Please input your Name!" }]}>
+            <Form.Item label="Tên" name="name" rules={[{ required: true, message: "Vui lòng nhập họ tên" }]}>
               <Input value={stateDetailUser.name} onChange={handleOnChangeDetailUser} name="name" />
             </Form.Item>
-            <Form.Item label="City" name="city" rules={[{ required: true, message: "Please input your Email!" }]}>
+            <Form.Item label="Tỉnh/TP" name="city" rules={[{ required: true, message: "Vui lòng nhập tỉnh/thành phố" }]}>
               <Input value={stateDetailUser.city} onChange={handleOnChangeDetailUser} name="city" />
             </Form.Item>
-            <Form.Item label="Address" name="address" rules={[{ required: true, message: "Please input your Address!" }]}>
+            <Form.Item label="Địa chỉ" name="address" rules={[{ required: true, message: "Vui lòng nhập địa chỉ" }]}>
               <Input value={stateDetailUser.address} onChange={handleOnChangeDetailUser} name="address" />
             </Form.Item>
-            <Form.Item label="Phone" name="phone" rules={[{ required: true, message: "Please input your Phone!" }]}>
+            <Form.Item label="Điện thoại" name="phone" rules={[{ required: true, message: "Vui lòng nhập số điện thoại" }]}>
               <Input value={stateDetailUser.phone} onChange={handleOnChangeDetailUser} name="phone" />
             </Form.Item>
           </Form>
         </LoadingComponent>
       </ModalComponent>
+
+      <Modal
+        title={<span style={{ fontSize: "18px", fontWeight: "bold", color: "#1e293b" }}>Chọn mã giảm giá cho toàn bộ đơn hàng</span>}
+        open={isOpenDiscountModal}
+        onCancel={() => setIsOpenDiscountModal(false)}
+        footer={null}
+        width={500}
+        style={{ top: 20 }}
+        bodyStyle={{ padding: 0 }}
+      >
+        <Card
+          style={{
+            borderRadius: 10,
+            boxShadow: "0 4px 12px rgba(0, 0, 0, 0.08)",
+            overflow: "hidden",
+          }}
+        >
+          {selectedDiscount && (
+            <div style={{ padding: "10px 16px", background: "#f8fafc", borderBottom: "1px solid #e2e8f0" }}>
+              <span style={{ color: "#334155", fontSize: 12, marginRight: 8 }}>Đang áp dụng:</span>
+              <span style={{ fontWeight: 700, color: "#16a34a", marginRight: 10 }}>{selectedDiscount.code}</span>
+              <Button
+                size="small"
+                type="text"
+                onClick={() => {
+                  setSelectedDiscount(null);
+                  message.success("Đã bỏ mã giảm giá");
+                }}
+                style={{ color: "#dc2626", fontWeight: 600 }}
+              >
+                Bỏ mã
+              </Button>
+            </div>
+          )}
+          <List
+            style={{ maxHeight: "420px", overflowY: "auto" }}
+            dataSource={discounts}
+            renderItem={(discount) => {
+              const now = new Date();
+              const isValid =
+                new Date(discount.startDate) <= now &&
+                new Date(discount.endDate) >= now &&
+                priceMemo >= discount.minValue &&
+                discount.usesLeft > 0;
+              const isApplied = selectedDiscount?.code === discount.code;
+
+              return (
+                <List.Item
+                  style={{
+                    padding: "12px 16px",
+                    borderBottom: "1px solid #f0f0f0",
+                    cursor: isValid ? "pointer" : "not-allowed",
+                    background: isApplied ? "#ecfeff" : "transparent",
+                    transition: "background 0.25s",
+                    opacity: isValid || isApplied ? 1 : 0.6,
+                  }}
+                  onClick={() => isValid && handleApplyDiscount(discount.code)}
+                >
+                  <div style={{ display: "flex", justifyContent: "space-between", width: "100%", alignItems: "center", gap: 10 }}>
+                    <span style={{ fontSize: "14px", color: "#1e293b" }}>
+                      {`${discount.code} - ${discount.type === "percent" ? `${discount.value}%` : convertPrice(discount.value)}`}
+                      <br />
+                      <span style={{ fontSize: "12px", color: "#64748b" }}>
+                        (Tối thiểu: {convertPrice(discount.minValue)}, Còn lại: {discount.usesLeft})
+                      </span>
+                    </span>
+                    {isApplied ? (
+                      <Button type="primary" size="small" style={{ background: "#16a34a", borderColor: "#16a34a" }}>
+                        Đã áp dụng
+                      </Button>
+                    ) : (
+                      <Button
+                        size="small"
+                        style={{
+                          borderColor: isValid ? "#0284c7" : "#94a3b8",
+                          color: isValid ? "#0284c7" : "#94a3b8",
+                        }}
+                      >
+                        Chọn
+                      </Button>
+                    )}
+                  </div>
+                </List.Item>
+              );
+            }}
+          />
+        </Card>
+      </Modal>
     </div>
   );
 };

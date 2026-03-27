@@ -37,6 +37,7 @@ const PaymentPage = () => {
     priceDiscountMemo: orderPriceDiscountMemo,
     deliveryMemo: orderDeliveryMemo,
     productDiscounts: orderProductDiscounts,
+    orderDiscount,
   } = orderState;
   const hasOrderState = useMemo(() => Object.keys(orderState).length > 0, [orderState]);
 
@@ -178,8 +179,24 @@ const PaymentPage = () => {
         }
 
         try {
+          const discountList = [];
+
+          if (orderDiscount && orderDiscount._id) {
+            discountList.push(orderDiscount);
+          }
+
           const appliedDiscounts = orderProductDiscounts || {};
           for (const [, discount] of Object.entries(appliedDiscounts)) {
+            if (discount && discount._id) {
+              discountList.push(discount);
+            }
+          }
+
+          const uniqueDiscounts = discountList.filter(
+            (discount, index, arr) => arr.findIndex((item) => item?._id === discount?._id) === index
+          );
+
+          for (const discount of uniqueDiscounts) {
             if (discount && discount._id && userId) {
               try {
                 await DiscountService.updateDiscountUsage(discount._id, userId, storageData);
@@ -283,23 +300,101 @@ const PaymentPage = () => {
   const handleDelivery = (e) => setDelivery(e.target.value);
 
   return (
-    <div style={{ background: "linear-gradient(180deg, #f8fafc 0%, #eefbf5 100%)", width: "100%", minHeight: "100vh" }}>
+    <div
+      style={{
+        background:
+          "radial-gradient(circle at 10% 10%, rgba(16, 185, 129, 0.2) 0%, rgba(16, 185, 129, 0) 36%), radial-gradient(circle at 90% 20%, rgba(2, 132, 199, 0.16) 0%, rgba(2, 132, 199, 0) 34%), linear-gradient(180deg, #f8fafc 0%, #eefbf5 100%)",
+        width: "100%",
+        minHeight: "100vh",
+      }}
+    >
       <style>{`
+        @keyframes paymentFloat {
+          0% { transform: translateY(0px); }
+          50% { transform: translateY(-8px); }
+          100% { transform: translateY(0px); }
+        }
+        @keyframes paymentFadeIn {
+          from { opacity: 0; transform: translateY(14px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
         @media (max-width: 1024px) {
           .paymentpage-main-wrapper {
             flex-direction: column !important;
             gap: 0 !important;
           }
         }
+        .paymentpage-hero {
+          animation: paymentFadeIn 420ms ease-out;
+        }
+        .paymentpage-floating {
+          animation: paymentFloat 4.8s ease-in-out infinite;
+        }
       `}</style>
       <LoadingComponent isPending={isPendingAddOrder}>
-        <div style={{ width: "100%", maxWidth: 1270, margin: "0 auto", padding: "0 8px 24px" }}>
-          <h2 style={{ color: "#1e293b", fontWeight: 700, marginBottom: 16 }}>Thanh toán đơn hàng</h2>
+        <div style={{ width: "100%", maxWidth: 1270, margin: "0 auto", padding: "14px 8px 28px" }}>
+          <div
+            className="paymentpage-hero"
+            style={{
+              position: "relative",
+              overflow: "hidden",
+              borderRadius: 18,
+              marginBottom: 16,
+              padding: "16px 18px",
+              border: "1px solid rgba(16, 185, 129, 0.28)",
+              background: "linear-gradient(120deg, rgba(255,255,255,0.92), rgba(240,255,250,0.95))",
+              boxShadow: "0 18px 34px rgba(15, 23, 42, 0.08)",
+            }}
+          >
+            <div
+              className="paymentpage-floating"
+              style={{
+                position: "absolute",
+                right: -16,
+                top: -22,
+                width: 110,
+                height: 110,
+                borderRadius: "999px",
+                background: "radial-gradient(circle, rgba(2,132,199,0.28), rgba(2,132,199,0))",
+              }}
+            />
+            <h2 style={{ color: "#1e293b", fontWeight: 800, marginBottom: 6 }}>Thanh toán đơn hàng</h2>
+            <div style={{ color: "#334155", fontSize: 13, marginBottom: 10 }}>
+              Hoàn tất thông tin giao nhận để hệ thống xử lý đơn hàng nhanh hơn.
+            </div>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <span
+                style={{
+                  padding: "6px 10px",
+                  borderRadius: 999,
+                  fontSize: 12,
+                  fontWeight: 700,
+                  background: "rgba(16, 185, 129, 0.16)",
+                  color: "#166534",
+                }}
+              >
+                Phương thức thanh toán: COD
+              </span>
+              <span
+                style={{
+                  padding: "6px 10px",
+                  borderRadius: 999,
+                  fontSize: 12,
+                  fontWeight: 700,
+                  background: "rgba(2, 132, 199, 0.16)",
+                  color: "#0c4a6e",
+                }}
+              >
+                Tạm tính: {convertPrice(priceMemo)}
+              </span>
+            </div>
+          </div>
+
           <div
             className="paymentpage-main-wrapper"
             style={{ display: "flex", flexDirection: "row", justifyContent: "center", alignItems: "flex-start", gap: 20, flexWrap: "wrap" }}
           >
-            <div style={{ flex: 2, minWidth: 320, maxWidth: 900, width: "100%" }}>
+            <div style={{ flex: 2, minWidth: 320, maxWidth: 900, width: "100%", animation: "paymentFadeIn 500ms ease-out" }}>
               <WrapperInfo>
                 <div>
                   <Lable>1. Chọn phương thức giao hàng</Lable>
@@ -320,9 +415,24 @@ const PaymentPage = () => {
               </WrapperInfo>
             </div>
 
-            <div style={{ flex: 1, minWidth: 260, maxWidth: 400, width: "100%" }}>
+            <div style={{ flex: 1, minWidth: 260, maxWidth: 400, width: "100%", animation: "paymentFadeIn 620ms ease-out" }}>
               <WrapperRight>
                 <div style={{ width: "100%" }}>
+                  <div
+                    style={{
+                      width: "100%",
+                      marginBottom: 8,
+                      padding: "10px 14px",
+                      borderRadius: 12,
+                      background: "linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(2, 132, 199, 0.15))",
+                      border: "1px solid rgba(2, 132, 199, 0.24)",
+                      color: "#0f172a",
+                      fontWeight: 700,
+                      fontSize: 14,
+                    }}
+                  >
+                    Tóm tắt thanh toán
+                  </div>
                   <WrapperInfo>
                     <div>
                       <span>Địa chỉ nhận hàng: </span>
@@ -369,7 +479,7 @@ const PaymentPage = () => {
                   onClick={handleAddOrder}
                   style={{
                     color: "#fff",
-                    background: "linear-gradient(135deg, #10b981, #0284c7)",
+                    background: "linear-gradient(120deg, #10b981, #0284c7, #0ea5e9)",
                     height: 48,
                     width: "100%",
                     maxWidth: 320,
@@ -377,6 +487,7 @@ const PaymentPage = () => {
                     borderRadius: 12,
                     fontWeight: "bold",
                     marginTop: 12,
+                    boxShadow: "0 16px 30px rgba(2, 132, 199, 0.3)",
                   }}
                 >
                   Xác nhận đặt hàng
