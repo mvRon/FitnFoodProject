@@ -13,6 +13,7 @@ import AdminCategoryComponent from '../../components/AdminCategoryComponent/Admi
 import { AdminPageGlobalStyle, AdminPageShell } from './Style';
 // import AdminBannerComponent from '../../components/AdminBannerComponent/AdminBannerComponent.jsx';
 import AdminDiscountComponent from '../../components/AdminDiscountComponent/AdminDiscountComponent.jsx';
+import AdminInventoryComponent from '../../components/AdminInventoryComponent/AdminInventoryComponent.jsx';
 
 const AdminPage = () => {
     // const navigate = useNavigate()
@@ -38,10 +39,10 @@ const AdminPage = () => {
                 return (
                     <AdminDiscountComponent />
                 )
-            // case 'Banner':
-            //     return (
-            //         <AdminBannerComponent />
-            //     )
+            case 'Inventory':
+                return (
+                    <AdminInventoryComponent />
+                )
 
             default:
                 return <></>
@@ -103,11 +104,11 @@ const AdminPage = () => {
         {
             key: 'System',
             icon: <SettingOutlined />,
-            label: 'Quản lý hệ thống',
+            label: 'Quản lý kho hàng',
             children: [
                 {
-                    key: 'Banner',
-                    label: 'Quản lý banner',
+                    key: 'Inventory',
+                    label: 'Quản lý tồn kho',
                 },
             ],
         }
