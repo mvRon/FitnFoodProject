@@ -223,20 +223,30 @@ const getOrderById = (orderId, userId) => {
         try {
             // const order = await Order.findById(orderId).populate('orderItems.product').populate('user', 'name email phone address');
             const order = await Order.findById(orderId)
-            const userData = await User.findById(userId);
-
-            //Kiểm tra xem người dùng có phải là chủ sở hữu đơn hàng hay không và có phải admin không
-            if (!userData.isAdmin && order.user.toString() !== userId.toString()) {
-                return resolve({
-                    status: 'ERR',
-                    message: 'Unauthorized: You can only view your own orders!'
-                });
-            }
 
             if (!order) {
                 return resolve({
                     status: 'ERR',
                     message: 'Order not found!'
+                });
+            }
+
+            const userData = await User.findById(userId);
+            if (!userData) {
+                return resolve({
+                    status: 'ERR',
+                    message: 'User not found!'
+                });
+            }
+
+            // Chỉ chủ sở hữu đơn hàng hoặc admin mới có quyền xem chi tiết.
+            const isOwner = order.user?.toString() === userId?.toString();
+            const isAdmin = Boolean(userData.isAdmin);
+
+            if (!isOwner && !isAdmin) {
+                return resolve({
+                    status: 'ERR',
+                    message: 'Unauthorized: You can only view your own orders!'
                 });
             }
 
