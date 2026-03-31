@@ -1,5 +1,6 @@
 import React from 'react'
 import { Button, Tag, Typography } from 'antd'
+import { EyeOutlined } from '@ant-design/icons'
 import { ALERT_TAG, TRANSACTION_TYPE_LABEL, VOUCHER_STATUS_LABEL } from './constants'
 import { formatDateTime, formatMoney } from './helpers'
 
@@ -45,6 +46,16 @@ export const getVoucherColumns = ({ onOpenDetail }) => [
     title: 'Người thao tác',
     dataIndex: 'performedBy',
     render: (value) => value?.name || '--',
+  },
+  {
+    title: 'Chi tiết',
+    key: 'action',
+    width: 130,
+    render: (_, record) => (
+      <Button type="default" icon={<EyeOutlined />} onClick={() => onOpenDetail(record)}>
+        Xem chi tiết
+      </Button>
+    ),
   },
 ]
 

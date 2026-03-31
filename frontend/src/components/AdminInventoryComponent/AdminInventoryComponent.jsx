@@ -326,6 +326,21 @@ const AdminInventoryComponent = () => {
     discrepancyMutation.mutate(actualCounts)
   }
 
+  const handleSelectImportProduct = (index, productId) => {
+    const selectedProduct = products.find((item) => item._id === productId)
+    if (!selectedProduct) return
+
+    const currentItems = importForm.getFieldValue('items') || []
+    const nextItems = [...currentItems]
+    nextItems[index] = {
+      ...(nextItems[index] || {}),
+      product: productId,
+      unitPrice: Number(selectedProduct.price || 0),
+    }
+
+    importForm.setFieldsValue({ items: nextItems })
+  }
+
   const voucherColumns = useMemo(
     () =>
       getVoucherColumns({
@@ -629,7 +644,14 @@ const AdminInventoryComponent = () => {
                           name={[field.name, 'product']}
                           rules={[{ required: true, message: 'Chọn sản phẩm' }]}
                         >
-                          <Select style={{ width: 220 }} placeholder="Sản phẩm" options={productOptions} showSearch optionFilterProp="label" />
+                          <Select
+                            style={{ width: 220 }}
+                            placeholder="Sản phẩm"
+                            options={productOptions}
+                            showSearch
+                            optionFilterProp="label"
+                            onChange={(value) => handleSelectImportProduct(field.name, value)}
+                          />
                         </Form.Item>
                         <Form.Item
                           name={[field.name, 'quantity']}

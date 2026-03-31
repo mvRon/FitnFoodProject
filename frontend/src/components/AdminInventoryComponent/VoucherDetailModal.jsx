@@ -1,11 +1,14 @@
 import React from 'react'
-import { Descriptions, Divider, Modal, Table, Tag, Timeline, Typography } from 'antd'
+import { Card, Col, Divider, Modal, Row, Table, Tag, Timeline, Typography } from 'antd'
 import { TRANSACTION_TYPE_LABEL, VOUCHER_STATUS_LABEL } from './constants'
 import { formatDateTime, formatMoney } from './helpers'
 
-const { Text } = Typography
+const { Text, Title } = Typography
 
 const VoucherDetailModal = ({ open, onCancel, voucher, isLoading }) => {
+  const transactionLabel = TRANSACTION_TYPE_LABEL[voucher?.transactionType] || voucher?.transactionType || '--'
+  const statusLabel = VOUCHER_STATUS_LABEL[voucher?.status] || voucher?.status || '--'
+
   return (
     <Modal
       open={open}
@@ -15,55 +18,72 @@ const VoucherDetailModal = ({ open, onCancel, voucher, isLoading }) => {
       title={voucher?.voucherCode ? `Chi tiết phiếu kho - ${voucher.voucherCode}` : 'Chi tiết phiếu kho'}
       className="admin-inventory-voucher-modal"
     >
-      <Descriptions bordered size="small" column={2}>
-        <Descriptions.Item label="Loại giao dịch">
-          <Tag color={voucher?.transactionType === 'IMPORT' ? 'green' : 'blue'}>
-            {TRANSACTION_TYPE_LABEL[voucher?.transactionType] || voucher?.transactionType || '--'}
-          </Tag>
-        </Descriptions.Item>
-        <Descriptions.Item label="Trạng thái">
-          <Tag color={voucher?.status === 'confirmed' ? 'success' : 'warning'}>
-            {VOUCHER_STATUS_LABEL[voucher?.status] || voucher?.status || '--'}
-          </Tag>
-        </Descriptions.Item>
-        <Descriptions.Item label="Người thao tác">
-          {voucher?.performedBy?.name || '--'}
-          {voucher?.performedBy?.email ? <Text type="secondary"> ({voucher?.performedBy?.email})</Text> : null}
-        </Descriptions.Item>
-        <Descriptions.Item label="Ngày phiếu">{formatDateTime(voucher?.voucherDate)}</Descriptions.Item>
-        <Descriptions.Item label="Liên kết đơn hàng">
-          {typeof voucher?.linkedOrder === 'object'
-            ? voucher?.linkedOrder?._id || '--'
-            : voucher?.linkedOrder || '--'}
-        </Descriptions.Item>
-        <Descriptions.Item label="Tổng giá trị">{formatMoney(voucher?.totalAmount)} đ</Descriptions.Item>
-        <Descriptions.Item label="Nhà cung cấp">{voucher?.supplierName || '--'}</Descriptions.Item>
-        <Descriptions.Item label="Liên hệ NCC">{voucher?.supplierContact || '--'}</Descriptions.Item>
-        <Descriptions.Item label="Ghi chú" span={2}>{voucher?.note || '--'}</Descriptions.Item>
-      </Descriptions>
+      <div className="inventory-voucher-modal-hero">
+        <div>
+          <Text className="inventory-voucher-modal-eyebrow">Mã phiếu</Text>
+          <Title level={4} className="inventory-voucher-modal-code">{voucher?.voucherCode || '--'}</Title>
+          <div className="inventory-voucher-modal-badges">
+            <Tag color={voucher?.transactionType === 'IMPORT' ? 'green' : 'blue'}>{transactionLabel}</Tag>
+            <Tag color={voucher?.status === 'confirmed' ? 'success' : 'warning'}>{statusLabel}</Tag>
+          </div>
+        </div>
+        <div className="inventory-voucher-modal-total">
+          <Text className="inventory-voucher-modal-eyebrow">Tổng giá trị</Text>
+          <div className="inventory-voucher-modal-total-number">{formatMoney(voucher?.totalAmount)} đ</div>
+        </div>
+      </div>
+
+      <Row gutter={[12, 12]} className="inventory-voucher-modal-info-grid">
+        <Col xs={24} md={12}>
+          <Card size="small" className="inventory-voucher-modal-info-card" title="Thông tin người thao tác">
+            <p><Text strong>Họ tên:</Text> {voucher?.performedBy?.name || '--'}</p>
+            <p><Text strong>Email:</Text> {voucher?.performedBy?.email || '--'}</p>
+            <p><Text strong>Ngày phiếu:</Text> {formatDateTime(voucher?.voucherDate)}</p>
+          </Card>
+        </Col>
+
+        <Col xs={24} md={12}>
+          <Card size="small" className="inventory-voucher-modal-info-card" title="Thông tin liên kết">
+            <p>
+              <Text strong>Đơn hàng:</Text>{' '}
+              {typeof voucher?.linkedOrder === 'object'
+                ? voucher?.linkedOrder?._id || '--'
+                : voucher?.linkedOrder || '--'}
+            </p>
+            <p><Text strong>Nhà cung cấp:</Text> {voucher?.supplierName || '--'}</p>
+            <p><Text strong>Liên hệ:</Text> {voucher?.supplierContact || '--'}</p>
+          </Card>
+        </Col>
+      </Row>
+
+      <Card size="small" className="inventory-voucher-modal-note-card" title="Ghi chú">
+        {voucher?.note ? <Text>{voucher.note}</Text> : <Text type="secondary">Không có ghi chú cho phiếu này.</Text>}
+      </Card>
 
       <Divider orientation="left">Timeline xử lý</Divider>
-      <Timeline
-        items={[
-          {
-            color: 'blue',
-            children: `Ngày phiếu: ${formatDateTime(voucher?.voucherDate)}`,
-          },
-          {
-            color: 'green',
-            children: `Tạo lúc: ${formatDateTime(voucher?.createdAt)}`,
-          },
-          voucher?.confirmedAt
-            ? {
-                color: 'green',
-                children: `Xác nhận lúc: ${formatDateTime(voucher?.confirmedAt)}`,
-              }
-            : {
-                color: 'orange',
-                children: `Trạng thái hiện tại: ${VOUCHER_STATUS_LABEL[voucher?.status] || voucher?.status || '--'}`,
-              },
-        ]}
-      />
+      <Card size="small" className="inventory-voucher-modal-timeline-card">
+        <Timeline
+          items={[
+            {
+              color: 'blue',
+              children: `Ngày phiếu: ${formatDateTime(voucher?.voucherDate)}`,
+            },
+            {
+              color: 'green',
+              children: `Tạo lúc: ${formatDateTime(voucher?.createdAt)}`,
+            },
+            voucher?.confirmedAt
+              ? {
+                  color: 'green',
+                  children: `Xác nhận lúc: ${formatDateTime(voucher?.confirmedAt)}`,
+                }
+              : {
+                  color: 'orange',
+                  children: `Trạng thái hiện tại: ${statusLabel}`,
+                },
+          ]}
+        />
+      </Card>
 
       <Divider orientation="left">Chi tiết mặt hàng</Divider>
       <Table
@@ -71,6 +91,7 @@ const VoucherDetailModal = ({ open, onCancel, voucher, isLoading }) => {
         rowKey={(record, index) => `${record.product?._id || record.product}-${index}`}
         size="small"
         pagination={false}
+        className="inventory-voucher-modal-items-table"
         dataSource={voucher?.items || []}
         columns={[
           {
@@ -96,6 +117,16 @@ const VoucherDetailModal = ({ open, onCancel, voucher, isLoading }) => {
             render: (value) => `${formatMoney(value)} đ`,
           },
         ]}
+        summary={() => (
+          <Table.Summary.Row>
+            <Table.Summary.Cell index={0} colSpan={3}>
+              <Text strong>Tổng cộng</Text>
+            </Table.Summary.Cell>
+            <Table.Summary.Cell index={3} align="right">
+              <Text strong>{formatMoney(voucher?.totalAmount)} đ</Text>
+            </Table.Summary.Cell>
+          </Table.Summary.Row>
+        )}
       />
     </Modal>
   )

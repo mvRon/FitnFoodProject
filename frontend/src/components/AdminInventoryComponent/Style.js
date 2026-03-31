@@ -209,6 +209,100 @@ export const AdminInventoryGlobalStyle = createGlobalStyle`
 		border-bottom: 1px solid rgba(2, 132, 199, 0.12);
 	}
 
+	.admin-inventory-voucher-modal .ant-modal-title {
+		color: #0F766E;
+		font-weight: 700;
+	}
+
+	.inventory-voucher-modal-hero {
+		display: flex;
+		justify-content: space-between;
+		align-items: flex-start;
+		gap: 12px;
+		padding: 14px;
+		border-radius: 14px;
+		border: 1px solid rgba(16, 185, 129, 0.22);
+		background: linear-gradient(130deg, rgba(16, 185, 129, 0.12), rgba(2, 132, 199, 0.08), rgba(255, 255, 255, 0.96));
+	}
+
+	.inventory-voucher-modal-eyebrow {
+		display: inline-block;
+		font-size: 12px;
+		color: rgba(30, 41, 59, 0.72);
+		text-transform: uppercase;
+		letter-spacing: 0.5px;
+	}
+
+	.inventory-voucher-modal-code {
+		margin: 4px 0 8px !important;
+		color: #0369A1 !important;
+	}
+
+	.inventory-voucher-modal-badges {
+		display: flex;
+		gap: 6px;
+		flex-wrap: wrap;
+	}
+
+	.inventory-voucher-modal-total {
+		text-align: right;
+	}
+
+	.inventory-voucher-modal-total-number {
+		margin-top: 6px;
+		font-size: 24px;
+		font-weight: 700;
+		color: #0F766E;
+	}
+
+	.inventory-voucher-modal-info-grid {
+		margin-top: 12px;
+	}
+
+	.inventory-voucher-modal-info-card,
+	.inventory-voucher-modal-note-card,
+	.inventory-voucher-modal-timeline-card {
+		border-radius: 12px !important;
+		border: 1px solid rgba(2, 132, 199, 0.16) !important;
+		background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.96));
+	}
+
+	.inventory-voucher-modal-info-card .ant-card-head,
+	.inventory-voucher-modal-note-card .ant-card-head,
+	.inventory-voucher-modal-timeline-card .ant-card-head {
+		min-height: 42px;
+		background: rgba(2, 132, 199, 0.05);
+		border-bottom: 1px solid rgba(2, 132, 199, 0.12);
+	}
+
+	.inventory-voucher-modal-info-card .ant-card-head-title,
+	.inventory-voucher-modal-note-card .ant-card-head-title,
+	.inventory-voucher-modal-timeline-card .ant-card-head-title {
+		color: #0369A1;
+		font-weight: 700;
+	}
+
+	.inventory-voucher-modal-info-card p {
+		margin: 0 0 8px;
+	}
+
+	.inventory-voucher-modal-note-card {
+		margin-top: 12px;
+	}
+
+	.inventory-voucher-modal-timeline-card .ant-timeline {
+		margin-top: 6px;
+	}
+
+	.inventory-voucher-modal-items-table .ant-table-thead > tr > th {
+		background: rgba(2, 132, 199, 0.08);
+		color: #0369A1;
+	}
+
+	.inventory-voucher-modal-items-table .ant-table-summary {
+		background: rgba(16, 185, 129, 0.08);
+	}
+
 	.admin-inventory-voucher-modal .ant-descriptions-item-label {
 		font-weight: 600;
 		color: #0369A1;
@@ -248,6 +342,18 @@ export const AdminInventoryGlobalStyle = createGlobalStyle`
 		.admin-inventory-line-item {
 			flex-direction: column;
 			align-items: stretch;
+		}
+
+		.inventory-voucher-modal-hero {
+			flex-direction: column;
+		}
+
+		.inventory-voucher-modal-total {
+			text-align: left;
+		}
+
+		.inventory-voucher-modal-total-number {
+			font-size: 20px;
 		}
 	}
 `
