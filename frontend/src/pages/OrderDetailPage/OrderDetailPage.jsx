@@ -16,6 +16,13 @@ import { useQuery } from '@tanstack/react-query';
 
 const { Title, Text } = Typography;
 
+const DELIVERY_STATUS_LABEL = {
+  pending: 'Chờ xử lý',
+  processing: 'Đang xử lý',
+  shipping: 'Đang giao hàng',
+  delivered: 'Đã giao hàng',
+};
+
 const OrderDetailPage = () => {
   const { orderId } = useParams(); // Lấy orderId từ URL
   const [orderDetail, setOrderDetail] = useState(null);
@@ -88,13 +95,11 @@ const OrderDetailPage = () => {
   // Hàm lấy màu cho Tag trạng thái
   const getStatusTagColor = (status) => {
     switch (status) {
+      case 'Chờ xử lý': return 'default';
       case 'Đang xử lý': return 'processing';
-      case 'Đã xác nhận': return 'blue';
-      case 'Đang giao hàng': return 'gold';
-      case 'Đã giao': return 'success';
+      case 'Đang giao hàng': return 'blue';
+      case 'Đã giao hàng': return 'success';
       case 'Đã hủy': return 'error';
-      case true: return 'success';
-      case false: return 'error';
       default: return 'default';
     }
   };
@@ -145,6 +150,7 @@ const OrderDetailPage = () => {
   }
 
   // Khi có dữ liệu, hiển thị chi tiết
+  const deliveryStatusText = DELIVERY_STATUS_LABEL[orderDetail?.isDelivered] || 'Chờ xử lý';
 
   // console.log('hahaha', orderDetail)
   return (
@@ -157,8 +163,8 @@ const OrderDetailPage = () => {
               <Title level={4} style={{ margin: 0 }}>
                 Thông tin đơn hàng #{orderDetail._id}
                 {/* Thông tin đơn hàng #  */}
-                <Tag color={getStatusTagColor(orderDetail.isDelivered)} style={{ marginLeft: '16px' }}>
-                  {orderDetail.isDelivered ? 'Đã giao hàng' : 'Chưa giao hàng'}
+                <Tag color={getStatusTagColor(deliveryStatusText)} style={{ marginLeft: '16px' }}>
+                  {deliveryStatusText}
                 </Tag>
               </Title>
             }
@@ -223,11 +229,7 @@ const OrderDetailPage = () => {
             )}
             <Divider />
             <Text strong>Trạng thái giao hàng: </Text>
-            {orderDetail.isDelivered ? (
-              <Tag color="success">Đã giao hàng</Tag>
-            ) : (
-              <Tag color="processing">Chưa giao hàng</Tag>
-            )}
+            <Tag color={getStatusTagColor(deliveryStatusText)}>{deliveryStatusText}</Tag>
           </SectionCard>
 
           <SectionCard
