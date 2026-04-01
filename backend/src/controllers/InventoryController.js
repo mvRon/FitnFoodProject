@@ -146,6 +146,72 @@ const getVoucherDetails = async (req, res) => {
     }
 };
 
+const confirmVoucher = async (req, res) => {
+    try {
+        const voucherId = req.params.id;
+        const userId = req.user.id;
+
+        if (!voucherId) {
+            return res.status(200).json({
+                status: "ERR",
+                message: "voucherId is required!",
+            });
+        }
+
+        const response = await InventoryService.confirmVoucher(voucherId, userId);
+        return res.status(200).json(response);
+    } catch (e) {
+        return res.status(500).json({
+            status: "ERR",
+            message: e.message || "Something went wrong!",
+        });
+    }
+};
+
+const cancelVoucher = async (req, res) => {
+    try {
+        const voucherId = req.params.id;
+        const userId = req.user.id;
+
+        if (!voucherId) {
+            return res.status(200).json({
+                status: "ERR",
+                message: "voucherId is required!",
+            });
+        }
+
+        const response = await InventoryService.cancelVoucher(voucherId, req.body, userId);
+        return res.status(200).json(response);
+    } catch (e) {
+        return res.status(500).json({
+            status: "ERR",
+            message: e.message || "Something went wrong!",
+        });
+    }
+};
+
+const updateVoucherNote = async (req, res) => {
+    try {
+        const voucherId = req.params.id;
+        const { note = "" } = req.body;
+
+        if (!voucherId) {
+            return res.status(200).json({
+                status: "ERR",
+                message: "voucherId is required!",
+            });
+        }
+
+        const response = await InventoryService.updateVoucherNote(voucherId, note);
+        return res.status(200).json(response);
+    } catch (e) {
+        return res.status(500).json({
+            status: "ERR",
+            message: e.message || "Something went wrong!",
+        });
+    }
+};
+
 module.exports = {
     createImportVoucher,
     createExportVoucher,
@@ -155,4 +221,7 @@ module.exports = {
     checkInventoryDiscrepancy,
     getAllVouchers,
     getVoucherDetails,
+    confirmVoucher,
+    cancelVoucher,
+    updateVoucherNote,
 };

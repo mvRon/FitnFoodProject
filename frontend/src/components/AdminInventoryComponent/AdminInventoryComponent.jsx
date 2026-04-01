@@ -97,6 +97,8 @@ const AdminInventoryComponent = () => {
   })
   const [isVoucherModalOpen, setIsVoucherModalOpen] = useState(false)
   const [voucherSelected, setVoucherSelected] = useState(null)
+  const [actionLoadingId, setActionLoadingId] = useState('')
+  const [modalActionLoading, setModalActionLoading] = useState('')
 
   const getProducts = async () => {
     const res = await ProductService.getAllProduct('', 1, 1000)
@@ -159,6 +161,23 @@ const AdminInventoryComponent = () => {
   const discrepancyMutation = useMutationHook((actualCounts) =>
     InventoryService.checkInventoryDiscrepancy(actualCounts, accessToken)
   )
+  const confirmVoucherMutation = useMutationHook((voucherId) =>
+    InventoryService.confirmVoucher(voucherId, accessToken)
+  )
+  const cancelVoucherMutation = useMutationHook(({ voucherId, reason }) =>
+    InventoryService.cancelVoucher(voucherId, reason, accessToken)
+  )
+  const updateVoucherNoteMutation = useMutationHook(({ voucherId, note }) =>
+    InventoryService.updateVoucherNote(voucherId, note, accessToken)
+  )
+
+  const refreshInventoryData = () => {
+    vouchersQuery.refetch()
+    alertsQuery.refetch()
+    productsQuery.refetch()
+    stockCardQuery.refetch()
+    voucherDetailQuery.refetch()
+  }
 
   useEffect(() => {
     if (importMutation.isSuccess) {
@@ -215,6 +234,40 @@ const AdminInventoryComponent = () => {
       message.error('Không thể tải chi tiết phiếu kho')
     }
   }, [voucherDetailQuery.isError])
+
+  useEffect(() => {
+    if (!confirmVoucherMutation.isSuccess) return
+
+    if (confirmVoucherMutation.data?.status === 'OK') {
+      message.success(confirmVoucherMutation.data?.message || 'Đã xác nhận phiếu kho')
+      refreshInventoryData()
+    } else {
+      message.error(confirmVoucherMutation.data?.message || 'Không thể xác nhận phiếu kho')
+    }
+  }, [confirmVoucherMutation.isSuccess])
+
+  useEffect(() => {
+    if (!cancelVoucherMutation.isSuccess) return
+
+    if (cancelVoucherMutation.data?.status === 'OK') {
+      message.success(cancelVoucherMutation.data?.message || 'Đã hủy phiếu kho')
+      refreshInventoryData()
+    } else {
+      message.error(cancelVoucherMutation.data?.message || 'Không thể hủy phiếu kho')
+    }
+  }, [cancelVoucherMutation.isSuccess])
+
+  useEffect(() => {
+    if (!updateVoucherNoteMutation.isSuccess) return
+
+    if (updateVoucherNoteMutation.data?.status === 'OK') {
+      message.success(updateVoucherNoteMutation.data?.message || 'Đã cập nhật ghi chú phiếu')
+      vouchersQuery.refetch()
+      voucherDetailQuery.refetch()
+    } else {
+      message.error(updateVoucherNoteMutation.data?.message || 'Không thể cập nhật ghi chú phiếu')
+    }
+  }, [updateVoucherNoteMutation.isSuccess])
 
   const alertList = useMemo(() => alertsQuery?.data?.data || [], [alertsQuery?.data])
   const vouchersRaw = useMemo(() => vouchersQuery?.data?.data || [], [vouchersQuery?.data])
@@ -341,6 +394,66 @@ const AdminInventoryComponent = () => {
     importForm.setFieldsValue({ items: nextItems })
   }
 
+  const handleConfirmVoucher = (record, fromModal = false) => {
+    if (!record?._id) return
+
+    if (fromModal) {
+      setModalActionLoading('confirm')
+    } else {
+      setActionLoadingId(`confirm-${record._id}`)
+    }
+
+    confirmVoucherMutation.mutate(record._id, {
+      onSettled: () => {
+        setActionLoadingId('')
+        setModalActionLoading('')
+      },
+    })
+  }
+
+  const handleCancelVoucher = (record, fromModal = false) => {
+    if (!record?._id) return
+
+    const reason = window.prompt('Nhập lý do hủy phiếu (có thể bỏ trống):', '')
+    if (reason === null) return
+
+    if (fromModal) {
+      setModalActionLoading('cancel')
+    } else {
+      setActionLoadingId(`cancel-${record._id}`)
+    }
+
+    cancelVoucherMutation.mutate(
+      {
+        voucherId: record._id,
+        reason,
+      },
+      {
+        onSettled: () => {
+          setActionLoadingId('')
+          setModalActionLoading('')
+        },
+      }
+    )
+  }
+
+  const handleSaveVoucherNote = (record, note) => {
+    if (!record?._id) return
+
+    setModalActionLoading('note')
+    updateVoucherNoteMutation.mutate(
+      {
+        voucherId: record._id,
+        note,
+      },
+      {
+        onSettled: () => {
+          setModalActionLoading('')
+        },
+      }
+    )
+  }
+
   const voucherColumns = useMemo(
     () =>
       getVoucherColumns({
@@ -348,8 +461,11 @@ const AdminInventoryComponent = () => {
           setVoucherSelected(record)
           setIsVoucherModalOpen(true)
         },
+        onConfirmVoucher: handleConfirmVoucher,
+        onCancelVoucher: handleCancelVoucher,
+        actionLoadingId,
       }),
-    []
+    [actionLoadingId]
   )
 
   return (
@@ -377,12 +493,7 @@ const AdminInventoryComponent = () => {
           <Button
             icon={<ReloadOutlined />}
             className="admin-inventory-btn-outline"
-            onClick={() => {
-              vouchersQuery.refetch()
-              alertsQuery.refetch()
-              productsQuery.refetch()
-              stockCardQuery.refetch()
-            }}
+            onClick={refreshInventoryData}
           >
             Làm mới dữ liệu
           </Button>
@@ -876,6 +987,10 @@ const AdminInventoryComponent = () => {
         }}
         voucher={voucherDetailQuery?.data?.data || voucherSelected}
         isLoading={voucherDetailQuery.isLoading}
+        onConfirmVoucher={(record) => handleConfirmVoucher(record, true)}
+        onCancelVoucher={(record) => handleCancelVoucher(record, true)}
+        onSaveNote={handleSaveVoucherNote}
+        actionLoading={modalActionLoading}
       />
     </div>
   )

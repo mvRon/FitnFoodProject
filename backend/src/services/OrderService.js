@@ -108,6 +108,7 @@ const createOrder = (newOrder) => {
                 totalAmount: voucherItems.reduce((sum, item) => sum + item.amount, 0),
                 note: `Xuat kho tu don hang ${createdOrder._id}`,
                 confirmedAt: new Date(),
+                confirmedBy: user,
             });
 
             for (const item of orderItems) {
@@ -331,6 +332,7 @@ const deleteOrder = (orderId, userId) => {
                     totalAmount: voucherItems.reduce((sum, entry) => sum + Number(entry.amount || 0), 0),
                     note: `Nhap kho do huy don hang ${order._id}. Lien he: ${ownerContactInfo}`,
                     confirmedAt: new Date(),
+                    confirmedBy: userId,
                 });
 
                 for (const item of voucherItems) {

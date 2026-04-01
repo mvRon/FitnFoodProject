@@ -1,12 +1,12 @@
 import React from 'react'
-import { Button, Tag, Typography } from 'antd'
+import { Button, Popconfirm, Space, Tag, Typography } from 'antd'
 import { EyeOutlined } from '@ant-design/icons'
 import { ALERT_TAG, TRANSACTION_TYPE_LABEL, VOUCHER_STATUS_LABEL } from './constants'
 import { formatDateTime, formatMoney } from './helpers'
 
 const { Text } = Typography
 
-export const getVoucherColumns = ({ onOpenDetail }) => [
+export const getVoucherColumns = ({ onOpenDetail, onConfirmVoucher, onCancelVoucher, actionLoadingId }) => [
   {
     title: 'Mã phiếu',
     dataIndex: 'voucherCode',
@@ -50,11 +50,39 @@ export const getVoucherColumns = ({ onOpenDetail }) => [
   {
     title: 'Chi tiết',
     key: 'action',
-    width: 130,
+    width: 280,
     render: (_, record) => (
-      <Button type="default" icon={<EyeOutlined />} onClick={() => onOpenDetail(record)}>
-        Xem chi tiết
-      </Button>
+      <Space size={8}>
+        <Button type="default" icon={<EyeOutlined />} onClick={() => onOpenDetail(record)}>
+          Xem chi tiết
+        </Button>
+        {['pending', 'draft'].includes(record?.status) && (
+          <>
+            <Popconfirm
+              title="Xác nhận phiếu này?"
+              okText="Xác nhận"
+              cancelText="Đóng"
+              onConfirm={() => onConfirmVoucher(record)}
+            >
+              <Button
+                type="primary"
+                size="small"
+                loading={actionLoadingId === `confirm-${record._id}`}
+              >
+                Xác nhận
+              </Button>
+            </Popconfirm>
+            <Button
+              danger
+              size="small"
+              onClick={() => onCancelVoucher(record)}
+              loading={actionLoadingId === `cancel-${record._id}`}
+            >
+              Hủy phiếu
+            </Button>
+          </>
+        )}
+      </Space>
     ),
   },
 ]

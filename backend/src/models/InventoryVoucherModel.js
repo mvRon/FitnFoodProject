@@ -53,6 +53,15 @@ const inventoryVoucherSchema = new mongoose.Schema(
         totalAmount: { type: Number, default: 0, min: 0 },
         note: { type: String },
         confirmedAt: { type: Date },
+        confirmedBy: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User",
+        },
+        cancelledAt: { type: Date },
+        cancelledBy: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User",
+        },
     },
     {
         timestamps: true,
