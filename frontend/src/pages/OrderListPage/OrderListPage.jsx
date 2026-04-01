@@ -11,6 +11,13 @@ import { useMutationHook } from '../../hooks/useMutationHook.js';
 
 const { Title, Text } = Typography;
 
+const DELIVERY_STATUS_LABEL = {
+  pending: 'Chờ xử lý',
+  processing: 'Đang xử lý',
+  shipping: 'Đang giao hàng',
+  delivered: 'Đã giao hàng',
+};
+
 const renderOrderItemThumb = (image, name) => {
   if (image) {
     return (
@@ -91,7 +98,7 @@ const OrderListPage = () => {
           customerName: order.shippingAddress?.fullName || 'Ẩn',
           orderDate: order.createdAt ? order.createdAt.slice(0, 10) : '',
           totalAmount: order.totalPrice || 0,
-          status: order.isDelivered ? 'Đã giao' : (order.isPaid ? 'Đã xác nhận' : 'Đang xử lý'),
+          status: DELIVERY_STATUS_LABEL[order.isDelivered] || 'Chờ xử lý',
           paymentMethod: order.paymentMethod === 'cash' ? 'Tiền mặt' : 'Chuyển khoản',
           products: (order.orderItems || []).map((item) => ({
             key: item.product || item._id,
@@ -117,9 +124,14 @@ const OrderListPage = () => {
 
   const getStatusTagColor = (status) => {
     switch (status) {
+      case 'Chờ xử lý':
+        return 'default';
       case 'Đang xử lý':
         return 'processing';
+      case 'Đang giao hàng':
+        return 'blue';
       case 'Đã giao':
+      case 'Đã giao hàng':
         return 'success';
       case 'Đã hủy':
         return 'error';
@@ -210,7 +222,7 @@ const OrderListPage = () => {
           </Button>
 
           {/* Nút Hủy đơn hàng - Chỉ hiển thị nếu trạng thái cho phép hoặc nếu đơn ko phải là chuyển khoản */}
-          {record.status !== 'Đã xác nhận' && record.status !== 'Đã giao' && record.status !== 'Đã hủy' && (
+          {record.status === 'Chờ xử lý' && (
             <Popconfirm
               title="Bạn có chắc chắn muốn hủy đơn hàng này?"
               onConfirm={() => handleCancelOrder(record.orderId)}

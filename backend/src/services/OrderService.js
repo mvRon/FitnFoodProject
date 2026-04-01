@@ -223,20 +223,30 @@ const getOrderById = (orderId, userId) => {
         try {
             // const order = await Order.findById(orderId).populate('orderItems.product').populate('user', 'name email phone address');
             const order = await Order.findById(orderId)
-            const userData = await User.findById(userId);
-
-            //Kiểm tra xem người dùng có phải là chủ sở hữu đơn hàng hay không và có phải admin không
-            if (!userData.isAdmin && order.user.toString() !== userId.toString()) {
-                return resolve({
-                    status: 'ERR',
-                    message: 'Unauthorized: You can only view your own orders!'
-                });
-            }
 
             if (!order) {
                 return resolve({
                     status: 'ERR',
                     message: 'Order not found!'
+                });
+            }
+
+            const userData = await User.findById(userId);
+            if (!userData) {
+                return resolve({
+                    status: 'ERR',
+                    message: 'User not found!'
+                });
+            }
+
+            // Chỉ chủ sở hữu đơn hàng hoặc admin mới có quyền xem chi tiết.
+            const isOwner = order.user?.toString() === userId?.toString();
+            const isAdmin = Boolean(userData.isAdmin);
+
+            if (!isOwner && !isAdmin) {
+                return resolve({
+                    status: 'ERR',
+                    message: 'Unauthorized: You can only view your own orders!'
                 });
             }
 
@@ -275,12 +285,69 @@ const deleteOrder = (orderId, userId) => {
 
             // Hoàn lại hàng tồn kho nếu đơn hàng chưa được giao
             if (order.isDelivered === 'pending' || order.isDelivered === 'processing') {
+                const orderOwner = await User.findById(order.user);
+                const ownerFullName = order?.shippingAddress?.fullName || orderOwner?.name || 'Khach hang';
+                const ownerPhone = order?.shippingAddress?.phone || orderOwner?.phone || '--';
+                const ownerEmail = orderOwner?.email || '--';
+                const ownerContactInfo = `${ownerFullName} - ${ownerPhone} - ${ownerEmail}`;
+                const voucherItems = [];
+
                 for (const item of order.orderItems) {
+                    const quantity = Number(item.amount || 0);
+                    const unitPrice = Number(item.price || 0);
+                    const amount = quantity * unitPrice;
+
                     await Product.findByIdAndUpdate(item.product, {
                         $inc: {
-                            countInStock: +item.amount,
-                            sold: -item.amount,
-                        }
+                            countInStock: +quantity,
+                            sold: -quantity,
+                        },
+                        $set: {
+                            lastStockMovementAt: new Date(),
+                        },
+                    });
+
+                    voucherItems.push({
+                        product: item.product,
+                        quantity,
+                        unitPrice,
+                        amount,
+                    });
+                }
+
+                const voucherCode = `PNK-ORDER-CANCEL-${order._id.toString().slice(-6).toUpperCase()}-${Date.now().toString().slice(-4)}`;
+
+                const importVoucher = await InventoryVoucher.create({
+                    voucherCode,
+                    transactionType: 'IMPORT',
+                    sourceType: 'RETURN',
+                    performedBy: userId,
+                    linkedOrder: order._id,
+                    supplierName: ownerFullName,
+                    supplierContact: ownerContactInfo,
+                    voucherDate: new Date(),
+                    status: 'confirmed',
+                    items: voucherItems,
+                    totalAmount: voucherItems.reduce((sum, entry) => sum + Number(entry.amount || 0), 0),
+                    note: `Nhap kho do huy don hang ${order._id}. Lien he: ${ownerContactInfo}`,
+                    confirmedAt: new Date(),
+                });
+
+                for (const item of voucherItems) {
+                    const productData = await Product.findById(item.product);
+
+                    await StockCard.create({
+                        product: item.product,
+                        date: new Date(),
+                        transactionType: 'IMPORT',
+                        voucherCode,
+                        voucherRef: importVoucher._id,
+                        description: 'Nhap kho - RETURN',
+                        quantityIn: item.quantity,
+                        quantityOut: 0,
+                        balanceAfter: productData?.countInStock || 0,
+                        performedBy: userId,
+                        note: `Hoan kho tu don hang ${order._id}`,
                     });
                 }
             }

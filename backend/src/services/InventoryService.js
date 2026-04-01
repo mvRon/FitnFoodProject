@@ -525,8 +525,7 @@ const getAllVouchers = (filters = {}) => {
             const vouchers = await InventoryVoucher.find(query)
                 .sort({ voucherDate: -1, createdAt: -1 })
                 .populate("performedBy", "name email")
-                .populate("items.product", "name countInStock")
-                .populate("linkedOrder");
+                .populate("items.product", "name countInStock");
 
             return resolve({
                 status: "OK",
@@ -544,8 +543,7 @@ const getVoucherDetails = (voucherId) => {
         try {
             const voucher = await InventoryVoucher.findById(voucherId)
                 .populate("performedBy", "name email")
-                .populate("items.product", "name countInStock")
-                .populate("linkedOrder");
+                .populate("items.product", "name countInStock");
 
             if (!voucher) {
                 return resolve({ status: "ERR", message: "Voucher not found" });

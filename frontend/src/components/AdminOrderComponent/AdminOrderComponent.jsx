@@ -10,6 +10,20 @@ import { OrderGlobalStyle, OrderPageContainer, WrapperHeader } from "./Style";
 import * as OrderService from "../../services/OrderService";
 import { useNavigate } from "react-router-dom";
 
+const DELIVERY_STATUS_LABEL = {
+    pending: "Chờ xử lý",
+    processing: "Đang xử lý",
+    shipping: "Đang giao hàng",
+    delivered: "Đã giao hàng",
+};
+
+const DELIVERY_STATUS_STYLE = {
+    pending: { background: "rgba(30, 41, 59, 0.08)", color: "#334155", borderColor: "rgba(30, 41, 59, 0.18)", borderRadius: 999 },
+    processing: { background: "rgba(245, 158, 11, 0.16)", color: "#B45309", borderColor: "rgba(245, 158, 11, 0.36)", borderRadius: 999 },
+    shipping: { background: "rgba(2, 132, 199, 0.14)", color: "#0369A1", borderColor: "rgba(2, 132, 199, 0.3)", borderRadius: 999 },
+    delivered: { background: "rgba(16, 185, 129, 0.14)", color: "#047857", borderColor: "rgba(16, 185, 129, 0.3)", borderRadius: 999 },
+};
+
 
 const AdminOrderComponent = () => {
     const [rowSelected, setRowSelected] = useState("");
@@ -155,11 +169,6 @@ const AdminOrderComponent = () => {
         },
     });
 
-    const deliveredTagStyle = {
-        true: { background: "rgba(16, 185, 129, 0.14)", color: "#047857", borderColor: "rgba(16, 185, 129, 0.3)", borderRadius: 999 },
-        false: { background: "rgba(245, 158, 11, 0.16)", color: "#B45309", borderColor: "rgba(245, 158, 11, 0.36)", borderRadius: 999 },
-    };
-
     const paidTagStyle = {
         true: { background: "rgba(2, 132, 199, 0.14)", color: "#0369A1", borderColor: "rgba(2, 132, 199, 0.3)", borderRadius: 999 },
         false: { background: "rgba(30, 41, 59, 0.08)", color: "#334155", borderColor: "rgba(30, 41, 59, 0.18)", borderRadius: 999 },
@@ -189,11 +198,17 @@ const AdminOrderComponent = () => {
             title: "Giao hàng",
             dataIndex: "isDelivered",
             filters: [
-                { text: "Chưa giao hàng", value: false },
-                { text: "Đã giao hàng", value: true },
+                { text: "Chờ xử lý", value: "pending" },
+                { text: "Đang xử lý", value: "processing" },
+                { text: "Đang giao hàng", value: "shipping" },
+                { text: "Đã giao hàng", value: "delivered" },
             ],
             onFilter: (value, record) => record.isDelivered === value,
-            render: (isDelivered) => <Tag style={deliveredTagStyle[String(isDelivered)]}>{isDelivered ? "Đã giao hàng" : "Chưa giao hàng"}</Tag>,
+            render: (isDelivered) => (
+                <Tag style={DELIVERY_STATUS_STYLE[isDelivered] || DELIVERY_STATUS_STYLE.pending}>
+                    {DELIVERY_STATUS_LABEL[isDelivered] || "Chờ xử lý"}
+                </Tag>
+            ),
         },
         {
             title: "Thanh toán",
@@ -339,8 +354,10 @@ const AdminOrderComponent = () => {
                         </Form.Item>
                         <Form.Item label="Giao hàng" name="isDelivered" rules={[{ required: true, message: "Chọn trạng thái" }]}>
                             <Select>
-                                <Select.Option value={true}>Đã giao hàng</Select.Option>
-                                <Select.Option value={false}>Chưa giao hàng</Select.Option>
+                                <Select.Option value="pending">Chờ xử lý</Select.Option>
+                                <Select.Option value="processing">Đang xử lý</Select.Option>
+                                <Select.Option value="shipping">Đang giao hàng</Select.Option>
+                                <Select.Option value="delivered">Đã giao hàng</Select.Option>
                             </Select>
                         </Form.Item>
                         <Form.Item label="Thanh toán" name="isPaid" rules={[{ required: true, message: "Chọn trạng thái" }]}>

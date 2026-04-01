@@ -77,12 +77,12 @@ const getOrderById = async (req, res) => {
 
         const response = await OrderService.getOrderById(orderId, userId);
 
-        // Kiểm tra xem người dùng có phải là chủ sở hữu đơn hàng
-        if (response.status === 'OK' && response.data.user._id.toString() !== userId.toString()) {
-            return res.status(403).json({
-                status: 'ERR',
-                message: 'Unauthorized: You can only view your own orders!'
-            });
+        if (response.status === 'ERR' && response.message?.includes('Unauthorized')) {
+            return res.status(403).json(response);
+        }
+
+        if (response.status === 'ERR' && response.message === 'Order not found!') {
+            return res.status(404).json(response);
         }
         
         return res.status(200).json(response);
