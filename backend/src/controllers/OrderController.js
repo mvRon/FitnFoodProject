@@ -122,7 +122,8 @@ const deleteOrder = async (req, res) => {
 // Lấy toàn bộ danh sách đơn hàng (Admin)
 const getAllOrders = async (req, res) => {
     try {
-        const response = await OrderService.getAllOrders();
+        const includeImage = req.query.includeImage === 'true';
+        const response = await OrderService.getAllOrders({ includeImage });
         
         return res.status(200).json(response);
     } catch (e) {

@@ -388,10 +388,18 @@ const deleteOrder = (orderId, userId) => {
 };
 
 // Lấy toàn bộ danh sách đơn hàng (Admin)
-const getAllOrders = () => {
+// Mặc định loại bỏ orderItems.image để giảm payload network.
+const getAllOrders = (options = {}) => {
     return new Promise(async (resolve, reject) => {
         try {
-            const orders = await Order.find()
+            const includeImage = options.includeImage === true;
+            const query = Order.find();
+
+            if (!includeImage) {
+                query.select("-orderItems.image");
+            }
+
+            const orders = await query
             // .populate('orderItems.product')
             // .populate('user', 'name email phone address city');
 
