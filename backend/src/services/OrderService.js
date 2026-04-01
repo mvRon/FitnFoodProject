@@ -8,7 +8,10 @@ const StockCard = require("../models/StockCardModel");
 
 const createOrder = (newOrder) => {
     return new Promise(async (resolve, reject) => {
-        const { orderItems, paymentMethod, itemsPrice, shippingPrice, totalPrice, fullName, address, city, phone, user, isPaid, paidAt } = newOrder;
+        const { orderItems, paymentMethod, itemsPrice, shippingPrice, totalPrice, fullName, address, city, phone, user, isPaid, paidAt, isDelivered } = newOrder;
+        const deliveryStatus = ["pending", "processing", "shipping", "delivered"].includes(isDelivered)
+            ? isDelivered
+            : "pending";
 
         const updatedProducts = []; //Lưu lại các sản phẩm đã cập nhật
         const failedItems = [];
@@ -86,6 +89,7 @@ const createOrder = (newOrder) => {
                 user,
                 isPaid,
                 paidAt,
+                isDelivered: deliveryStatus,
             });
 
             const voucherCode = `PXK-ORDER-${createdOrder._id.toString().slice(-6).toUpperCase()}`;

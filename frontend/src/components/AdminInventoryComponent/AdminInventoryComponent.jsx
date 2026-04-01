@@ -34,6 +34,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useMutationHook } from '../../hooks/useMutationHook'
 import * as ProductService from '../../services/ProductService'
 import * as InventoryService from '../../services/InventoryService'
+import * as OrderService from '../../services/OrderService'
 import { AdminInventoryGlobalStyle } from './Style'
 import { EXPORT_REASONS, SOURCE_TYPES } from './constants'
 import {
@@ -114,6 +115,14 @@ const AdminInventoryComponent = () => {
 
   const products = useMemo(() => productsQuery?.data?.data || [], [productsQuery?.data])
 
+  const ordersQuery = useQuery({
+    queryKey: ['inventory-orders', accessToken],
+    queryFn: () => OrderService.getAllOrders(accessToken),
+    enabled: Boolean(accessToken),
+  })
+
+  const orders = useMemo(() => ordersQuery?.data?.data || [], [ordersQuery?.data])
+
   const productOptions = useMemo(
     () =>
       products.map((item) => ({
@@ -121,6 +130,15 @@ const AdminInventoryComponent = () => {
         label: `${item.name} (${item.countInStock || 0})`,
       })),
     [products]
+  )
+
+  const orderOptions = useMemo(
+    () =>
+      orders.map((order) => ({
+        value: order._id,
+        label: `${order._id?.slice(-8)} - ${order?.shippingAddress?.fullName || 'Khách hàng'}`,
+      })),
+    [orders]
   )
 
   const vouchersQuery = useQuery({
@@ -175,6 +193,7 @@ const AdminInventoryComponent = () => {
     vouchersQuery.refetch()
     alertsQuery.refetch()
     productsQuery.refetch()
+    ordersQuery.refetch()
     stockCardQuery.refetch()
     voucherDetailQuery.refetch()
   }
@@ -332,6 +351,7 @@ const AdminInventoryComponent = () => {
   const onSubmitImport = (values) => {
     const payload = {
       sourceType: values.sourceType,
+      linkedOrder: values.linkedOrder,
       supplierName: values.supplierName,
       supplierContact: values.supplierContact,
       note: values.note,
@@ -388,10 +408,45 @@ const AdminInventoryComponent = () => {
     nextItems[index] = {
       ...(nextItems[index] || {}),
       product: productId,
-      unitPrice: Number(selectedProduct.price || 0),
+      unitPrice: Number(selectedProduct.unitPrice ?? selectedProduct.price ?? 0),
     }
 
     importForm.setFieldsValue({ items: nextItems })
+  }
+
+  const handleSelectExportProduct = (index, productId) => {
+    const selectedProduct = products.find((item) => item._id === productId)
+    if (!selectedProduct) return
+
+    const currentItems = exportForm.getFieldValue('items') || []
+    const nextItems = [...currentItems]
+    nextItems[index] = {
+      ...(nextItems[index] || {}),
+      product: productId,
+      unitPrice: Number(selectedProduct.price || 0),
+    }
+
+    exportForm.setFieldsValue({ items: nextItems })
+  }
+
+  const handleSelectImportLinkedOrder = (orderId) => {
+    const selectedOrder = orders.find((order) => order._id === orderId)
+    if (!selectedOrder) {
+      return
+    }
+
+    const orderItems = (selectedOrder.orderItems || []).map((item) => ({
+      product: item.product,
+      quantity: Number(item.amount || 1),
+      unitPrice: Number(item.price || 0),
+    }))
+
+    importForm.setFieldsValue({
+      linkedOrder: orderId,
+      supplierName: selectedOrder?.shippingAddress?.fullName || undefined,
+      supplierContact: selectedOrder?.shippingAddress?.phone || undefined,
+      items: orderItems.length > 0 ? orderItems : [{}],
+    })
   }
 
   const handleConfirmVoucher = (record, fromModal = false) => {
@@ -733,6 +788,17 @@ const AdminInventoryComponent = () => {
                 </Col>
               </Row>
 
+              <Form.Item name="linkedOrder" label="Mã đơn hàng liên kết (nếu có)">
+                <Select
+                  allowClear
+                  placeholder="Chọn đơn hàng để tự điền sản phẩm"
+                  options={orderOptions}
+                  showSearch
+                  optionFilterProp="label"
+                  onChange={handleSelectImportLinkedOrder}
+                />
+              </Form.Item>
+
               <Row gutter={10}>
                 <Col span={12}>
                   <Form.Item name="supplierName" label="Nhà cung cấp">
@@ -838,7 +904,14 @@ const AdminInventoryComponent = () => {
                           name={[field.name, 'product']}
                           rules={[{ required: true, message: 'Chọn sản phẩm' }]}
                         >
-                          <Select style={{ width: 220 }} placeholder="Sản phẩm" options={productOptions} showSearch optionFilterProp="label" />
+                          <Select
+                            style={{ width: 220 }}
+                            placeholder="Sản phẩm"
+                            options={productOptions}
+                            showSearch
+                            optionFilterProp="label"
+                            onChange={(value) => handleSelectExportProduct(field.name, value)}
+                          />
                         </Form.Item>
                         <Form.Item
                           name={[field.name, 'quantity']}

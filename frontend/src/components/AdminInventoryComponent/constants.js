@@ -8,7 +8,6 @@ export const SOURCE_TYPES = [
 
 export const EXPORT_REASONS = [
   { value: 'SALE', label: 'Bán hàng' },
-  { value: 'ORDER_CANCEL', label: 'Hủy đơn' },
   { value: 'RETURN_SUPPLIER', label: 'Trả nhà cung cấp' },
   { value: 'DAMAGE', label: 'Hư hỏng' },
   { value: 'LOSS', label: 'Thất thoát' },

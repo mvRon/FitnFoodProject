@@ -6,7 +6,7 @@ const StockCard = require("../models/StockCardModel");
 const InventoryThreshold = require("../models/InventoryThresholdModel");
 
 const IMPORT_SOURCES = ["SUPPLIER", "RETURN", "ADJUSTMENT", "PRODUCTION", "OTHER"];
-const EXPORT_REASONS = ["SALE", "ORDER_CANCEL", "RETURN_SUPPLIER", "DAMAGE", "LOSS", "ADJUSTMENT", "OTHER"];
+const EXPORT_REASONS = ["SALE", "RETURN_SUPPLIER", "DAMAGE", "LOSS", "ADJUSTMENT", "OTHER"];
 
 const buildVoucherCode = async (prefix) => {
     const now = new Date();
@@ -46,7 +46,7 @@ const validateItems = (items) => {
 
 const createImportVoucher = (payload, userId) => {
     return new Promise(async (resolve, reject) => {
-        const { sourceType = "OTHER", supplierName, supplierContact, items, note, voucherDate, status = "confirmed" } = payload;
+        const { sourceType = "OTHER", supplierName, supplierContact, linkedOrder, items, note, voucherDate, status = "confirmed" } = payload;
 
         try {
             const itemError = validateItems(items);
@@ -56,6 +56,13 @@ const createImportVoucher = (payload, userId) => {
 
             if (!IMPORT_SOURCES.includes(sourceType)) {
                 return resolve({ status: "ERR", message: "Invalid import source" });
+            }
+
+            if (linkedOrder) {
+                const orderData = await Order.findById(linkedOrder);
+                if (!orderData) {
+                    return resolve({ status: "ERR", message: "Linked order not found" });
+                }
             }
 
             const userData = await User.findById(userId);
@@ -129,6 +136,7 @@ const createImportVoucher = (payload, userId) => {
                 performedBy: userId,
                 supplierName,
                 supplierContact,
+                linkedOrder,
                 voucherDate: voucherDate || new Date(),
                 status,
                 items: normalizedItems,

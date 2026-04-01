@@ -93,6 +93,7 @@ const AdminProductComponent = () => {
     const initital = () => ({
         name: '',
         price: '',
+        unitPrice: '',
         description: '',
         rating: '',
         image: '',
@@ -146,8 +147,8 @@ const AdminProductComponent = () => {
 
     const mutation = useMutationHook(
         (data) => {
-            const { name, price, description, rating, images, type, countInStock, sold, discount } = data
-            const res = ProductService.createProduct({ name, price, description, rating, images, type, countInStock, sold, discount }, storageData)
+            const { name, price, unitPrice, description, rating, images, type, countInStock, sold, discount } = data
+            const res = ProductService.createProduct({ name, price, unitPrice, description, rating, images, type, countInStock, sold, discount }, storageData)
             return res
         }
     )
@@ -164,6 +165,7 @@ const AdminProductComponent = () => {
             setStateDetailProduct({
                 name: res?.data?.name,
                 price: res?.data?.price,
+                unitPrice: res?.data?.unitPrice,
                 description: res?.data?.description,
                 rating: res?.data?.rating,
                 // images: res?.data?.images[0],
@@ -368,7 +370,7 @@ const AdminProductComponent = () => {
             ...getColumnSearchProps('name') //sort by name
         },
         {
-            title: 'Giá tiền',
+            title: 'Giá bán',
             dataIndex: 'price',
             sorter: (a, b) => a.price - b.price, //sort by price
 
@@ -389,6 +391,24 @@ const AdminProductComponent = () => {
                 } else if (value === '<=') {
                     return record.price <= 50
                 }
+            },
+        },
+        {
+            title: 'Giá vốn',
+            dataIndex: 'unitPrice',
+            sorter: (a, b) => (a.unitPrice || 0) - (b.unitPrice || 0),
+            render: (value) => Number(value || 0).toLocaleString('vi-VN'),
+        },
+        {
+            title: 'LN/đơn vị',
+            key: 'profitPerUnit',
+            render: (_, record) => {
+                const profit = Number(record.price || 0) - Number(record.unitPrice || 0)
+                return (
+                    <Tag color={profit >= 0 ? 'green' : 'red'}>
+                        {profit.toLocaleString('vi-VN')}
+                    </Tag>
+                )
             },
         },
         {
@@ -477,6 +497,7 @@ const AdminProductComponent = () => {
         setStateProduct({
             name: '',
             price: '',
+            unitPrice: '',
             description: '',
             rating: '',
             image: '',
@@ -493,6 +514,7 @@ const AdminProductComponent = () => {
         setStateDetailProduct({
             name: '',
             price: '',
+            unitPrice: '',
             description: '',
             rating: '',
             image: '',
@@ -743,8 +765,11 @@ const AdminProductComponent = () => {
                                 />
                             </Form.Item>
                         )}
-                        <Form.Item label="Giá tiền" name="price" rules={[{ required: true, message: 'Nhập giá!' }]}>
+                        <Form.Item label="Giá bán" name="price" rules={[{ required: true, message: 'Nhập giá bán!' }]}>
                             <InputNumber value={stateProduct.price} onChange={value => handleOnChange({ target: { name: 'price', value } })} name='price' min={0} />
+                        </Form.Item>
+                        <Form.Item label="Giá vốn" name="unitPrice" rules={[{ required: true, message: 'Nhập giá vốn!' }]}>
+                            <InputNumber value={stateProduct.unitPrice} onChange={value => handleOnChange({ target: { name: 'unitPrice', value } })} name='unitPrice' min={0} />
                         </Form.Item>
                         <Form.Item label="Hàng tồn kho" name="countInStock" rules={[{ required: true, message: 'Nhập số lượng!' }]}>
                             <InputNumber value={stateProduct.countInStock} onChange={value => handleOnChange({ target: { name: 'countInStock', value } })} name='countInStock' min={0} />
@@ -818,8 +843,11 @@ const AdminProductComponent = () => {
                                 />
                             </Form.Item>
                         )}
-                        <Form.Item label="Giá tiền" name="price" rules={[{ required: true, message: 'Nhập giá!' }]}>
+                        <Form.Item label="Giá bán" name="price" rules={[{ required: true, message: 'Nhập giá bán!' }]}>
                             <InputNumber value={stateDetailProduct.price} onChange={value => handleOnChangeDetailProduct({ target: { name: 'price', value } })} name='price' min={0} />
+                        </Form.Item>
+                        <Form.Item label="Giá vốn" name="unitPrice" rules={[{ required: true, message: 'Nhập giá vốn!' }]}>
+                            <InputNumber value={stateDetailProduct.unitPrice} onChange={value => handleOnChangeDetailProduct({ target: { name: 'unitPrice', value } })} name='unitPrice' min={0} />
                         </Form.Item>
                         <Form.Item label="Hàng tồn kho" name="countInStock" rules={[{ required: true, message: 'Nhập số lượng!' }]}>
                             <InputNumber value={stateDetailProduct.countInStock} onChange={value => handleOnChangeDetailProduct({ target: { name: 'countInStock', value } })} name='countInStock' min={0} />

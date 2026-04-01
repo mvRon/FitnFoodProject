@@ -2,13 +2,14 @@ const ProducService = require('../services/ProductService');
 
 const createProduct = async (req, res) => {
     try {
-        const { name, images, type, price, countInStock, rating, description, sold, discount } = req.body;
+        const { name, images, type, price, unitPrice, countInStock, rating, description, sold, discount } = req.body;
 
         if (
             !name ||
             !images ||
             !type ||
             price == null ||
+            unitPrice == null ||
             countInStock == null ||
             rating == null ||
             sold == null ||

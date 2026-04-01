@@ -29,7 +29,7 @@ const inventoryVoucherSchema = new mongoose.Schema(
         },
         exportReason: {
             type: String,
-            enum: ["SALE", "ORDER_CANCEL", "RETURN_SUPPLIER", "DAMAGE", "LOSS", "ADJUSTMENT", "OTHER"],
+            enum: ["SALE", "RETURN_SUPPLIER", "DAMAGE", "LOSS", "ADJUSTMENT", "OTHER"],
             default: "OTHER",
         },
         performedBy: {

@@ -6,7 +6,7 @@ const InventoryService = require("./InventoryService");
 
 const createProduct = (newProduct) => {
     return new Promise(async (resolve, reject) => {
-        const { name, images, type, price, countInStock, rating, description, sold, discount } = newProduct;
+        const { name, images, type, price, unitPrice, countInStock, rating, description, sold, discount } = newProduct;
 
         try {
             const checkProduct = await Product.findOne({
@@ -19,7 +19,7 @@ const createProduct = (newProduct) => {
                 })
             }
             const createdProduct = await Product.create({
-                name, images, type, price, countInStock, rating, description, sold, discount
+                name, images, type, price, unitPrice, countInStock, rating, description, sold, discount
             })
             if (createdProduct) {
                 resolve({

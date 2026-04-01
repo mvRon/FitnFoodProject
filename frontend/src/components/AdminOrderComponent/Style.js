@@ -203,6 +203,97 @@ export const OrderGlobalStyle = createGlobalStyle`
     transform: translateY(-2px);
   }
 
+  .admin-order-create-modal .ant-modal-body {
+    background:
+      radial-gradient(circle at 8% 0%, rgba(16, 185, 129, 0.09), transparent 24%),
+      radial-gradient(circle at 92% 8%, rgba(2, 132, 199, 0.08), transparent 24%),
+      linear-gradient(180deg, rgba(248, 250, 252, 0.86), rgba(255, 255, 255, 0.96));
+    border-bottom-left-radius: 18px;
+    border-bottom-right-radius: 18px;
+    padding-top: 14px;
+  }
+
+  .admin-order-create-hero {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    border: 1px solid rgba(2, 132, 199, 0.16);
+    border-radius: 14px;
+    padding: 12px 14px;
+    margin-bottom: 10px;
+    background: linear-gradient(130deg, rgba(16, 185, 129, 0.1), rgba(2, 132, 199, 0.08), rgba(255, 255, 255, 0.96));
+  }
+
+  .admin-order-create-hero h3 {
+    margin: 0;
+    font-size: 17px;
+    color: #0F766E;
+    font-weight: 700;
+  }
+
+  .admin-order-create-hero p {
+    margin: 4px 0 0;
+    color: rgba(30, 41, 59, 0.7);
+    font-size: 13px;
+  }
+
+  .admin-order-create-total-box {
+    text-align: right;
+    min-width: 210px;
+  }
+
+  .admin-order-create-total-box span {
+    display: block;
+    color: rgba(30, 41, 59, 0.72);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+
+  .admin-order-create-total-box strong {
+    font-size: 22px;
+    color: #0F766E;
+  }
+
+  .admin-order-create-item-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 10px;
+    border-radius: 12px;
+    border: 1px solid rgba(2, 132, 199, 0.16);
+    padding: 10px;
+    background: linear-gradient(120deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.95));
+  }
+
+  .admin-order-create-summary {
+    margin-bottom: 12px;
+    border-radius: 12px;
+    border: 1px dashed rgba(2, 132, 199, 0.28);
+    background: rgba(255, 255, 255, 0.85);
+    padding: 10px 12px;
+    display: grid;
+    gap: 8px;
+  }
+
+  .admin-order-create-summary > div {
+    display: flex;
+    justify-content: space-between;
+    font-size: 14px;
+    color: #1E293B;
+  }
+
+  .admin-order-create-summary > div.total {
+    border-top: 1px solid rgba(2, 132, 199, 0.18);
+    padding-top: 8px;
+  }
+
+  .admin-order-create-summary > div.total strong {
+    color: #0F766E;
+    font-size: 16px;
+  }
+
   @keyframes adminOrderFadeIn {
     from {
       opacity: 0;
@@ -217,6 +308,20 @@ export const OrderGlobalStyle = createGlobalStyle`
   @media (max-width: 768px) {
     .admin-order-page {
       padding: 10px;
+    }
+
+    .admin-order-create-hero {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    .admin-order-create-total-box {
+      text-align: left;
+      min-width: unset;
+    }
+
+    .admin-order-create-item-row {
+      flex-direction: column;
     }
   }
 `;

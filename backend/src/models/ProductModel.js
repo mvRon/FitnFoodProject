@@ -7,6 +7,7 @@ const productSchema = new mongoose.Schema(
         type: { type: mongoose.Schema.Types.ObjectId, ref: "Category", required: true },
         // type: { type: String, require: true },
         price: { type: Number, require: true },
+        unitPrice: { type: Number, require: true, default: 0 },
         countInStock: { type: Number, require: true },
         rating: { type: Number, require: true },
         description: { type: String },

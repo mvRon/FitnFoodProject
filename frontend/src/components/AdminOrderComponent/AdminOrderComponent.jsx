@@ -1,6 +1,6 @@
-import React, { useEffect, useRef, useState } from "react";
-import { Button, Form, Input, message, Select, Space, Tag } from "antd";
-import { DeleteOutlined, EditOutlined, SearchOutlined } from "@ant-design/icons";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { Button, Col, Divider, Form, Input, InputNumber, Row, Select, Space, Tag, message } from "antd";
+import { DeleteOutlined, EditOutlined, PlusOutlined, SearchOutlined } from "@ant-design/icons";
 import TableComponent from "../TableComponent/TableComponent";
 import LoadingComponent from "../LoadingComponent/LoadingComponent";
 import ModalComponent from "../ModalComponent/ModalComponent";
@@ -8,6 +8,8 @@ import { useMutationHook } from "../../hooks/useMutationHook";
 import { useQuery } from "@tanstack/react-query";
 import { OrderGlobalStyle, OrderPageContainer, WrapperHeader } from "./Style";
 import * as OrderService from "../../services/OrderService";
+import * as ProductService from "../../services/ProductService";
+import * as UserService from "../../services/UserService";
 import { useNavigate } from "react-router-dom";
 
 const DELIVERY_STATUS_LABEL = {
@@ -29,9 +31,11 @@ const AdminOrderComponent = () => {
     const [rowSelected, setRowSelected] = useState("");
     const [isOpenDrawer, setIsOpenDrawer] = useState(false);
     const [isModalOpenDelete, setIsModalOpenDelete] = useState(false);
+    const [isModalCreateOrderOpen, setIsModalCreateOrderOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [stateDetailOrder, setStateDetailOrder] = useState({});
     const [form] = Form.useForm();
+    const [createOrderForm] = Form.useForm();
     const searchInput = useRef(null);
 
     let storageData = localStorage.getItem("access_token");
@@ -87,6 +91,10 @@ const AdminOrderComponent = () => {
         return OrderService.updateOrder(id, token, updateData);
     });
 
+    const mutationCreateOrder = useMutationHook((payload) => {
+        return OrderService.createOrder(storageData, payload);
+    });
+
     const getAllOrders = async () => {
         if (!storageData) return { data: [] };
         const res = await OrderService.getAllOrders(storageData);
@@ -101,6 +109,18 @@ const AdminOrderComponent = () => {
         onError: () => {
             message.error("Không thể tải danh sách đơn hàng.");
         },
+    });
+
+    const usersQuery = useQuery({
+        queryKey: ["admin-users"],
+        queryFn: () => UserService.getAllUser(storageData),
+        enabled: Boolean(storageData),
+    });
+
+    const productsQuery = useQuery({
+        queryKey: ["admin-order-products"],
+        queryFn: () => ProductService.getAllProduct("", 1, 1000),
+        enabled: Boolean(storageData),
     });
     const { data } = queryOrder
 
@@ -121,6 +141,73 @@ const AdminOrderComponent = () => {
             queryOrder.refetch();
         }
     }, [mutationUpdateOrder.isSuccess]);
+
+    useEffect(() => {
+        if (mutationCreateOrder.isSuccess && mutationCreateOrder.data?.status === "OK") {
+            message.success("Tạo đơn hàng tại quầy thành công");
+            setIsModalCreateOrderOpen(false);
+            createOrderForm.resetFields();
+            queryOrder.refetch();
+            productsQuery.refetch();
+        }
+
+        if (mutationCreateOrder.isSuccess && mutationCreateOrder.data?.status !== "OK") {
+            message.error(mutationCreateOrder.data?.message || "Không thể tạo đơn hàng tại quầy");
+        }
+    }, [mutationCreateOrder.isSuccess]);
+
+    const users = usersQuery?.data?.data || [];
+    const products = productsQuery?.data?.data || [];
+    const watchedOrderItems = Form.useWatch("orderItems", createOrderForm) || [];
+
+    const userOptions = users
+        .filter((user) => !user?.isAdmin)
+        .map((user) => ({
+            value: user._id,
+            label: `${user.name} - ${user.phone || "--"}`,
+        }));
+
+    const getStockByProductId = (productId) => {
+        const product = products.find((item) => item._id === productId);
+        return Number(product?.countInStock || 0);
+    };
+
+    const selectedProductIds = useMemo(
+        () => (watchedOrderItems || []).map((item) => item?.product).filter(Boolean),
+        [watchedOrderItems]
+    );
+
+    const getProductOptionsByRow = (rowIndex) => {
+        const rowProductId = watchedOrderItems?.[rowIndex]?.product;
+
+        return products.map((product) => {
+            const stock = Number(product.countInStock || 0);
+            const selectedInOtherRow = selectedProductIds.includes(product._id) && rowProductId !== product._id;
+            const outOfStock = stock <= 0;
+
+            return {
+                value: product._id,
+                disabled: outOfStock || selectedInOtherRow,
+                label: `${product.name} (${stock})${outOfStock ? " - Hết hàng" : ""}`,
+            };
+        });
+    };
+
+    const orderSummary = useMemo(() => {
+        const rows = watchedOrderItems || [];
+        const itemsPrice = rows.reduce((sum, row) => {
+            const product = products.find((item) => item._id === row?.product);
+            const unitPrice = Number(row?.unitPrice ?? product?.price ?? 0);
+            const amount = Number(row?.amount || 0);
+            return sum + unitPrice * amount;
+        }, 0);
+
+        return {
+            itemsPrice,
+            shippingPrice: 0,
+            totalPrice: itemsPrice,
+        };
+    }, [watchedOrderItems, products]);
 
     const [searchText, setSearchText] = useState("");
     const [searchedColumn, setSearchedColumn] = useState("");
@@ -310,11 +397,110 @@ const AdminOrderComponent = () => {
         navigate(`/productDetail/${productId}`)
     }
 
+    const handleSelectCustomerForManualOrder = (userId) => {
+        const selectedUser = users.find((item) => item._id === userId);
+        if (!selectedUser) return;
+
+        createOrderForm.setFieldsValue({
+            user: userId,
+            fullName: selectedUser.name || "",
+            phone: selectedUser.phone || "",
+            address: selectedUser.address || "",
+            city: selectedUser.city || "",
+        });
+    };
+
+    const handleSelectProductForManualOrder = (index, productId) => {
+        const selectedProduct = products.find((item) => item._id === productId);
+        if (!selectedProduct) return;
+
+        const currentItems = createOrderForm.getFieldValue("orderItems") || [];
+        const nextItems = [...currentItems];
+        nextItems[index] = {
+            ...(nextItems[index] || {}),
+            product: productId,
+            amount: Number(nextItems[index]?.amount || 1),
+            unitPrice: Number(selectedProduct.price || 0),
+        };
+
+        createOrderForm.setFieldsValue({ orderItems: nextItems });
+    };
+
+    const onSubmitManualOrder = (values) => {
+        const productIds = (values.orderItems || []).map((item) => item.product).filter(Boolean);
+        if (new Set(productIds).size !== productIds.length) {
+            message.error("Không thể chọn trùng sản phẩm trong cùng một đơn");
+            return;
+        }
+
+        try {
+            const normalizedItems = (values.orderItems || []).map((item) => {
+                const productData = products.find((product) => product._id === item.product) || {};
+                const amount = Number(item.amount || 0);
+                const price = Number(item.unitPrice ?? productData.price ?? 0);
+                const firstImage = Array.isArray(productData.images) && productData.images.length > 0
+                    ? productData.images[0]
+                    : "";
+
+                if (amount > Number(productData.countInStock || 0)) {
+                    throw new Error(`Sản phẩm ${productData.name || "không xác định"} vượt quá tồn kho`);
+                }
+
+                return {
+                    product: item.product,
+                    amount,
+                    price,
+                    name: productData.name || "",
+                    image: firstImage,
+                    countInStock: Number(productData.countInStock || 0),
+                    discount: 0,
+                };
+            });
+
+            if (normalizedItems.length === 0) {
+                message.error("Vui lòng chọn ít nhất 1 sản phẩm");
+                return;
+            }
+
+            const itemsPrice = normalizedItems.reduce((sum, item) => sum + item.amount * item.price, 0);
+            const shippingPrice = 0;
+            const totalPrice = itemsPrice;
+
+            mutationCreateOrder.mutate({
+                user: values.user,
+                fullName: values.fullName,
+                phone: values.phone,
+                address: values.address,
+                city: values.city,
+                paymentMethod: values.paymentMethod,
+                isPaid: Boolean(values.isPaid),
+                paidAt: values.isPaid ? new Date().toISOString() : null,
+                isDelivered: "delivered",
+                orderItems: normalizedItems,
+                itemsPrice,
+                shippingPrice,
+                totalPrice,
+            });
+        } catch (error) {
+            message.error(error.message || "Dữ liệu đơn hàng không hợp lệ");
+            return;
+        }
+    };
+
 
     return (
         <OrderPageContainer className="admin-order-page">
             <OrderGlobalStyle />
-            <WrapperHeader>Quản lý đơn hàng</WrapperHeader>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: 14 }}>
+                <WrapperHeader style={{ marginBottom: 0 }}>Quản lý đơn hàng</WrapperHeader>
+                <Button
+                    className="admin-order-submit-btn"
+                    icon={<PlusOutlined />}
+                    onClick={() => setIsModalCreateOrderOpen(true)}
+                >
+                    Tạo đơn tại quầy
+                </Button>
+            </div>
 
             <div className="admin-order-table-wrap">
                 <TableComponent
@@ -399,6 +585,176 @@ const AdminOrderComponent = () => {
             >
                 <LoadingComponent isPending={mutationDeleteOrder.isPending}>
                     <div>Bạn có chắc muốn xóa đơn hàng này không?</div>
+                </LoadingComponent>
+            </ModalComponent>
+
+            <ModalComponent
+                title="Tạo đơn hàng tại quầy"
+                open={isModalCreateOrderOpen}
+                onCancel={() => setIsModalCreateOrderOpen(false)}
+                footer={null}
+                width={900}
+                className="admin-order-modal admin-order-create-modal"
+            >
+                <LoadingComponent isPending={mutationCreateOrder.isPending || productsQuery.isLoading || usersQuery.isLoading}>
+                    <Form
+                        form={createOrderForm}
+                        layout="vertical"
+                        className="admin-order-form"
+                        initialValues={{ paymentMethod: "cash", isPaid: true, orderItems: [{ amount: 1 }] }}
+                        onFinish={onSubmitManualOrder}
+                    >
+                        <div className="admin-order-create-hero">
+                            <div>
+                                <h3>Đơn hàng tại quầy</h3>
+                                <p>Tạo nhanh đơn mua trực tiếp tại cửa hàng. Không áp dụng mã giảm giá và phí giao hàng luôn bằng 0.</p>
+                            </div>
+                            <div className="admin-order-create-total-box">
+                                <span>Tổng tiền realtime</span>
+                                <strong>{orderSummary.totalPrice.toLocaleString("vi-VN")} VNĐ</strong>
+                            </div>
+                        </div>
+
+                        <Row gutter={[12, 8]}>
+                            <Col xs={24} md={12}>
+                                <Form.Item
+                                    label="Khách hàng đã có tài khoản"
+                                    name="user"
+                                    rules={[{ required: true, message: "Vui lòng chọn khách hàng" }]}
+                                >
+                                    <Select
+                                        showSearch
+                                        optionFilterProp="label"
+                                        options={userOptions}
+                                        onChange={handleSelectCustomerForManualOrder}
+                                        placeholder="Chọn người dùng"
+                                    />
+                                </Form.Item>
+                            </Col>
+                            <Col xs={24} md={12}>
+                                <Form.Item style={{ marginBottom: 8 }} label="Số điện thoại" name="phone" rules={[{ required: true }]}>
+                                    <Input />
+                                </Form.Item>
+                            </Col>
+                            <Col xs={24} md={12}>
+                                <Form.Item style={{ marginBottom: 8 }} label="Họ tên" name="fullName" rules={[{ required: true }]}>
+                                    <Input />
+                                </Form.Item>
+                            </Col>
+                            <Col xs={24} md={12}>
+                                <Form.Item style={{ marginBottom: 8 }} label="Thành phố" name="city" rules={[{ required: true }]}>
+                                    <Input />
+                                </Form.Item>
+                            </Col>
+                            <Col span={24}>
+                                <Form.Item style={{ marginBottom: 8 }} label="Địa chỉ" name="address" rules={[{ required: true }]}>
+                                    <Input />
+                                </Form.Item>
+                            </Col>
+                        </Row>
+
+                        <Divider style={{ margin: "8px 0 14px" }}>Sản phẩm</Divider>
+
+                        <Form.List name="orderItems">
+                            {(fields, { add, remove }) => (
+                                <>
+                                    {fields.map((field) => (
+                                        <div key={field.key} className="admin-order-create-item-row">
+                                            <Form.Item
+                                                name={[field.name, "product"]}
+                                                rules={[{ required: true, message: "Chọn sản phẩm" }]}
+                                                style={{ flex: 1.8, minWidth: 260 }}
+                                            >
+                                                <Select
+                                                    placeholder="Sản phẩm"
+                                                    showSearch
+                                                    optionFilterProp="label"
+                                                    options={getProductOptionsByRow(field.name)}
+                                                    onChange={(value) => handleSelectProductForManualOrder(field.name, value)}
+                                                />
+                                            </Form.Item>
+                                            <Form.Item
+                                                name={[field.name, "amount"]}
+                                                style={{ flex: 1, minWidth: 130 }}
+                                                rules={[
+                                                    { required: true, message: "SL" },
+                                                    ({ getFieldValue }) => ({
+                                                        validator(_, value) {
+                                                            const productId = getFieldValue(["orderItems", field.name, "product"]);
+                                                            const stock = getStockByProductId(productId);
+                                                            if (!value || value <= stock) {
+                                                                return Promise.resolve();
+                                                            }
+                                                            return Promise.reject(new Error(`Số lượng vượt tồn kho (${stock})`));
+                                                        },
+                                                    }),
+                                                ]}
+                                            >
+                                                <InputNumber
+                                                    min={1}
+                                                    max={getStockByProductId(watchedOrderItems?.[field.name]?.product) || undefined}
+                                                    placeholder="Số lượng"
+                                                    style={{ width: "100%" }}
+                                                />
+                                            </Form.Item>
+                                            <Form.Item
+                                                name={[field.name, "unitPrice"]}
+                                                style={{ flex: 1.2, minWidth: 140 }}
+                                                rules={[{ required: true, message: "Đơn giá" }]}
+                                            >
+                                                <InputNumber min={0} placeholder="Đơn giá" style={{ width: "100%" }} />
+                                            </Form.Item>
+                                            <Button danger type="text" onClick={() => remove(field.name)}>
+                                                Xóa
+                                            </Button>
+                                        </div>
+                                    ))}
+                                    <Button type="dashed" block onClick={() => add({ amount: 1 })}>
+                                        Thêm sản phẩm
+                                    </Button>
+                                </>
+                            )}
+                        </Form.List>
+
+                        <Space style={{ width: "100%", marginTop: 12 }} size={12} wrap>
+                            <Form.Item style={{ minWidth: 220 }} label="Phương thức thanh toán" name="paymentMethod" rules={[{ required: true }]}>
+                                <Select
+                                    options={[
+                                        { value: "cash", label: "Tiền mặt tại quầy" },
+                                        { value: "card", label: "Thẻ" },
+                                        { value: "transfer", label: "Chuyển khoản" },
+                                    ]}
+                                />
+                            </Form.Item>
+                            <Form.Item style={{ minWidth: 220 }} label="Trạng thái thanh toán" name="isPaid" rules={[{ required: true }]}>
+                                <Select
+                                    options={[
+                                        { value: true, label: "Đã thanh toán" },
+                                        { value: false, label: "Chưa thanh toán" },
+                                    ]}
+                                />
+                            </Form.Item>
+                        </Space>
+
+                        <div className="admin-order-create-summary">
+                            <div>
+                                <span>Tạm tính</span>
+                                <strong>{orderSummary.itemsPrice.toLocaleString("vi-VN")} VNĐ</strong>
+                            </div>
+                            <div>
+                                <span>Phí giao hàng</span>
+                                <strong>{orderSummary.shippingPrice.toLocaleString("vi-VN")} VNĐ</strong>
+                            </div>
+                            <div className="total">
+                                <span>Tổng thanh toán</span>
+                                <strong>{orderSummary.totalPrice.toLocaleString("vi-VN")} VNĐ</strong>
+                            </div>
+                        </div>
+
+                        <Button className="admin-order-submit-btn" type="primary" htmlType="submit" block>
+                            Tạo đơn hàng
+                        </Button>
+                    </Form>
                 </LoadingComponent>
             </ModalComponent>
         </OrderPageContainer>
