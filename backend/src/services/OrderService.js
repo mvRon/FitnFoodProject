@@ -14,6 +14,7 @@ const createOrder = (newOrder) => {
             : "pending";
 
         const updatedProducts = []; //Lưu lại các sản phẩm đã cập nhật
+        const normalizedOrderItems = [];
         const failedItems = [];
 
         try {
@@ -43,6 +44,21 @@ const createOrder = (newOrder) => {
 
                 // Lưu lại sản phẩm đã cập nhật thành công để rollback nếu cần
                 updatedProducts.push({ productId: order.product, amount: order.amount });
+
+                const primaryImage = Array.isArray(order.images) && order.images.length > 0
+                    ? order.images[0]
+                    : (order.image || (Array.isArray(productData?.images) && productData.images.length > 0 ? productData.images[0] : ""));
+
+                normalizedOrderItems.push({
+                    ...order,
+                    product: order.product,
+                    name: order.name || productData?.name || "",
+                    amount: Number(order.amount || 0),
+                    price: Number(order.price ?? productData?.price ?? 0),
+                    discount: Number(order.discount || 0),
+                    countInStock: Number(productData?.countInStock || 0),
+                    image: primaryImage,
+                });
             }
 
             // Nếu có lỗi → rollback các sản phẩm đã cập nhật
@@ -72,10 +88,10 @@ const createOrder = (newOrder) => {
             }
 
 
-            const sendEmailOrder = await EmailService.sendEmailOrder({ email: userData.email, orderItems, totalPrice })
+            const sendEmailOrder = await EmailService.sendEmailOrder({ email: userData.email, orderItems: normalizedOrderItems, totalPrice })
             // Tạo đơn hàng duy nhất sau khi kiểm tra và cập nhật kho thành công
             const createdOrder = await Order.create({
-                orderItems,
+                orderItems: normalizedOrderItems,
                 shippingAddress: {
                     fullName,
                     address,
@@ -93,7 +109,7 @@ const createOrder = (newOrder) => {
             });
 
             const voucherCode = `PXK-ORDER-${createdOrder._id.toString().slice(-6).toUpperCase()}`;
-            const voucherItems = orderItems.map((item) => ({
+            const voucherItems = normalizedOrderItems.map((item) => ({
                 product: item.product,
                 quantity: Number(item.amount || 0),
                 unitPrice: Number(item.price || 0),
@@ -115,7 +131,7 @@ const createOrder = (newOrder) => {
                 confirmedBy: user,
             });
 
-            for (const item of orderItems) {
+            for (const item of normalizedOrderItems) {
                 const productData = await Product.findById(item.product);
                 await StockCard.create({
                     product: item.product,
