@@ -120,7 +120,7 @@ export const stockCardColumns = [
     align: 'right',
   },
   {
-    title: 'Ton sau GD',
+    title: 'Tồn sau GD',
     dataIndex: 'balanceAfter',
     align: 'right',
   },
