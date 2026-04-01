@@ -18,11 +18,25 @@ const DELIVERY_STATUS_LABEL = {
   delivered: 'Đã giao hàng',
 };
 
+const getPrimaryImage = (imageValue) => {
+  if (Array.isArray(imageValue) && imageValue.length > 0) {
+    return imageValue[0]
+  }
+
+  if (typeof imageValue === 'string') {
+    return imageValue
+  }
+
+  return ''
+}
+
 const renderOrderItemThumb = (image, name) => {
-  if (image) {
+  const primaryImage = getPrimaryImage(image)
+
+  if (primaryImage) {
     return (
       <img
-        src={image}
+        src={primaryImage}
         alt={name}
         style={{
           width: '70px',
@@ -107,7 +121,7 @@ const OrderListPage = () => {
             quantity: item.amount,
             unitPrice: item.price,
             subtotal: (item.amount * item.price) * item.discount / 100 + order.shippingPrice,
-            image: renderOrderItemThumb(item?.image, item?.name)
+            image: item?.images || item?.image || ''
           })),
         }));
         setOrders(mapped);
@@ -246,7 +260,12 @@ const OrderListPage = () => {
   // Component mở rộng để hiển thị chi tiết sản phẩm cho mỗi đơn hàng
   const expandedRowRender = (record) => {
     const productColumns = [
-      { title: 'Hình ảnh', dataIndex: 'image', key: 'image', },
+      {
+        title: 'Hình ảnh',
+        dataIndex: 'image',
+        key: 'image',
+        render: (image, record) => renderOrderItemThumb(image, record?.name),
+      },
       { title: 'Sản phẩm', dataIndex: 'name', key: 'name' },
       { title: 'Số lượng', dataIndex: 'quantity', key: 'quantity' },
       { title: 'Đơn giá', dataIndex: 'unitPrice', key: 'unitPrice', render: (price) => price.toLocaleString('vi-VN') + ' VNĐ' },

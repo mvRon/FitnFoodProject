@@ -34,6 +34,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useMutationHook } from '../../hooks/useMutationHook'
 import * as ProductService from '../../services/ProductService'
 import * as InventoryService from '../../services/InventoryService'
+import * as OrderService from '../../services/OrderService'
 import { AdminInventoryGlobalStyle } from './Style'
 import { EXPORT_REASONS, SOURCE_TYPES } from './constants'
 import {
@@ -97,6 +98,8 @@ const AdminInventoryComponent = () => {
   })
   const [isVoucherModalOpen, setIsVoucherModalOpen] = useState(false)
   const [voucherSelected, setVoucherSelected] = useState(null)
+  const [actionLoadingId, setActionLoadingId] = useState('')
+  const [modalActionLoading, setModalActionLoading] = useState('')
 
   const getProducts = async () => {
     const res = await ProductService.getAllProduct('', 1, 1000)
@@ -112,6 +115,14 @@ const AdminInventoryComponent = () => {
 
   const products = useMemo(() => productsQuery?.data?.data || [], [productsQuery?.data])
 
+  const ordersQuery = useQuery({
+    queryKey: ['inventory-orders', accessToken],
+    queryFn: () => OrderService.getAllOrders(accessToken),
+    enabled: Boolean(accessToken),
+  })
+
+  const orders = useMemo(() => ordersQuery?.data?.data || [], [ordersQuery?.data])
+
   const productOptions = useMemo(
     () =>
       products.map((item) => ({
@@ -119,6 +130,15 @@ const AdminInventoryComponent = () => {
         label: `${item.name} (${item.countInStock || 0})`,
       })),
     [products]
+  )
+
+  const orderOptions = useMemo(
+    () =>
+      orders.map((order) => ({
+        value: order._id,
+        label: `${order._id?.slice(-8)} - ${order?.shippingAddress?.fullName || 'Khách hàng'}`,
+      })),
+    [orders]
   )
 
   const vouchersQuery = useQuery({
@@ -159,6 +179,24 @@ const AdminInventoryComponent = () => {
   const discrepancyMutation = useMutationHook((actualCounts) =>
     InventoryService.checkInventoryDiscrepancy(actualCounts, accessToken)
   )
+  const confirmVoucherMutation = useMutationHook((voucherId) =>
+    InventoryService.confirmVoucher(voucherId, accessToken)
+  )
+  const cancelVoucherMutation = useMutationHook(({ voucherId, reason }) =>
+    InventoryService.cancelVoucher(voucherId, reason, accessToken)
+  )
+  const updateVoucherNoteMutation = useMutationHook(({ voucherId, note }) =>
+    InventoryService.updateVoucherNote(voucherId, note, accessToken)
+  )
+
+  const refreshInventoryData = () => {
+    vouchersQuery.refetch()
+    alertsQuery.refetch()
+    productsQuery.refetch()
+    ordersQuery.refetch()
+    stockCardQuery.refetch()
+    voucherDetailQuery.refetch()
+  }
 
   useEffect(() => {
     if (importMutation.isSuccess) {
@@ -215,6 +253,40 @@ const AdminInventoryComponent = () => {
       message.error('Không thể tải chi tiết phiếu kho')
     }
   }, [voucherDetailQuery.isError])
+
+  useEffect(() => {
+    if (!confirmVoucherMutation.isSuccess) return
+
+    if (confirmVoucherMutation.data?.status === 'OK') {
+      message.success(confirmVoucherMutation.data?.message || 'Đã xác nhận phiếu kho')
+      refreshInventoryData()
+    } else {
+      message.error(confirmVoucherMutation.data?.message || 'Không thể xác nhận phiếu kho')
+    }
+  }, [confirmVoucherMutation.isSuccess])
+
+  useEffect(() => {
+    if (!cancelVoucherMutation.isSuccess) return
+
+    if (cancelVoucherMutation.data?.status === 'OK') {
+      message.success(cancelVoucherMutation.data?.message || 'Đã hủy phiếu kho')
+      refreshInventoryData()
+    } else {
+      message.error(cancelVoucherMutation.data?.message || 'Không thể hủy phiếu kho')
+    }
+  }, [cancelVoucherMutation.isSuccess])
+
+  useEffect(() => {
+    if (!updateVoucherNoteMutation.isSuccess) return
+
+    if (updateVoucherNoteMutation.data?.status === 'OK') {
+      message.success(updateVoucherNoteMutation.data?.message || 'Đã cập nhật ghi chú phiếu')
+      vouchersQuery.refetch()
+      voucherDetailQuery.refetch()
+    } else {
+      message.error(updateVoucherNoteMutation.data?.message || 'Không thể cập nhật ghi chú phiếu')
+    }
+  }, [updateVoucherNoteMutation.isSuccess])
 
   const alertList = useMemo(() => alertsQuery?.data?.data || [], [alertsQuery?.data])
   const vouchersRaw = useMemo(() => vouchersQuery?.data?.data || [], [vouchersQuery?.data])
@@ -279,6 +351,7 @@ const AdminInventoryComponent = () => {
   const onSubmitImport = (values) => {
     const payload = {
       sourceType: values.sourceType,
+      linkedOrder: values.linkedOrder,
       supplierName: values.supplierName,
       supplierContact: values.supplierContact,
       note: values.note,
@@ -335,10 +408,105 @@ const AdminInventoryComponent = () => {
     nextItems[index] = {
       ...(nextItems[index] || {}),
       product: productId,
-      unitPrice: Number(selectedProduct.price || 0),
+      unitPrice: Number(selectedProduct.unitPrice ?? selectedProduct.price ?? 0),
     }
 
     importForm.setFieldsValue({ items: nextItems })
+  }
+
+  const handleSelectExportProduct = (index, productId) => {
+    const selectedProduct = products.find((item) => item._id === productId)
+    if (!selectedProduct) return
+
+    const currentItems = exportForm.getFieldValue('items') || []
+    const nextItems = [...currentItems]
+    nextItems[index] = {
+      ...(nextItems[index] || {}),
+      product: productId,
+      unitPrice: Number(selectedProduct.price || 0),
+    }
+
+    exportForm.setFieldsValue({ items: nextItems })
+  }
+
+  const handleSelectImportLinkedOrder = (orderId) => {
+    const selectedOrder = orders.find((order) => order._id === orderId)
+    if (!selectedOrder) {
+      return
+    }
+
+    const orderItems = (selectedOrder.orderItems || []).map((item) => ({
+      product: item.product,
+      quantity: Number(item.amount || 1),
+      unitPrice: Number(item.price || 0),
+    }))
+
+    importForm.setFieldsValue({
+      linkedOrder: orderId,
+      supplierName: selectedOrder?.shippingAddress?.fullName || undefined,
+      supplierContact: selectedOrder?.shippingAddress?.phone || undefined,
+      items: orderItems.length > 0 ? orderItems : [{}],
+    })
+  }
+
+  const handleConfirmVoucher = (record, fromModal = false) => {
+    if (!record?._id) return
+
+    if (fromModal) {
+      setModalActionLoading('confirm')
+    } else {
+      setActionLoadingId(`confirm-${record._id}`)
+    }
+
+    confirmVoucherMutation.mutate(record._id, {
+      onSettled: () => {
+        setActionLoadingId('')
+        setModalActionLoading('')
+      },
+    })
+  }
+
+  const handleCancelVoucher = (record, fromModal = false) => {
+    if (!record?._id) return
+
+    const reason = window.prompt('Nhập lý do hủy phiếu (có thể bỏ trống):', '')
+    if (reason === null) return
+
+    if (fromModal) {
+      setModalActionLoading('cancel')
+    } else {
+      setActionLoadingId(`cancel-${record._id}`)
+    }
+
+    cancelVoucherMutation.mutate(
+      {
+        voucherId: record._id,
+        reason,
+      },
+      {
+        onSettled: () => {
+          setActionLoadingId('')
+          setModalActionLoading('')
+        },
+      }
+    )
+  }
+
+  const handleSaveVoucherNote = (record, note) => {
+    if (!record?._id) return
+
+    setModalActionLoading('note')
+    updateVoucherNoteMutation.mutate(
+      {
+        voucherId: record._id,
+        note,
+      },
+      {
+        onSettled: () => {
+          setModalActionLoading('')
+        },
+      }
+    )
   }
 
   const voucherColumns = useMemo(
@@ -348,8 +516,11 @@ const AdminInventoryComponent = () => {
           setVoucherSelected(record)
           setIsVoucherModalOpen(true)
         },
+        onConfirmVoucher: handleConfirmVoucher,
+        onCancelVoucher: handleCancelVoucher,
+        actionLoadingId,
       }),
-    []
+    [actionLoadingId]
   )
 
   return (
@@ -377,12 +548,7 @@ const AdminInventoryComponent = () => {
           <Button
             icon={<ReloadOutlined />}
             className="admin-inventory-btn-outline"
-            onClick={() => {
-              vouchersQuery.refetch()
-              alertsQuery.refetch()
-              productsQuery.refetch()
-              stockCardQuery.refetch()
-            }}
+            onClick={refreshInventoryData}
           >
             Làm mới dữ liệu
           </Button>
@@ -622,6 +788,17 @@ const AdminInventoryComponent = () => {
                 </Col>
               </Row>
 
+              <Form.Item name="linkedOrder" label="Mã đơn hàng liên kết (nếu có)">
+                <Select
+                  allowClear
+                  placeholder="Chọn đơn hàng để tự điền sản phẩm"
+                  options={orderOptions}
+                  showSearch
+                  optionFilterProp="label"
+                  onChange={handleSelectImportLinkedOrder}
+                />
+              </Form.Item>
+
               <Row gutter={10}>
                 <Col span={12}>
                   <Form.Item name="supplierName" label="Nhà cung cấp">
@@ -727,7 +904,14 @@ const AdminInventoryComponent = () => {
                           name={[field.name, 'product']}
                           rules={[{ required: true, message: 'Chọn sản phẩm' }]}
                         >
-                          <Select style={{ width: 220 }} placeholder="Sản phẩm" options={productOptions} showSearch optionFilterProp="label" />
+                          <Select
+                            style={{ width: 220 }}
+                            placeholder="Sản phẩm"
+                            options={productOptions}
+                            showSearch
+                            optionFilterProp="label"
+                            onChange={(value) => handleSelectExportProduct(field.name, value)}
+                          />
                         </Form.Item>
                         <Form.Item
                           name={[field.name, 'quantity']}
@@ -876,6 +1060,10 @@ const AdminInventoryComponent = () => {
         }}
         voucher={voucherDetailQuery?.data?.data || voucherSelected}
         isLoading={voucherDetailQuery.isLoading}
+        onConfirmVoucher={(record) => handleConfirmVoucher(record, true)}
+        onCancelVoucher={(record) => handleCancelVoucher(record, true)}
+        onSaveNote={handleSaveVoucherNote}
+        actionLoading={modalActionLoading}
       />
     </div>
   )

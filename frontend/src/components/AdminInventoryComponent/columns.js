@@ -1,12 +1,12 @@
 import React from 'react'
-import { Button, Tag, Typography } from 'antd'
-import { EyeOutlined } from '@ant-design/icons'
+import { Button, Popconfirm, Space, Tag, Tooltip, Typography } from 'antd'
+import { CheckOutlined, CloseOutlined, EyeOutlined } from '@ant-design/icons'
 import { ALERT_TAG, TRANSACTION_TYPE_LABEL, VOUCHER_STATUS_LABEL } from './constants'
 import { formatDateTime, formatMoney } from './helpers'
 
 const { Text } = Typography
 
-export const getVoucherColumns = ({ onOpenDetail }) => [
+export const getVoucherColumns = ({ onOpenDetail, onConfirmVoucher, onCancelVoucher, actionLoadingId }) => [
   {
     title: 'Mã phiếu',
     dataIndex: 'voucherCode',
@@ -50,11 +50,43 @@ export const getVoucherColumns = ({ onOpenDetail }) => [
   {
     title: 'Chi tiết',
     key: 'action',
-    width: 130,
+    width: 150,
     render: (_, record) => (
-      <Button type="default" icon={<EyeOutlined />} onClick={() => onOpenDetail(record)}>
-        Xem chi tiết
-      </Button>
+      <Space size={8}>
+        <Tooltip title="Xem chi tiết">
+          <Button type="default" shape="circle" icon={<EyeOutlined />} onClick={() => onOpenDetail(record)} />
+        </Tooltip>
+        {['pending', 'draft'].includes(record?.status) && (
+          <>
+            <Popconfirm
+              title="Xác nhận phiếu này?"
+              okText="Xác nhận"
+              cancelText="Đóng"
+              onConfirm={() => onConfirmVoucher(record)}
+            >
+              <Tooltip title="Xác nhận phiếu">
+                <Button
+                  type="primary"
+                  size="small"
+                  shape="circle"
+                  icon={<CheckOutlined />}
+                  loading={actionLoadingId === `confirm-${record._id}`}
+                />
+              </Tooltip>
+            </Popconfirm>
+            <Tooltip title="Hủy phiếu">
+              <Button
+                danger
+                size="small"
+                shape="circle"
+                icon={<CloseOutlined />}
+                onClick={() => onCancelVoucher(record)}
+                loading={actionLoadingId === `cancel-${record._id}`}
+              />
+            </Tooltip>
+          </>
+        )}
+      </Space>
     ),
   },
 ]

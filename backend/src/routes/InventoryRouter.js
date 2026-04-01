@@ -8,6 +8,9 @@ router.post("/export", authUserMiddleWare, InventoryController.createExportVouch
 
 router.get("/vouchers", authUserMiddleWare, InventoryController.getAllVouchers);
 router.get("/vouchers/:id", authUserMiddleWare, InventoryController.getVoucherDetails);
+router.patch("/vouchers/:id/confirm", authUserMiddleWare, InventoryController.confirmVoucher);
+router.patch("/vouchers/:id/cancel", authUserMiddleWare, InventoryController.cancelVoucher);
+router.patch("/vouchers/:id/note", authUserMiddleWare, InventoryController.updateVoucherNote);
 
 router.get("/stock-card/:productId", authUserMiddleWare, InventoryController.getStockCardByProduct);
 

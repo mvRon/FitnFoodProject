@@ -33,9 +33,16 @@ const createOrder = async (req, res) => {
         }
 
         const userIdFromToken = req.user.id;
+        const effectiveUserId = req.user?.isAdmin && req.body?.user
+            ? req.body.user
+            : userIdFromToken;
+        const effectiveDeliveryStatus = req.user?.isAdmin
+            ? req.body?.isDelivered
+            : undefined;
         const response = await OrderService.createOrder({
             ...req.body,
-            user: userIdFromToken, // ⚠️ Ghi đè user cho an toàn
+            user: effectiveUserId,
+            isDelivered: effectiveDeliveryStatus,
         });
 
         return res.status(200).json(response);

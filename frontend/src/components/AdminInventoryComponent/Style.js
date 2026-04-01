@@ -223,6 +223,67 @@ export const AdminInventoryGlobalStyle = createGlobalStyle`
 		border-radius: 14px;
 		border: 1px solid rgba(16, 185, 129, 0.22);
 		background: linear-gradient(130deg, rgba(16, 185, 129, 0.12), rgba(2, 132, 199, 0.08), rgba(255, 255, 255, 0.96));
+		position: relative;
+		z-index: 1;
+	}
+
+	.inventory-voucher-shell {
+		position: relative;
+		isolation: isolate;
+	}
+
+	.inventory-voucher-glow {
+		position: absolute;
+		width: 180px;
+		height: 180px;
+		border-radius: 50%;
+		filter: blur(28px);
+		opacity: 0.18;
+		pointer-events: none;
+		z-index: 0;
+	}
+
+	.inventory-voucher-glow-left {
+		top: -36px;
+		left: -20px;
+		background: #10B981;
+	}
+
+	.inventory-voucher-glow-right {
+		top: -18px;
+		right: 20px;
+		background: #0284C7;
+	}
+
+	.inventory-voucher-quick-grid {
+		margin-top: 10px;
+		margin-bottom: 2px;
+		position: relative;
+		z-index: 1;
+	}
+
+	.inventory-voucher-quick-card {
+		height: 100%;
+		padding: 10px 12px;
+		border-radius: 12px;
+		border: 1px solid rgba(2, 132, 199, 0.16);
+		background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.95));
+		box-shadow: 0 8px 18px rgba(30, 41, 59, 0.07);
+	}
+
+	.inventory-voucher-quick-label {
+		font-size: 11px;
+		font-weight: 600;
+		text-transform: uppercase;
+		color: rgba(30, 41, 59, 0.62);
+		letter-spacing: 0.4px;
+	}
+
+	.inventory-voucher-quick-value {
+		margin-top: 6px;
+		font-weight: 700;
+		color: #0369A1;
+		word-break: break-word;
 	}
 
 	.inventory-voucher-modal-eyebrow {
@@ -257,6 +318,8 @@ export const AdminInventoryGlobalStyle = createGlobalStyle`
 
 	.inventory-voucher-modal-info-grid {
 		margin-top: 12px;
+		position: relative;
+		z-index: 1;
 	}
 
 	.inventory-voucher-modal-info-card,
@@ -288,6 +351,8 @@ export const AdminInventoryGlobalStyle = createGlobalStyle`
 
 	.inventory-voucher-modal-note-card {
 		margin-top: 12px;
+		position: relative;
+		z-index: 1;
 	}
 
 	.inventory-voucher-modal-timeline-card .ant-timeline {
@@ -297,6 +362,11 @@ export const AdminInventoryGlobalStyle = createGlobalStyle`
 	.inventory-voucher-modal-items-table .ant-table-thead > tr > th {
 		background: rgba(2, 132, 199, 0.08);
 		color: #0369A1;
+	}
+
+	.inventory-voucher-modal-items-table {
+		position: relative;
+		z-index: 1;
 	}
 
 	.inventory-voucher-modal-items-table .ant-table-summary {

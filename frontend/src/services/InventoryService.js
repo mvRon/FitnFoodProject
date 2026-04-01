@@ -49,6 +49,29 @@ export const getVoucherDetails = async (voucherId, accessToken) => {
     return res.data;
 };
 
+export const confirmVoucher = async (voucherId, accessToken) => {
+    const res = await axiosJWT.patch(`${INVENTORY_BASE}/vouchers/${voucherId}/confirm`, {}, authHeaders(accessToken));
+    return res.data;
+};
+
+export const cancelVoucher = async (voucherId, reason, accessToken) => {
+    const res = await axiosJWT.patch(
+        `${INVENTORY_BASE}/vouchers/${voucherId}/cancel`,
+        { reason },
+        authHeaders(accessToken)
+    );
+    return res.data;
+};
+
+export const updateVoucherNote = async (voucherId, note, accessToken) => {
+    const res = await axiosJWT.patch(
+        `${INVENTORY_BASE}/vouchers/${voucherId}/note`,
+        { note },
+        authHeaders(accessToken)
+    );
+    return res.data;
+};
+
 export const getInventoryAlerts = async (accessToken) => {
     const res = await axiosJWT.get(`${INVENTORY_BASE}/alerts`, authHeaders(accessToken));
     return res.data;

@@ -29,7 +29,7 @@ const inventoryVoucherSchema = new mongoose.Schema(
         },
         exportReason: {
             type: String,
-            enum: ["SALE", "ORDER_CANCEL", "RETURN_SUPPLIER", "DAMAGE", "LOSS", "ADJUSTMENT", "OTHER"],
+            enum: ["SALE", "RETURN_SUPPLIER", "DAMAGE", "LOSS", "ADJUSTMENT", "OTHER"],
             default: "OTHER",
         },
         performedBy: {
@@ -53,6 +53,15 @@ const inventoryVoucherSchema = new mongoose.Schema(
         totalAmount: { type: Number, default: 0, min: 0 },
         note: { type: String },
         confirmedAt: { type: Date },
+        confirmedBy: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User",
+        },
+        cancelledAt: { type: Date },
+        cancelledBy: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User",
+        },
     },
     {
         timestamps: true,

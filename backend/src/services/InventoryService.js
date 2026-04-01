@@ -6,7 +6,7 @@ const StockCard = require("../models/StockCardModel");
 const InventoryThreshold = require("../models/InventoryThresholdModel");
 
 const IMPORT_SOURCES = ["SUPPLIER", "RETURN", "ADJUSTMENT", "PRODUCTION", "OTHER"];
-const EXPORT_REASONS = ["SALE", "ORDER_CANCEL", "RETURN_SUPPLIER", "DAMAGE", "LOSS", "ADJUSTMENT", "OTHER"];
+const EXPORT_REASONS = ["SALE", "RETURN_SUPPLIER", "DAMAGE", "LOSS", "ADJUSTMENT", "OTHER"];
 
 const buildVoucherCode = async (prefix) => {
     const now = new Date();
@@ -46,7 +46,7 @@ const validateItems = (items) => {
 
 const createImportVoucher = (payload, userId) => {
     return new Promise(async (resolve, reject) => {
-        const { sourceType = "OTHER", supplierName, supplierContact, items, note, voucherDate, status = "confirmed" } = payload;
+        const { sourceType = "OTHER", supplierName, supplierContact, linkedOrder, items, note, voucherDate, status = "confirmed" } = payload;
 
         try {
             const itemError = validateItems(items);
@@ -56,6 +56,13 @@ const createImportVoucher = (payload, userId) => {
 
             if (!IMPORT_SOURCES.includes(sourceType)) {
                 return resolve({ status: "ERR", message: "Invalid import source" });
+            }
+
+            if (linkedOrder) {
+                const orderData = await Order.findById(linkedOrder);
+                if (!orderData) {
+                    return resolve({ status: "ERR", message: "Linked order not found" });
+                }
             }
 
             const userData = await User.findById(userId);
@@ -129,12 +136,14 @@ const createImportVoucher = (payload, userId) => {
                 performedBy: userId,
                 supplierName,
                 supplierContact,
+                linkedOrder,
                 voucherDate: voucherDate || new Date(),
                 status,
                 items: normalizedItems,
                 totalAmount,
                 note,
                 confirmedAt: status === "confirmed" ? new Date() : null,
+                confirmedBy: status === "confirmed" ? userId : null,
             });
 
             if (status === "confirmed") {
@@ -308,6 +317,7 @@ const createExportVoucher = (payload, userId) => {
                 totalAmount,
                 note,
                 confirmedAt: new Date(),
+                confirmedBy: userId,
             });
 
             for (const item of normalizedItems) {
@@ -525,6 +535,8 @@ const getAllVouchers = (filters = {}) => {
             const vouchers = await InventoryVoucher.find(query)
                 .sort({ voucherDate: -1, createdAt: -1 })
                 .populate("performedBy", "name email")
+                .populate("confirmedBy", "name email")
+                .populate("cancelledBy", "name email")
                 .populate("items.product", "name countInStock");
 
             return resolve({
@@ -543,6 +555,8 @@ const getVoucherDetails = (voucherId) => {
         try {
             const voucher = await InventoryVoucher.findById(voucherId)
                 .populate("performedBy", "name email")
+                .populate("confirmedBy", "name email")
+                .populate("cancelledBy", "name email")
                 .populate("items.product", "name countInStock");
 
             if (!voucher) {
@@ -560,6 +574,223 @@ const getVoucherDetails = (voucherId) => {
     });
 };
 
+const confirmVoucher = (voucherId, userId) => {
+    return new Promise(async (resolve, reject) => {
+        try {
+            const voucher = await InventoryVoucher.findById(voucherId);
+
+            if (!voucher) {
+                return resolve({ status: "ERR", message: "Voucher not found" });
+            }
+
+            if (!["pending", "draft"].includes(voucher.status)) {
+                return resolve({
+                    status: "ERR",
+                    message: "Only pending or draft vouchers can be confirmed",
+                });
+            }
+
+            if (!Array.isArray(voucher.items) || voucher.items.length === 0) {
+                return resolve({
+                    status: "ERR",
+                    message: "Voucher has no item to confirm",
+                });
+            }
+
+            if (voucher.transactionType === "IMPORT") {
+                const updatedProducts = [];
+
+                for (const item of voucher.items) {
+                    const quantity = Number(item.quantity || 0);
+                    if (quantity <= 0) {
+                        return resolve({ status: "ERR", message: "Invalid item quantity" });
+                    }
+
+                    const updatedProduct = await Product.findByIdAndUpdate(
+                        item.product,
+                        {
+                            $inc: { countInStock: quantity },
+                            $set: { lastStockMovementAt: new Date() },
+                        },
+                        { new: true }
+                    );
+
+                    if (!updatedProduct) {
+                        for (const rollback of updatedProducts) {
+                            await Product.findByIdAndUpdate(rollback.productId, {
+                                $inc: { countInStock: -rollback.quantity },
+                            });
+                        }
+                        return resolve({
+                            status: "ERR",
+                            message: `Product ${item.product} not found`,
+                        });
+                    }
+
+                    updatedProducts.push({
+                        productId: item.product,
+                        quantity,
+                    });
+                }
+
+                for (const item of voucher.items) {
+                    const productData = await Product.findById(item.product);
+                    await StockCard.create({
+                        product: item.product,
+                        date: voucher.voucherDate,
+                        transactionType: voucher.sourceType === "ADJUSTMENT" ? "ADJUSTMENT" : "IMPORT",
+                        voucherCode: voucher.voucherCode,
+                        voucherRef: voucher._id,
+                        description: `Nhap kho - ${voucher.sourceType || "OTHER"}`,
+                        quantityIn: Number(item.quantity || 0),
+                        quantityOut: 0,
+                        balanceAfter: productData?.countInStock || 0,
+                        performedBy: userId,
+                        note: voucher.note,
+                    });
+                }
+            }
+
+            if (voucher.transactionType === "EXPORT") {
+                const updatedProducts = [];
+
+                for (const item of voucher.items) {
+                    const quantity = Number(item.quantity || 0);
+                    if (quantity <= 0) {
+                        return resolve({ status: "ERR", message: "Invalid item quantity" });
+                    }
+
+                    const updatedProduct = await Product.findOneAndUpdate(
+                        {
+                            _id: item.product,
+                            countInStock: { $gte: quantity },
+                        },
+                        {
+                            $inc: { countInStock: -quantity },
+                            $set: { lastStockMovementAt: new Date() },
+                        },
+                        { new: true }
+                    );
+
+                    if (!updatedProduct) {
+                        for (const rollback of updatedProducts) {
+                            await Product.findByIdAndUpdate(rollback.productId, {
+                                $inc: { countInStock: rollback.quantity },
+                            });
+                        }
+                        return resolve({
+                            status: "ERR",
+                            message: "Insufficient stock for confirming export voucher",
+                        });
+                    }
+
+                    updatedProducts.push({
+                        productId: item.product,
+                        quantity,
+                    });
+                }
+
+                for (const item of voucher.items) {
+                    const productData = await Product.findById(item.product);
+                    await StockCard.create({
+                        product: item.product,
+                        date: voucher.voucherDate,
+                        transactionType: voucher.exportReason === "ADJUSTMENT" ? "ADJUSTMENT" : "EXPORT",
+                        voucherCode: voucher.voucherCode,
+                        voucherRef: voucher._id,
+                        description: `Xuat kho - ${voucher.exportReason || "OTHER"}`,
+                        quantityIn: 0,
+                        quantityOut: Number(item.quantity || 0),
+                        balanceAfter: productData?.countInStock || 0,
+                        performedBy: userId,
+                        note: voucher.note,
+                    });
+                }
+            }
+
+            voucher.status = "confirmed";
+            voucher.confirmedAt = new Date();
+            voucher.confirmedBy = userId;
+            voucher.cancelledAt = null;
+            voucher.cancelledBy = null;
+            await voucher.save();
+
+            return resolve({
+                status: "OK",
+                message: "Voucher confirmed successfully",
+                data: voucher,
+            });
+        } catch (e) {
+            return reject(e);
+        }
+    });
+};
+
+const cancelVoucher = (voucherId, payload = {}, userId) => {
+    return new Promise(async (resolve, reject) => {
+        try {
+            const voucher = await InventoryVoucher.findById(voucherId);
+            if (!voucher) {
+                return resolve({ status: "ERR", message: "Voucher not found" });
+            }
+
+            if (!["pending", "draft"].includes(voucher.status)) {
+                return resolve({
+                    status: "ERR",
+                    message: "Only pending or draft vouchers can be cancelled",
+                });
+            }
+
+            const reason = payload?.reason ? String(payload.reason).trim() : "";
+
+            voucher.status = "cancelled";
+            voucher.cancelledAt = new Date();
+            voucher.cancelledBy = userId;
+            voucher.note = reason
+                ? `${voucher.note ? `${voucher.note}\n` : ""}[Cancel reason] ${reason}`
+                : voucher.note;
+            await voucher.save();
+
+            return resolve({
+                status: "OK",
+                message: "Voucher cancelled successfully",
+                data: voucher,
+            });
+        } catch (e) {
+            return reject(e);
+        }
+    });
+};
+
+const updateVoucherNote = (voucherId, note) => {
+    return new Promise(async (resolve, reject) => {
+        try {
+            const voucher = await InventoryVoucher.findById(voucherId);
+            if (!voucher) {
+                return resolve({ status: "ERR", message: "Voucher not found" });
+            }
+
+            if (!["pending", "draft"].includes(voucher.status)) {
+                return resolve({
+                    status: "ERR",
+                    message: "Only pending or draft vouchers can be updated",
+                });
+            }
+
+            voucher.note = note != null ? String(note) : "";
+            await voucher.save();
+
+            return resolve({
+                status: "OK",
+                message: "Voucher note updated successfully",
+                data: voucher,
+            });
+        } catch (e) {
+            return reject(e);
+        }
+    });
+};
+
 module.exports = {
     createImportVoucher,
     createExportVoucher,
@@ -568,4 +799,7 @@ module.exports = {
     getInventoryAlerts,
     getAllVouchers,
     getVoucherDetails,
+    confirmVoucher,
+    cancelVoucher,
+    updateVoucherNote,
 };
