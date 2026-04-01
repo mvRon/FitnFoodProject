@@ -1,10 +1,11 @@
 import axios from "axios";
 import { axiosJWT } from "./UserService";
 
-export const getAllProduct = async (search, page = 1, limit = 5) => {
+export const getAllProduct = async (search, page = 1, limit = 5, includeImages = false) => {
     const queryParams = new URLSearchParams();
     queryParams.append("page", String(page));
     queryParams.append("limit", String(limit));
+    queryParams.append("includeImages", String(includeImages));
 
     if (search) {
         queryParams.append("filter", "name");

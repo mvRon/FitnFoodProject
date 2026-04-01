@@ -199,7 +199,7 @@ const getDetailsProduct = (productId) => {
 // }
 
 
-const getAllProducts = (limit, page, sort, filter) => {
+const getAllProducts = (limit, page, sort, filter, includeImages = false) => {
     return new Promise(async (resolve, reject) => {
         try {
             const parsedLimit = Number(limit) > 0 ? Number(limit) : 5;
@@ -259,6 +259,10 @@ const getAllProducts = (limit, page, sort, filter) => {
                 .limit(parsedLimit)
                 .skip(skip)
                 .sort(sortObject);
+
+            if (!includeImages) {
+                productQuery = productQuery.select("-images");
+            }
 
             if (populateType) {
                 productQuery = productQuery.populate("type");
