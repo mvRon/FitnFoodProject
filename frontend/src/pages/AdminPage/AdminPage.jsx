@@ -5,7 +5,6 @@ import { getLevelKeys } from '../../utils';
 import HeaderComponent from '../../components/HeaderComponent/HeaderComponent';
 // import { useNavigate } from 'react-router-dom';
 // import ProfilePage from '../ProfilePage/ProfilePage';
-// import AdminUserComponent from '../../components/AdminUserComponent/AdminUserComponent';
 // import { retry } from '@reduxjs/toolkit/query';
 import AdminProductComponent from '../../components/AdminProductComponent/AdminProductComponent';
 import AdminOrderComponent from '../../components/AdminOrderComponent/AdminOrderComponent.jsx'
@@ -14,15 +13,17 @@ import { AdminPageGlobalStyle, AdminPageShell } from './Style';
 // import AdminBannerComponent from '../../components/AdminBannerComponent/AdminBannerComponent.jsx';
 import AdminDiscountComponent from '../../components/AdminDiscountComponent/AdminDiscountComponent.jsx';
 import AdminInventoryComponent from '../../components/AdminInventoryComponent/AdminInventoryComponent.jsx';
+import AdminUserComponent from '../../components/AdminUserComponent/AdminUserComponent';
+
 
 const AdminPage = () => {
     // const navigate = useNavigate()
     const renderKey = (key) => {
         switch (key) {
-            // case 'User':
-            //     return (
-            //         <AdminUserComponent />
-            //     )
+            case 'User':
+                return (
+                    <AdminUserComponent />
+                )
             case 'Product':
                 return (
                     <AdminProductComponent />

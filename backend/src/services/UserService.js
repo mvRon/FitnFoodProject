@@ -286,7 +286,10 @@ const deleteUser = (id) => {
 const getAllUsers = () => {
     return new Promise(async (resolve, reject) => {
         try {
-            const users = await User.find();
+            const users = await User.find(
+                {},
+                'name email phone address city isAdmin isVerified createdAt updatedAt'
+            );
             resolve({
                 status: "OK",
                 message: "Users retrieved successfully!",
