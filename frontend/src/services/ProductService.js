@@ -28,6 +28,7 @@ export const getProductByType = async (typeId, page, limit) => {
         queryParams.append("filter", typeId);
         queryParams.append("limit", String(limit || 5));
         queryParams.append("page", String(page || 1));
+        queryParams.append("includeImages", "true");
 
         res = await axios.get(
             `${process.env.REACT_APP_API_URL_BACKEND}/product/get-all-products?${queryParams.toString()}`,
