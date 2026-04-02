@@ -455,22 +455,22 @@ const AdminProductComponent = () => {
                 return <Tag className="admin-product-tag admin-product-tag-parent">{category.name}</Tag>;
             }
         },
-        {
-            title: 'Hình ảnh',
-            dataIndex: ['images', 'image'],
-            render: (text, record) => {
-                const imageSrc = Array.isArray(record.images) && record.images.length > 0
-                    ? record.images[0] // Render hình ảnh đầu tiên trong mảng images
-                    : record.image; // Render trường image nếu không có images
-                return (
-                    <img
-                        src={imageSrc}
-                        className="admin-product-thumb-image"
-                        alt='Product Image'
-                    />
-                );
-            },
-        },
+        // {
+        //     title: 'Hình ảnh',
+        //     dataIndex: ['images', 'image'],
+        //     render: (text, record) => {
+        //         const imageSrc = Array.isArray(record.images) && record.images.length > 0
+        //             ? record.images[0] // Render hình ảnh đầu tiên trong mảng images
+        //             : record.image; // Render trường image nếu không có images
+        //         return (
+        //             <img
+        //                 src={imageSrc}
+        //                 className="admin-product-thumb-image"
+        //                 alt='Product Image'
+        //             />
+        //         );
+        //     },
+        // },
         {
             title: 'Hành động',
             dataIndex: 'action',

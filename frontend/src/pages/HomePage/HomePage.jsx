@@ -29,7 +29,7 @@ const HomePage = () => {
   const [typeProduct, setTypeProduct] = useState([])
 
   const fetchProductAll = async (search, currentPage) => {
-    const res = await ProductService.getAllProduct(search, currentPage, PAGE_SIZE)
+    const res = await ProductService.getAllProduct(search, currentPage, PAGE_SIZE, true)
     return res
   }
 
