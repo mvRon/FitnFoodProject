@@ -81,7 +81,7 @@ const updateProduct = (productId, data, userId) => {
                                 items: [{
                                     product: productId,
                                     quantity,
-                                    unitPrice: 0,
+                                    unitPrice: productData.unitPrice || 0,
                                 }],
                             },
                             userId
@@ -94,7 +94,7 @@ const updateProduct = (productId, data, userId) => {
                                 items: [{
                                     product: productId,
                                     quantity,
-                                    unitPrice: 0,
+                                    unitPrice: productData.unitPrice || 0,
                                 }],
                             },
                             userId
