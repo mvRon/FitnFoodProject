@@ -247,10 +247,10 @@ const ProductDetailPage = () => {
                             <span className="label">Số lượng: </span>
                             <InputNumber min={1} value={quantity} onChange={(value) => setQuantity(value)} />
                         </div>
-                        <StyledAddButton onClick={handleAddToCart} style={{ marginRight: 16, background: '#F59E0B', borderColor: '#F59E0B', boxShadow: '0 10px 22px rgba(245,158,11,0.32)' }}>
+                        <StyledAddButton onClick={() => product?.countInStock !== 0 ? handleAddToCart() : message.warning('Sản phẩm hiện đang hết hàng!')} style={{ marginRight: 16, background: '#F59E0B', borderColor: '#F59E0B', boxShadow: '0 10px 22px rgba(245,158,11,0.32)' }}>
                             Thêm vào giỏ hàng
                         </StyledAddButton>
-                        <StyledAddButton onClick={handleBuyNow} style={{ background: '#10B981', borderColor: '#10B981', boxShadow: '0 10px 22px rgba(16,185,129,0.28)' }}>
+                        <StyledAddButton onClick={() => product?.countInStock !== 0 ? handleBuyNow() : message.warning('Sản phẩm hiện đang hết hàng!')} style={{ background: '#10B981', borderColor: '#10B981', boxShadow: '0 10px 22px rgba(16,185,129,0.28)' }}>
                             Mua ngay
                         </StyledAddButton>
                     </ProductInfoWrapper>
