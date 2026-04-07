@@ -1,6 +1,35 @@
-import { Button, Form, Input, message, Radio } from "antd";
+import { Form, Input, message, Radio } from "antd";
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Lable, WrapperInfo, WrapperRadio, WrapperRight, WrapperTotal } from "./Style";
+import {
+  Lable,
+  PaymentAccentText,
+  PaymentAddressAction,
+  PaymentAddressRow,
+  PaymentAddressText,
+  PaymentContentColumn,
+  PaymentHeroBadge,
+  PaymentHeroBadges,
+  PaymentHeroDescription,
+  PaymentHeroOrb,
+  PaymentHeroSection,
+  PaymentHeroTitle,
+  PaymentMainWrapper,
+  PaymentMethodText,
+  PaymentOrderButton,
+  PaymentPageContainer,
+  PaymentPageShell,
+  PaymentRow,
+  PaymentRowLabel,
+  PaymentRowValue,
+  PaymentTotalAmount,
+  PaymentTotalNote,
+  PaymentTotalValueBlock,
+  PaymentSummaryColumn,
+  PaymentSummaryHeader,
+  WrapperInfo,
+  WrapperRadio,
+  WrapperTotal,
+} from "./Style";
 import { useDispatch, useSelector } from "react-redux";
 import { removeAllOrder } from "../../redux/slice/orderSlice";
 import { convertPrice } from "../../utils";
@@ -15,6 +44,17 @@ import * as DiscountService from "../../services/DiscountService";
 import { useLocation, useNavigate } from "react-router-dom";
 import { jwtDecode } from "jwt-decode";
 
+const resolveToken = (accessToken) => {
+  if (!accessToken) return null;
+  if (typeof accessToken !== "string") return accessToken;
+
+  try {
+    return JSON.parse(accessToken);
+  } catch (error) {
+    return accessToken;
+  }
+};
+
 const PaymentPage = () => {
   const [form] = Form.useForm();
   const order = useSelector((state) => state.order);
@@ -28,15 +68,15 @@ const PaymentPage = () => {
 
   const successHandledRef = useRef(false);
 
-  let storageData = localStorage.getItem("access_token");
-  storageData = storageData ? JSON.parse(storageData) : null;
+  const storageToken = useMemo(() => {
+    return resolveToken(localStorage.getItem("access_token"));
+  }, []);
 
   const orderState = useMemo(() => location.state || {}, [location.state]);
   const {
     priceMemo: orderPriceMemo,
     priceDiscountMemo: orderPriceDiscountMemo,
     deliveryMemo: orderDeliveryMemo,
-    productDiscounts: orderProductDiscounts,
     orderDiscount,
   } = orderState;
   const hasOrderState = useMemo(() => Object.keys(orderState).length > 0, [orderState]);
@@ -69,11 +109,18 @@ const PaymentPage = () => {
 
   const priceDiscountMemo = useMemo(() => {
     if (orderPriceDiscountMemo !== undefined) return orderPriceDiscountMemo;
-    const result = order?.orderItemSelected?.reduce((total, current) => {
-      return total + (current?.discount * current?.price * current?.amount) / 100;
+    const itemDiscountMemo = order?.orderItemSelected?.reduce((total, current) => {
+      return total + ((current?.discount || 0) * (current?.price || 0) * (current?.amount || 0)) / 100;
     }, 0);
-    return Number(result) || 0;
-  }, [order, orderPriceDiscountMemo]);
+
+    const couponDiscountMemo = !orderDiscount || !priceMemo
+      ? 0
+      : orderDiscount.type === "fixed"
+        ? Math.min(Number(orderDiscount.value || 0), priceMemo)
+        : (priceMemo * Number(orderDiscount.value || 0)) / 100;
+
+    return Number((itemDiscountMemo || 0) + (couponDiscountMemo || 0));
+  }, [order, orderPriceDiscountMemo, orderDiscount, priceMemo]);
 
   const deliveryMethodLabel = useMemo(() => {
     return delivery === "fast" ? "Nhanh - giao nhanh trong ngày" : "Tiết kiệm";
@@ -100,6 +147,17 @@ const PaymentPage = () => {
 
   const paymentMethodLabel = "Thanh toán khi nhận hàng (COD)";
 
+  const appliedDiscountPayload = useMemo(() => {
+    if (!orderDiscount?.code) {
+      return null;
+    }
+
+    return {
+      code: orderDiscount.code,
+      orderValue: priceMemo,
+    };
+  }, [orderDiscount, priceMemo]);
+
   const mutationAddOrder = useMutationHook((data) => {
     const { token, ...rests } = data;
     const res = OrderService.createOrder(token, { ...rests });
@@ -109,7 +167,7 @@ const PaymentPage = () => {
   const { isPending: isPendingAddOrder, data: dataAddOrder, isSuccess, isError } = mutationAddOrder;
 
   const handleAddOrder = () => {
-    if (!storageData) {
+    if (!storageToken) {
       message.error("Vui lòng đăng nhập để đặt hàng");
       return;
     }
@@ -119,9 +177,9 @@ const PaymentPage = () => {
     }
 
     let userId = user?.id;
-    if (!userId && storageData) {
+    if (!userId && storageToken) {
       try {
-        const decoded = jwtDecode(storageData);
+        const decoded = jwtDecode(storageToken);
         userId = decoded?.id;
       } catch (error) {
         console.error("Error decoding token:", error);
@@ -134,8 +192,10 @@ const PaymentPage = () => {
       return;
     }
 
+    successHandledRef.current = false;
+
     mutationAddOrder.mutate({
-      token: storageData,
+      token: storageToken,
       orderItems: order?.orderItemSelected,
       fullName: user?.name,
       address: user?.address,
@@ -161,9 +221,9 @@ const PaymentPage = () => {
 
       (async () => {
         let userId = user?.id;
-        if (!userId && storageData) {
+        if (!userId && storageToken) {
           try {
-            const decoded = jwtDecode(storageData);
+            const decoded = jwtDecode(storageToken);
             userId = decoded?.id;
           } catch (e) {
             console.error("decode error:", e);
@@ -172,41 +232,18 @@ const PaymentPage = () => {
 
         if (userId) {
           try {
-            await CartService.deleteCart(userId, storageData);
+            await CartService.deleteCart(userId, storageToken);
           } catch (e) {
             console.error(e);
           }
         }
 
-        try {
-          const discountList = [];
-
-          if (orderDiscount && orderDiscount._id) {
-            discountList.push(orderDiscount);
+        if (appliedDiscountPayload) {
+          try {
+            await DiscountService.applyDiscountUsage(appliedDiscountPayload, storageToken);
+          } catch (e) {
+            console.error("applyDiscountUsage error:", e);
           }
-
-          const appliedDiscounts = orderProductDiscounts || {};
-          for (const [, discount] of Object.entries(appliedDiscounts)) {
-            if (discount && discount._id) {
-              discountList.push(discount);
-            }
-          }
-
-          const uniqueDiscounts = discountList.filter(
-            (discount, index, arr) => arr.findIndex((item) => item?._id === discount?._id) === index
-          );
-
-          for (const discount of uniqueDiscounts) {
-            if (discount && discount._id && userId) {
-              try {
-                await DiscountService.updateDiscountUsage(discount._id, userId, storageData);
-              } catch (e) {
-                console.error(`Update discount ${discount?.code} error:`, e);
-              }
-            }
-          }
-        } catch (e) {
-          console.error("updateDiscountUsage wrapper error:", e);
         }
       })().finally(() => {
         message.success("Đơn hàng đã được đặt thành công!");
@@ -236,7 +273,7 @@ const PaymentPage = () => {
   });
 
   const handleUpdateUserInfo = async () => {
-    if (!storageData) {
+    if (!storageToken) {
       message.error("Vui lòng đăng nhập để cập nhật thông tin");
       return;
     }
@@ -244,9 +281,9 @@ const PaymentPage = () => {
       const values = await form.validateFields();
 
       let userId = user?.id;
-      if (!userId && storageData) {
+      if (!userId && storageToken) {
         try {
-          const decoded = jwtDecode(storageData);
+          const decoded = jwtDecode(storageToken);
           userId = decoded?.id;
         } catch (error) {
           console.error("Error decoding token:", error);
@@ -261,7 +298,7 @@ const PaymentPage = () => {
 
       const updateData = {
         id: userId,
-        token: storageData,
+        token: storageToken,
         name: values.name,
         address: values.address,
         phone: values.phone,
@@ -300,110 +337,30 @@ const PaymentPage = () => {
   const handleDelivery = (e) => setDelivery(e.target.value);
 
   return (
-    <div
-      style={{
-        background:
-          "radial-gradient(circle at 10% 10%, rgba(16, 185, 129, 0.2) 0%, rgba(16, 185, 129, 0) 36%), radial-gradient(circle at 90% 20%, rgba(2, 132, 199, 0.16) 0%, rgba(2, 132, 199, 0) 34%), linear-gradient(180deg, #f8fafc 0%, #eefbf5 100%)",
-        width: "100%",
-        minHeight: "100vh",
-      }}
-    >
-      <style>{`
-        @keyframes paymentFloat {
-          0% { transform: translateY(0px); }
-          50% { transform: translateY(-8px); }
-          100% { transform: translateY(0px); }
-        }
-        @keyframes paymentFadeIn {
-          from { opacity: 0; transform: translateY(14px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        @media (max-width: 1024px) {
-          .paymentpage-main-wrapper {
-            flex-direction: column !important;
-            gap: 0 !important;
-          }
-        }
-        .paymentpage-hero {
-          animation: paymentFadeIn 420ms ease-out;
-        }
-        .paymentpage-floating {
-          animation: paymentFloat 4.8s ease-in-out infinite;
-        }
-      `}</style>
+    <PaymentPageShell>
       <LoadingComponent isPending={isPendingAddOrder}>
-        <div style={{ width: "100%", maxWidth: 1270, margin: "0 auto", padding: "14px 8px 28px" }}>
-          <div
-            className="paymentpage-hero"
-            style={{
-              position: "relative",
-              overflow: "hidden",
-              borderRadius: 18,
-              marginBottom: 16,
-              padding: "16px 18px",
-              border: "1px solid rgba(16, 185, 129, 0.28)",
-              background: "linear-gradient(120deg, rgba(255,255,255,0.92), rgba(240,255,250,0.95))",
-              boxShadow: "0 18px 34px rgba(15, 23, 42, 0.08)",
-            }}
-          >
-            <div
-              className="paymentpage-floating"
-              style={{
-                position: "absolute",
-                right: -16,
-                top: -22,
-                width: 110,
-                height: 110,
-                borderRadius: "999px",
-                background: "radial-gradient(circle, rgba(2,132,199,0.28), rgba(2,132,199,0))",
-              }}
-            />
-            <h2 style={{ color: "#1e293b", fontWeight: 800, marginBottom: 6 }}>Thanh toán đơn hàng</h2>
-            <div style={{ color: "#334155", fontSize: 13, marginBottom: 10 }}>
-              Hoàn tất thông tin giao nhận để hệ thống xử lý đơn hàng nhanh hơn.
-            </div>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <span
-                style={{
-                  padding: "6px 10px",
-                  borderRadius: 999,
-                  fontSize: 12,
-                  fontWeight: 700,
-                  background: "rgba(16, 185, 129, 0.16)",
-                  color: "#166534",
-                }}
-              >
-                Phương thức thanh toán: COD
-              </span>
-              <span
-                style={{
-                  padding: "6px 10px",
-                  borderRadius: 999,
-                  fontSize: 12,
-                  fontWeight: 700,
-                  background: "rgba(2, 132, 199, 0.16)",
-                  color: "#0c4a6e",
-                }}
-              >
-                Tạm tính: {convertPrice(priceMemo)}
-              </span>
-            </div>
-          </div>
+        <PaymentPageContainer>
+          <PaymentHeroSection>
+            <PaymentHeroOrb />
+            <PaymentHeroTitle>Thanh toán đơn hàng</PaymentHeroTitle>
+            <PaymentHeroDescription>Hoàn tất thông tin giao nhận để hệ thống xử lý đơn hàng nhanh hơn.</PaymentHeroDescription>
+            <PaymentHeroBadges>
+              <PaymentHeroBadge $variant="success">Phương thức thanh toán: COD</PaymentHeroBadge>
+              <PaymentHeroBadge $variant="info">Tạm tính: {convertPrice(priceMemo)}</PaymentHeroBadge>
+            </PaymentHeroBadges>
+          </PaymentHeroSection>
 
-          <div
-            className="paymentpage-main-wrapper"
-            style={{ display: "flex", flexDirection: "row", justifyContent: "center", alignItems: "flex-start", gap: 20, flexWrap: "wrap" }}
-          >
-            <div style={{ flex: 2, minWidth: 320, maxWidth: 900, width: "100%", animation: "paymentFadeIn 500ms ease-out" }}>
+          <PaymentMainWrapper>
+            <PaymentContentColumn>
               <WrapperInfo>
                 <div>
                   <Lable>1. Chọn phương thức giao hàng</Lable>
-                  <WrapperRadio onChange={handleDelivery} value={delivery} defaultValue={"fast"}>
+                  <WrapperRadio onChange={handleDelivery} value={delivery} defaultValue="fast">
                     <Radio value="fast">
-                      <span style={{ color: "#f59e0b", fontWeight: 700 }}>Nhanh</span> - giao nhanh trong ngày (+{convertPrice(50000)})
+                      <PaymentAccentText $color="#f59e0b">Nhanh</PaymentAccentText> - giao nhanh trong ngày (+{convertPrice(50000)})
                     </Radio>
                     <Radio value="gojek">
-                      <span style={{ color: "#0284c7", fontWeight: 700 }}>Tiết kiệm</span> - giao hàng tiêu chuẩn (+{convertPrice(0)})
+                      <PaymentAccentText $color="#0284c7">Tiết kiệm</PaymentAccentText> - giao hàng tiêu chuẩn (+{convertPrice(0)})
                     </Radio>
                   </WrapperRadio>
                 </div>
@@ -411,91 +368,64 @@ const PaymentPage = () => {
 
               <WrapperInfo>
                 <Lable>2. Phương thức thanh toán</Lable>
-                <div style={{ marginTop: 8, color: "#334155", fontWeight: 600 }}>{paymentMethodLabel}</div>
+                <PaymentMethodText>{paymentMethodLabel}</PaymentMethodText>
               </WrapperInfo>
-            </div>
+            </PaymentContentColumn>
 
-            <div style={{ flex: 1, minWidth: 260, maxWidth: 400, width: "100%", animation: "paymentFadeIn 620ms ease-out" }}>
-              <WrapperRight>
-                <div style={{ width: "100%" }}>
-                  <div
-                    style={{
-                      width: "100%",
-                      marginBottom: 8,
-                      padding: "10px 14px",
-                      borderRadius: 12,
-                      background: "linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(2, 132, 199, 0.15))",
-                      border: "1px solid rgba(2, 132, 199, 0.24)",
-                      color: "#0f172a",
-                      fontWeight: 700,
-                      fontSize: 14,
-                    }}
-                  >
-                    Tóm tắt thanh toán
-                  </div>
-                  <WrapperInfo>
-                    <div>
-                      <span>Địa chỉ nhận hàng: </span>
-                      <span style={{ fontWeight: "bold" }}>{` ${user?.address} ${user?.city} `}</span>
-                      <span onClick={() => setIsOpenModalUpdateInfo(true)} style={{ color: "#0284c7", cursor: "pointer", marginLeft: 8 }}>
-                        Thay đổi
-                      </span>
-                    </div>
-                  </WrapperInfo>
+            <PaymentSummaryColumn>
+              <PaymentSummaryHeader>Tóm tắt thanh toán</PaymentSummaryHeader>
 
-                  <WrapperInfo>
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                      <span>Tạm tính</span>
-                      <span style={{ color: "#000", fontSize: 14, fontWeight: "bold" }}>{convertPrice(priceMemo)}</span>
-                    </div>
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                      <span>Giảm giá</span>
-                      <span style={{ color: "#000", fontSize: 14, fontWeight: "bold" }}>{convertPrice(priceDiscountMemo)}</span>
-                    </div>
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                      <span>Phí giao hàng</span>
-                      <span style={{ color: "#000", fontSize: 14, fontWeight: "bold" }}>{convertPrice(deliveryMemo)}</span>
-                    </div>
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 4 }}>
-                      <span style={{ color: "#64748b", fontSize: 12 }}>Phí cơ bản</span>
-                      <span style={{ color: "#0284c7", fontSize: 12, fontWeight: 600 }}>{convertPrice(baseDeliveryMemo)}</span>
-                    </div>
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 2 }}>
-                      <span style={{ color: "#64748b", fontSize: 12 }}>{`${deliveryMethodLabel}`}</span>
-                      <span style={{ color: "#0284c7", fontSize: 12, fontWeight: 600 }}>{convertPrice(deliverySurchargeMemo)}</span>
-                    </div>
-                  </WrapperInfo>
+              <WrapperInfo>
+                <PaymentAddressRow>
+                  <span>Địa chỉ nhận hàng:</span>
+                  <PaymentAddressText>{`${user?.address || ""} ${user?.city || ""}`.trim()}</PaymentAddressText>
+                  <PaymentAddressAction onClick={() => setIsOpenModalUpdateInfo(true)}>Thay đổi</PaymentAddressAction>
+                </PaymentAddressRow>
+              </WrapperInfo>
 
-                  <WrapperTotal>
-                    <span>Tổng tiền</span>
-                    <span style={{ display: "flex", flexDirection: "column" }}>
-                      <span style={{ color: "rgb(254, 56, 52)", fontSize: 24, fontWeight: "bold" }}>{convertPrice(totalPriceMemo)}</span>
-                      <span style={{ color: "#000", fontSize: 11 }}>(Đã bao gồm thuế nếu có)</span>
-                    </span>
-                  </WrapperTotal>
-                </div>
+              <WrapperInfo>
+                <PaymentRow>
+                  <PaymentRowLabel>Tạm tính</PaymentRowLabel>
+                  <PaymentRowValue>{convertPrice(priceMemo)}</PaymentRowValue>
+                </PaymentRow>
+                <PaymentRow>
+                  <PaymentRowLabel>Giảm giá</PaymentRowLabel>
+                  <PaymentRowValue>{convertPrice(priceDiscountMemo)}</PaymentRowValue>
+                </PaymentRow>
+                <PaymentRow>
+                  <PaymentRowLabel>Phí giao hàng</PaymentRowLabel>
+                  <PaymentRowValue>{convertPrice(deliveryMemo)}</PaymentRowValue>
+                </PaymentRow>
+                <PaymentRow $mt={4}>
+                  <PaymentRowLabel $muted $small>
+                    Phí cơ bản
+                  </PaymentRowLabel>
+                  <PaymentRowValue $color="#0284c7" $size="12px">
+                    {convertPrice(baseDeliveryMemo)}
+                  </PaymentRowValue>
+                </PaymentRow>
+                <PaymentRow $mt={2}>
+                  <PaymentRowLabel $muted $small>
+                    {deliveryMethodLabel}
+                  </PaymentRowLabel>
+                  <PaymentRowValue $color="#0284c7" $size="12px">
+                    {convertPrice(deliverySurchargeMemo)}
+                  </PaymentRowValue>
+                </PaymentRow>
+              </WrapperInfo>
 
-                <Button
-                  onClick={handleAddOrder}
-                  style={{
-                    color: "#fff",
-                    background: "linear-gradient(120deg, #10b981, #0284c7, #0ea5e9)",
-                    height: 48,
-                    width: "100%",
-                    maxWidth: 320,
-                    border: "none",
-                    borderRadius: 12,
-                    fontWeight: "bold",
-                    marginTop: 12,
-                    boxShadow: "0 16px 30px rgba(2, 132, 199, 0.3)",
-                  }}
-                >
-                  Xác nhận đặt hàng
-                </Button>
-              </WrapperRight>
-            </div>
-          </div>
-        </div>
+              <WrapperTotal>
+                <span>Tổng tiền</span>
+                <PaymentTotalValueBlock>
+                  <PaymentTotalAmount>{convertPrice(totalPriceMemo)}</PaymentTotalAmount>
+                  <PaymentTotalNote>(Đã bao gồm thuế nếu có)</PaymentTotalNote>
+                </PaymentTotalValueBlock>
+              </WrapperTotal>
+
+              <PaymentOrderButton onClick={handleAddOrder}>Xác nhận đặt hàng</PaymentOrderButton>
+            </PaymentSummaryColumn>
+          </PaymentMainWrapper>
+        </PaymentPageContainer>
 
         <ModalComponent
           forceRender
@@ -531,7 +461,7 @@ const PaymentPage = () => {
           </LoadingComponent>
         </ModalComponent>
       </LoadingComponent>
-    </div>
+    </PaymentPageShell>
   );
 };
 

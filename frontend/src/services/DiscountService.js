@@ -2,55 +2,63 @@
 import axios from 'axios';
 import { axiosJWT } from './UserService';
 
+const resolveToken = (access_token) => {
+    if (!access_token) return null;
+    if (typeof access_token !== 'string') return access_token;
+
+    try {
+        return JSON.parse(access_token);
+    } catch (error) {
+        return access_token;
+    }
+};
+
 export const createDiscount = async (data, access_token) => {
+    const token = resolveToken(access_token);
     const res = await axiosJWT.post(`${process.env.REACT_APP_API_URL_BACKEND}/discount/create-discount`, data, {
         headers: {
-            token: `Bearer ${access_token}`,
+            token: `Bearer ${token}`,
         }
     });
     return res.data;
 };
 
 export const updateDiscount = async (id, data, access_token) => {
+    const token = resolveToken(access_token);
     const res = await axiosJWT.put(`${process.env.REACT_APP_API_URL_BACKEND}/discount/update-discount/${id}`, data, {
         headers: {
-            token: `Bearer ${access_token}`,
+            token: `Bearer ${token}`,
         }
     });
     return res.data;
 };
 
 export const updateDiscountUsesLeft = async (id, usesLeft, access_token) => {
+    const token = resolveToken(access_token);
     const res = await axiosJWT.put(`${process.env.REACT_APP_API_URL_BACKEND}/discount/update-discount/${id}`, { usesLeft }, {
         headers: {
-            token: `Bearer ${access_token}`,
+            token: `Bearer ${token}`,
         }
     });
     return res.data;
 };
 
-export const updateDiscountUsage = async (data, access_token) => {
-    const res = await axiosJWT.post(`${process.env.REACT_APP_API_URL_BACKEND}/discount/use-discount`, data, {
-        headers: {
-            token: `Bearer ${access_token}`,
-        }
-    });
-    return res.data;
-};
 
-export const useDiscount = async (data, access_token) => {
+export const applyDiscountUsage = async (data, access_token) => {
+    const token = resolveToken(access_token);
     const res = await axiosJWT.post(`${process.env.REACT_APP_API_URL_BACKEND}/discount/use-discount`, data, {
         headers: {
-            token: `Bearer ${access_token}`,
+            token: `Bearer ${token}`,
         }
     });
     return res.data;
 };
 
 export const deleteDiscount = async (id, access_token) => {
+    const token = resolveToken(access_token);
     const res = await axiosJWT.delete(`${process.env.REACT_APP_API_URL_BACKEND}/discount/delete-discount/${id}`, {
         headers: {
-            token: `Bearer ${access_token}`,
+            token: `Bearer ${token}`,
         }
     });
     return res.data;
