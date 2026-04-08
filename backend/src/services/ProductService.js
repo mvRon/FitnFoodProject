@@ -2,6 +2,7 @@ const Product = require("../models/ProductModel");
 const Category = require("../models/CategoryModel");
 const Order = require("../models/OrderModel");
 const InventoryService = require("./InventoryService");
+const RecommendationService = require("./RecommendationService");
 
 
 const createProduct = (newProduct) => {
@@ -22,6 +23,7 @@ const createProduct = (newProduct) => {
                 name, images, type, price, unitPrice, countInStock, rating, description, sold, discount
             })
             if (createdProduct) {
+                await RecommendationService.ensureProductEmbedding(createdProduct, { force: true });
                 resolve({
                     status: "OK",
                     message: "Product added successfully!",
@@ -47,6 +49,9 @@ const updateProduct = (productId, data, userId) => {
             }
 
             const updateData = { ...(data || {}) };
+            const shouldUpdateEmbedding = ["name", "description", "type"].some(
+                (field) => Object.prototype.hasOwnProperty.call(updateData, field)
+            );
             const hasCountInStockUpdate = Object.prototype.hasOwnProperty.call(updateData, "countInStock");
 
             if (hasCountInStockUpdate) {
@@ -122,6 +127,9 @@ const updateProduct = (productId, data, userId) => {
             }
 
             if (updatedProduct) {
+                if (shouldUpdateEmbedding) {
+                    await RecommendationService.ensureProductEmbedding(updatedProduct, { force: true });
+                }
                 resolve({
                     status: "OK",
                     message: "Product updated successfully!",

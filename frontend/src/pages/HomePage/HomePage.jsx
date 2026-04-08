@@ -8,6 +8,7 @@ import { useDebounce } from "../../hooks/useDebounce";
 import { useSelector } from "react-redux";
 import * as ProductService from '../../services/ProductService.js'
 import * as CategoryService from '../../services/CategoryService.js'
+import RecommendationCarousel from '../../components/RecommendationCarousel/RecommendationCarousel.jsx';
 
 import { useQuery } from "@tanstack/react-query";
 import LoadingComponent from '../../components/LoadingComponent/LoadingComponent.jsx'
@@ -23,6 +24,7 @@ const HomePage = () => {
   // const [typeProduct, setTypeProduct] = useState(['Máy giặt', 'Tivi', 'Tủ lạnh'])
 
   const searchProduct = useSelector((state) => state?.product?.search)
+  const accessToken = localStorage.getItem('access_token')
   const searchDebounce = useDebounce(searchProduct, 500)
   const [page, setPage] = useState(1)
   const [displayProducts, setDisplayProducts] = useState([])
@@ -114,22 +116,25 @@ const HomePage = () => {
                 Chọn thực phẩm lành mạnh theo nhu cầu dinh dưỡng, giao nhanh và luôn tươi mới mỗi ngày.
               </p>
             </div>
-            <WrapperProducts style={{ marginTop: '20px' }}>
-              <div style={{ maxWidth: '1270px', width: '100%', margin: '0 auto', padding: '0 6px' }}>
-                <div className="typeproduct-horizontal-scroll" style={{ overflowX: 'auto', overflowY: 'hidden', whiteSpace: 'nowrap', paddingBottom: 8 }}>
-                  <WrapperTypeProduct>
-                    {parentCategories.map((item) => (
-                      <div key={item._id} style={{ display: 'inline-block', marginRight: 10, verticalAlign: 'top' }}>
-                        <TypeProduct
-                          name={item.name}
-                          _id={item._id}
-                          onClick={() => navigate(`/product/${slugify(item.name)}-${item._id}`, { state: item._id })}
-                        />
-                      </div>
-                    ))}
-                  </WrapperTypeProduct>
-                </div>
+            <div style={{ maxWidth: '1270px', width: '100%', margin: '0 auto', padding: '0 6px' }}>
+              <div className="typeproduct-horizontal-scroll" style={{ overflowX: 'auto', overflowY: 'hidden', whiteSpace: 'nowrap', paddingBottom: 8 }}>
+                <WrapperTypeProduct>
+                  {parentCategories.map((item) => (
+                    <div key={item._id} style={{ display: 'inline-block', marginRight: 10, verticalAlign: 'top' }}>
+                      <TypeProduct
+                        name={item.name}
+                        _id={item._id}
+                        onClick={() => navigate(`/product/${slugify(item.name)}-${item._id}`, { state: item._id })}
+                      />
+                    </div>
+                  ))}
+                </WrapperTypeProduct>
               </div>
+            </div>
+            {accessToken && (
+              <RecommendationCarousel context="history" />
+            )}
+            <WrapperProducts style={{ marginTop: '20px' }}>
               {displayProducts?.length > 0 ? displayProducts?.map((product) => {
                 return <CardComponent
                   key={product?._id}

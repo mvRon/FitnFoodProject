@@ -14,6 +14,8 @@ const productSchema = new mongoose.Schema(
         discount: { type: Number },
         sold: { type: Number },
         lastStockMovementAt: { type: Date, default: Date.now },
+        embedding: { type: [Number], default: [] },
+        embeddingUpdatedAt: { type: Date },
         reviews: [
             {
                 user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },

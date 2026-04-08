@@ -10,6 +10,7 @@ router.get('/get-details-product/:id', ProductController.getDetailsProduct);
 router.get('/get-all-products', ProductController.getAllProducts);
 router.get('/get-all-type-products', ProductController.getAllTypeProducts);
 
+
 // Toàn bộ phần này là phần review và comment của sản phẩm
 router.post('/:productId/comment', authUserMiddleWare, ProductController.addComment);
 router.put('/:productId/comment/:commentId', authUserMiddleWare, ProductController.updateComment);
@@ -25,7 +26,12 @@ router.put('/:productId/reviews/:reviewId/replies/:replyId', authUserMiddleWare,
 
 router.delete('/:productId/reviews/:reviewId/replies/:replyId', authUserMiddleWare, ProductController.deleteReplyOfReview);
 
-// Thương thêm vào để xóa cmt của chính mình
 router.delete('/:productId/reviews/:reviewId', authUserMiddleWare, ProductController.deleteReview);
+
+//Các chức năng liên quan đến cá nhân hóa gợi ý sản phẩm
+router.get('/get-recommendations-by-product/:id', ProductController.getRecommendationsByProduct);
+router.post('/get-recommendations-by-cart', authUserMiddleWare, ProductController.getRecommendationsByCart);
+router.get('/get-recommendations-by-history', authUserMiddleWare, ProductController.getRecommendationsByHistory);
+router.post('/rebuild-product-embeddings', authMiddleWare, ProductController.rebuildProductEmbeddings);
 
 module.exports = router;

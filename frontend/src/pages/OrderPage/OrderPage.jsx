@@ -16,6 +16,7 @@ import StepComponent from "../../components/StepComponent/StepComponent";
 import * as CartService from "../../services/CartService";
 import isEqual from "lodash/isEqual";
 import { jwtDecode } from "jwt-decode";
+import RecommendationCarousel from "../../components/RecommendationCarousel/RecommendationCarousel";
 import {
   WrapperCountOrder,
   WrapperInfo,
@@ -555,6 +556,7 @@ const OrderPage = () => {
                 );
               })}
             </WrapperListOrder>
+            <RecommendationCarousel context="cart" cartItems={order?.orderItems} />
           </div>
           <div style={{ flex: 1, minWidth: 260, maxWidth: 400, width: "100%" }}>
             <WrapperRight>
