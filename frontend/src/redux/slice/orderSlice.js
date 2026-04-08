@@ -49,6 +49,9 @@ export const orderSlice = createSlice({
       const itemOrder = state.orderItems.find(item => item.product === orderItem.product)
       const stock = Number(orderItem.countInStock ?? itemOrder?.countInStock ?? 0)
 
+      // console.log('orderItem', orderItem)
+      // console.log('itemOrder', itemOrder)
+
       if (itemOrder) {
         const nextAmount = Number(itemOrder.amount || 0) + Number(orderItem.amount || 0)
         if (nextAmount <= stock) {

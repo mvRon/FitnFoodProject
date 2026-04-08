@@ -502,14 +502,19 @@ const deleteReview = async (productId, reviewId, user) => {
 // Kiểm tra quyền đánh giá sản phẩm
 const checkRatingPermission = async (userId, productId) => {
     try {
-        // Tìm tất cả đơn hàng của user có trạng thái isDelivered = true
-        const deliveredOrders = await Order.find({
+        // Chỉ cho phép đánh giá khi đơn hàng đã giao và đã thanh toán.
+        // Hỗ trợ cả dữ liệu cũ (isDelivered: true) và dữ liệu mới (isDelivered: 'delivered').
+        const deliveredAndPaidOrders = await Order.find({
             user: userId,
-            isDelivered: true
+            isPaid: true,
+            $or: [
+                { isDelivered: true },
+                { isDelivered: 'delivered' }
+            ]
         });
 
         // Kiểm tra xem có đơn hàng nào chứa sản phẩm cần đánh giá không
-        for (const order of deliveredOrders) {
+        for (const order of deliveredAndPaidOrders) {
             const hasProduct = order.orderItems.some(item =>
                 String(item.product) === String(productId)
             );
@@ -518,7 +523,7 @@ const checkRatingPermission = async (userId, productId) => {
             }
         }
 
-        return { status: 'ERROR', message: 'Bạn chưa mua sản phẩm này hoặc đơn hàng chưa được giao!', data: false };
+        return { status: 'ERROR', message: 'Bạn cần có đơn hàng đã giao và đã thanh toán cho sản phẩm này để đánh giá!', data: false };
     } catch (error) {
         return { status: 'ERROR', message: error.message, data: false };
     }
