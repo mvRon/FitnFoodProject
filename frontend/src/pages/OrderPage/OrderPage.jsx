@@ -302,6 +302,7 @@ const OrderPage = () => {
   };
 
   const prevOrderItemsRef = useRef();
+  const syncCartTimeoutRef = useRef(null);
   const orderItems = useSelector((state) => state.order.orderItems);
   useEffect(() => {
     if (!user?.id) return;
@@ -309,9 +310,23 @@ const OrderPage = () => {
     const prevOrderItems = prevOrderItemsRef.current;
 
     if (!isEqual(prevOrderItems, orderItems)) {
-      dispatch(syncCart({ userId: user.id, cartItems: orderItems }));
+      if (syncCartTimeoutRef.current) {
+        clearTimeout(syncCartTimeoutRef.current);
+      }
+
+      // Debounce để tránh gọi API liên tục khi người dùng bấm tăng/giảm nhanh.
+      syncCartTimeoutRef.current = setTimeout(() => {
+        dispatch(syncCart({ userId: user.id, cartItems: orderItems }));
+      }, 500);
+
       prevOrderItemsRef.current = orderItems;
     }
+
+    return () => {
+      if (syncCartTimeoutRef.current) {
+        clearTimeout(syncCartTimeoutRef.current);
+      }
+    };
   }, [orderItems, user.id]);
 
   const handleGetDetailProduct = (productId) => {
