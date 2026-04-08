@@ -71,7 +71,7 @@ const RatingSection = ({ productId, refreshAll }) => {
 
     const handleStarChange = (value) => {
         if (!canRate) {
-            message.warning('Bạn chưa mua sản phẩm này hoặc đơn hàng chưa được giao!');
+            message.warning('Bạn cần có đơn hàng đã giao và đã thanh toán để đánh giá sản phẩm này!');
             return;
         }
         setUserRating(value);
@@ -84,7 +84,7 @@ const RatingSection = ({ productId, refreshAll }) => {
         }
 
         if (!canRate) {
-            return message.warning('Bạn chưa mua sản phẩm này hoặc đơn hàng chưa được giao!');
+            return message.warning('Bạn cần có đơn hàng đã giao và đã thanh toán để đánh giá sản phẩm này!');
         }
 
         if (userRating === 0) {
@@ -208,7 +208,7 @@ const RatingSection = ({ productId, refreshAll }) => {
                         ) : (
                             <div style={{ textAlign: 'center', padding: '20px', color: '#B45309', width: '100%', border: '1px solid rgba(245,158,11,0.35)', borderRadius: 12, background: 'rgba(245,158,11,0.08)' }}>
                                 <Typography.Text style={{ color: '#B45309' }}>
-                                    Bạn cần mua sản phẩm này và đợi đơn hàng được giao để có thể đánh giá.
+                                    Bạn cần có đơn hàng đã giao và đã thanh toán để có thể đánh giá sản phẩm này.
                                 </Typography.Text>
                             </div>
                         )}

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import CardComponent from '../../components/CardComponent/CardComponent.jsx';
-import { WrapperButtonMore, WrapperProducts, WrapperTypeProduct } from './Style.js'
+import { BreadcrumbWrap, WrapperButtonMore, WrapperProducts, WrapperTypeProduct } from './Style.js'
 
 import TypeProduct from '../../components/TypeProduct/TypeProduct.jsx'
 // import { Button } from 'antd';
@@ -89,11 +89,11 @@ const HomePage = () => {
   return (
     <div>
       <LoadingComponent isPending={false}>
-        <div style={{ maxWidth: '1270px', width: '100%', margin: '0 auto', padding: '0 16px' }}>
-          <Breadcrumb style={{ background: 'transparent', padding: 0, marginBottom: 12 }}>
+        <BreadcrumbWrap>
+          <Breadcrumb>
             <Breadcrumb.Item>Trang chủ</Breadcrumb.Item>
           </Breadcrumb>
-        </div>
+        </BreadcrumbWrap>
         <div className="body" style={{ background: 'linear-gradient(180deg, rgba(16,185,129,0.08), rgba(2,132,199,0.06) 35%, rgba(248,250,252,0.9) 100%)', width: '100%' }}>
           <div id="container" style={{ maxWidth: '1270px', width: '100%', margin: '0 auto', padding: '0 16px' }}>
             <div

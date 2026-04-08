@@ -47,14 +47,34 @@ export const orderSlice = createSlice({
     addOrder: (state, action) => {
       const { orderItem } = action.payload
       const itemOrder = state.orderItems.find(item => item.product === orderItem.product)
+      const stock = Number(orderItem.countInStock ?? itemOrder?.countInStock ?? 0)
+
+      // console.log('orderItem', orderItem)
+      // console.log('itemOrder', itemOrder)
+
       if (itemOrder) {
-        if (itemOrder.amount <= itemOrder.countInStock) {
-          itemOrder.amount += orderItem.amount
+        const nextAmount = Number(itemOrder.amount || 0) + Number(orderItem.amount || 0)
+        if (nextAmount <= stock) {
+          itemOrder.amount = nextAmount
+          itemOrder.countInStock = stock
           state.isSuccessOrder = true
           state.isErrorOrder = false
+        } else {
+          state.isSuccessOrder = false
+          state.isErrorOrder = true
         }
       } else {
-        state.orderItems.push(orderItem)
+        if (Number(orderItem.amount || 0) <= stock && stock > 0) {
+          state.orderItems.push({
+            ...orderItem,
+            countInStock: stock,
+          })
+          state.isSuccessOrder = true
+          state.isErrorOrder = false
+        } else {
+          state.isSuccessOrder = false
+          state.isErrorOrder = true
+        }
       }
     },
     resetOrder: (state) => {

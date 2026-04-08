@@ -13,7 +13,7 @@ import {
     Container, ProductImageWrapper, ProductInfoWrapper,
     StyledAddButton, RatingSection,
     LeftColumnWrapper, ProductDescriptionContent, ProductDescriptionSection,
-    ProductDescriptionTitle, ProductDescriptionToggleButton, WrapperDiscountText,
+    ProductDescriptionTitle, ProductDescriptionToggleButton, WrapperDiscountText, BreadcrumbWrap,
 } from './Style';
 import * as CategoryService from '../../services/CategoryService';
 import * as ProductService from '../../services/ProductService';
@@ -35,6 +35,7 @@ const ProductDetailPage = () => {
     // const access_token = useSelector((state) => state.user.access_token);
     const access_token = localStorage.getItem('access_token');
     const user = useSelector((state) => state.user);
+    const orderItems = useSelector((state) => state.order?.orderItems || []);
     const dispatch = useDispatch();
     const navigate = useNavigate();
     const [categories, setCategories] = useState([]);
@@ -77,6 +78,21 @@ const ProductDetailPage = () => {
             return;
         }
 
+        const stock = Number(product?.countInStock || 0);
+        if (stock <= 0) {
+            message.warning('Sản phẩm hiện đang hết hàng!');
+            return;
+        }
+
+        const existedItem = orderItems.find((item) => item.product === product?._id);
+        const existedAmount = Number(existedItem?.amount || 0);
+        const requestedAmount = Number(quantity || 1);
+
+        if (existedAmount >= stock || existedAmount + requestedAmount > stock) {
+            message.warning('Số lượng trong giỏ đã đạt mức tồn kho cho phép.');
+            return;
+        }
+
         const orderItem = {
             name: product?.name,
             amount: quantity,
@@ -110,6 +126,21 @@ const ProductDetailPage = () => {
         if (!access_token) {
             message.warning('Vui lòng đăng nhập để mua hàng!');
             navigate('/login', { state: { from: `/productDetail/${id}` } });
+            return;
+        }
+
+        const stock = Number(product?.countInStock || 0);
+        if (stock <= 0) {
+            message.warning('Sản phẩm hiện đang hết hàng!');
+            return;
+        }
+
+        const existedItem = orderItems.find((item) => item.product === product?._id);
+        const existedAmount = Number(existedItem?.amount || 0);
+        const requestedAmount = Number(quantity || 1);
+
+        if (existedAmount >= stock || existedAmount + requestedAmount > stock) {
+            message.warning('Số lượng trong giỏ đã đạt mức tồn kho cho phép.');
             return;
         }
 
@@ -193,8 +224,8 @@ const ProductDetailPage = () => {
         <Breadcrumb.Item>{product?.name}</Breadcrumb.Item>
       </Breadcrumb> */}
 
-            <div style={{ maxWidth: '1270px', width: '100%', margin: '0 auto', padding: '0 16px' }}>
-                <Breadcrumb style={{ background: 'linear-gradient(90deg, rgba(2,132,199,0.08), rgba(16,185,129,0.08))', border: '1px solid rgba(2,132,199,0.18)', borderRadius: 12, padding: '10px 14px', marginBottom: 12, cursor: 'pointer' }}>
+            <BreadcrumbWrap>
+                <Breadcrumb>
                     <Breadcrumb.Item onClick={handleNavigateHome}>Trang chủ</Breadcrumb.Item>
                     {categoryPath.map((cat) => (
                         <Breadcrumb.Item
@@ -206,7 +237,7 @@ const ProductDetailPage = () => {
                     ))}
                     <Breadcrumb.Item>{product?.name}</Breadcrumb.Item>
                 </Breadcrumb>
-            </div>
+            </BreadcrumbWrap>
 
             <Row gutter={[32, 32]} justify="center">
                 {/* Ảnh sản phẩm */}
@@ -245,7 +276,7 @@ const ProductDetailPage = () => {
                         <div className="sold">Đã bán: {product.sold || 0}</div>
                         <div style={{ margin: '20px 0', padding: '10px 12px', borderRadius: 10, border: '1px solid rgba(2,132,199,0.16)', background: 'rgba(248,250,252,0.8)' }}>
                             <span className="label">Số lượng: </span>
-                            <InputNumber min={1} value={quantity} onChange={(value) => setQuantity(value)} />
+                            <InputNumber min={1} max={product?.countInStock || 1} value={quantity} onChange={(value) => setQuantity(value)} />
                         </div>
                         <StyledAddButton onClick={() => product?.countInStock !== 0 ? handleAddToCart() : message.warning('Sản phẩm hiện đang hết hàng!')} style={{ marginRight: 16, background: '#F59E0B', borderColor: '#F59E0B', boxShadow: '0 10px 22px rgba(245,158,11,0.32)' }}>
                             Thêm vào giỏ hàng

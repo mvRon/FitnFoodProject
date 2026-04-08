@@ -356,6 +356,19 @@ const AdminProductComponent = () => {
         return allCategories.find(cat => cat && cat._id === id)
     }
 
+    const getCategoryLabel = (category) => {
+        if (!category) return 'Chưa xác định'
+        if (!category.parent) return category.name
+
+        const parentCat = getCategoryById(category.parent)
+        return parentCat ? `${parentCat.name} / ${category.name}` : category.name
+    }
+
+    const typeFilters = allCategories.map((category) => ({
+        text: getCategoryLabel(category),
+        value: category._id,
+    }))
+
     const columns = [
         {
             title: 'STT',
@@ -438,6 +451,8 @@ const AdminProductComponent = () => {
         {
             title: 'Loại sản phẩm',
             dataIndex: 'type',
+            filters: typeFilters,
+            onFilter: (value, record) => getEntityId(record.type) === value,
             render: (type) => {
                 const category = getCategoryById(type);
                 if (!category) return <Tag>Chưa xác định</Tag>;

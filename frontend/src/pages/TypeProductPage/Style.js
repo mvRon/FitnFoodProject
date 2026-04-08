@@ -173,16 +173,14 @@ export const ChildCategory = styled.button`
 
 export const ProductsPanel = styled.div`
   margin-top: 18px;
-  background: rgba(255, 255, 255, 0.82);
-  border: 1px solid rgba(148, 163, 184, 0.2);
-  border-radius: 20px;
-  padding: 18px;
-  box-shadow: 0 14px 28px rgba(15, 23, 42, 0.08);
+  background: transparent;
+  border: none;
+  padding: 0;
+  box-shadow: none;
   animation: ${floatIn} 420ms ease-out;
 
   @media (max-width: 768px) {
-    padding: 12px;
-    border-radius: 16px;
+    margin-top: 14px;
   }
 `;
 
@@ -190,11 +188,18 @@ export const WrapperProducts = styled.div`
   display: flex;
   gap: 14px;
   flex-wrap: wrap;
-  justify-content: flex-start;
+  justify-content: center;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(248, 250, 252, 0.98));
+  border: 1px solid rgba(2, 132, 199, 0.12);
+  border-radius: 24px;
+  padding: 18px 14px 22px;
+  box-shadow: 0 18px 45px rgba(30, 41, 59, 0.07);
 
   @media (max-width: 768px) {
     justify-content: center;
     gap: 10px;
+    padding: 12px 8px 16px;
+    border-radius: 16px;
   }
 `;
 

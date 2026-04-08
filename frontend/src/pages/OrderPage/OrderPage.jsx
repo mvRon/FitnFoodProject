@@ -138,6 +138,19 @@ const OrderPage = () => {
   }, [isOpenModalUpdateInfo]);
 
   useEffect(() => {
+    if (!selectedDiscount || !user?.id) return;
+
+    const userHasUsedDiscount = selectedDiscount.usersUsed?.some(
+      (id) => id?.toString() === user.id?.toString()
+    );
+
+    if (userHasUsedDiscount) {
+      setSelectedDiscount(null);
+      message.warning("Mã giảm giá này đã được bạn sử dụng trước đó");
+    }
+  }, [discounts, selectedDiscount, user?.id]);
+
+  useEffect(() => {
     form.setFieldsValue(stateDetailUser);
   }, [form, stateDetailUser]);
 
@@ -302,6 +315,7 @@ const OrderPage = () => {
   };
 
   const prevOrderItemsRef = useRef();
+  const syncCartTimeoutRef = useRef(null);
   const orderItems = useSelector((state) => state.order.orderItems);
   useEffect(() => {
     if (!user?.id) return;
@@ -309,9 +323,23 @@ const OrderPage = () => {
     const prevOrderItems = prevOrderItemsRef.current;
 
     if (!isEqual(prevOrderItems, orderItems)) {
-      dispatch(syncCart({ userId: user.id, cartItems: orderItems }));
+      if (syncCartTimeoutRef.current) {
+        clearTimeout(syncCartTimeoutRef.current);
+      }
+
+      // Debounce để tránh gọi API liên tục khi người dùng bấm tăng/giảm nhanh.
+      syncCartTimeoutRef.current = setTimeout(() => {
+        dispatch(syncCart({ userId: user.id, cartItems: orderItems }));
+      }, 500);
+
       prevOrderItemsRef.current = orderItems;
     }
+
+    return () => {
+      if (syncCartTimeoutRef.current) {
+        clearTimeout(syncCartTimeoutRef.current);
+      }
+    };
   }, [orderItems, user.id]);
 
   const handleGetDetailProduct = (productId) => {
@@ -334,16 +362,22 @@ const OrderPage = () => {
         return;
       }
       const now = new Date();
+      const userHasUsedDiscount = selectedDiscount.usersUsed?.some(
+        (id) => id?.toString() === user?.id?.toString()
+      );
       const isValid =
         new Date(selectedDiscount.startDate) <= now &&
         new Date(selectedDiscount.endDate) >= now &&
         priceMemo >= selectedDiscount.minValue &&
-        selectedDiscount.usesLeft > 0;
+        selectedDiscount.usesLeft > 0 &&
+        !userHasUsedDiscount;
 
       if (isValid) {
         setSelectedDiscount(selectedDiscount);
         message.success(`Đã áp dụng mã ${selectedDiscount.code} cho toàn bộ đơn hàng`);
         setIsOpenDiscountModal(false);
+      } else if (userHasUsedDiscount) {
+        message.error("Bạn đã dùng mã giảm giá này rồi!");
       } else if (priceMemo < selectedDiscount.minValue) {
         message.error(`Giá trị đơn hàng tối thiểu phải là ${convertPrice(selectedDiscount.minValue)}`);
       } else if (selectedDiscount.usesLeft <= 0) {
@@ -694,11 +728,15 @@ const OrderPage = () => {
             dataSource={discounts}
             renderItem={(discount) => {
               const now = new Date();
+              const userHasUsedDiscount = discount.usersUsed?.some(
+                (id) => id?.toString() === user?.id?.toString()
+              );
               const isValid =
                 new Date(discount.startDate) <= now &&
                 new Date(discount.endDate) >= now &&
                 priceMemo >= discount.minValue &&
-                discount.usesLeft > 0;
+                discount.usesLeft > 0 &&
+                !userHasUsedDiscount;
               const isApplied = selectedDiscount?.code === discount.code;
 
               return (
@@ -720,10 +758,29 @@ const OrderPage = () => {
                       <span style={{ fontSize: "12px", color: "#64748b" }}>
                         (Tối thiểu: {convertPrice(discount.minValue)}, Còn lại: {discount.usesLeft})
                       </span>
+                      {userHasUsedDiscount && (
+                        <>
+                          <br />
+                          <span style={{ fontSize: "12px", color: "#dc2626", fontWeight: 600 }}>
+                            Bạn đã dùng mã này rồi
+                          </span>
+                        </>
+                      )}
                     </span>
                     {isApplied ? (
                       <Button type="primary" size="small" style={{ background: "#16a34a", borderColor: "#16a34a" }}>
                         Đã áp dụng
+                      </Button>
+                    ) : userHasUsedDiscount ? (
+                      <Button
+                        size="small"
+                        disabled
+                        style={{
+                          borderColor: "#dc2626",
+                          color: "#dc2626",
+                        }}
+                      >
+                        Đã dùng
                       </Button>
                     ) : (
                       <Button

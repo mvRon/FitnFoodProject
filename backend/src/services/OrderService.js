@@ -13,6 +13,10 @@ const createOrder = (newOrder) => {
             ? isDelivered
             : "pending";
 
+        // Lấy session từ MongoDB để dùng transaction - đảm bảo atomicity
+        const session = await require('mongoose').startSession();
+        session.startTransaction();
+
         const updatedProducts = []; //Lưu lại các sản phẩm đã cập nhật
         const normalizedOrderItems = [];
         const failedItems = [];
@@ -20,6 +24,13 @@ const createOrder = (newOrder) => {
         try {
             // Duyệt từng sản phẩm để cập nhật kho
             for (const order of orderItems) {
+                // Double-check tồn kho trước khi update (additional safety check)
+                const productCheck = await Product.findById(order.product).session(session);
+                if (!productCheck || Number(productCheck.countInStock || 0) < Number(order.amount || 0)) {
+                    failedItems.push(order.product);
+                    break;
+                }
+
                 const productData = await Product.findOneAndUpdate(
                     {
                         _id: order.product,
@@ -34,7 +45,7 @@ const createOrder = (newOrder) => {
                             lastStockMovementAt: new Date(),
                         },
                     },
-                    { new: true }
+                    { new: true, session }
                 );
 
                 if (!productData) {
@@ -61,17 +72,10 @@ const createOrder = (newOrder) => {
                 });
             }
 
-            // Nếu có lỗi → rollback các sản phẩm đã cập nhật
+            // Nếu có lỗi → rollback toàn bộ transaction
             if (failedItems.length > 0) {
-                for (const item of updatedProducts) {
-                    await Product.findByIdAndUpdate(item.productId, {
-                        $inc: {
-                            countInStock: +item.amount,
-                            sold: -item.amount,
-                        }
-                    });
-                }
-
+                await session.abortTransaction();
+                session.endSession();
                 return resolve({
                     status: 'ERR',
                     message: `Số lượng tồn kho của sản phẩm ${failedItems.join(', ')} không đủ!`
@@ -79,8 +83,10 @@ const createOrder = (newOrder) => {
             }
 
             //check user có tồn tại không
-            const userData = await User.findById(user);
+            const userData = await User.findById(user).session(session);
             if (!userData) {
+                await session.abortTransaction();
+                session.endSession();
                 return resolve({
                     status: 'ERR',
                     message: `User not found!`
@@ -90,7 +96,7 @@ const createOrder = (newOrder) => {
 
             const sendEmailOrder = await EmailService.sendEmailOrder({ email: userData.email, orderItems: normalizedOrderItems, totalPrice })
             // Tạo đơn hàng duy nhất sau khi kiểm tra và cập nhật kho thành công
-            const createdOrder = await Order.create({
+            const createdOrder = await Order.create([{
                 orderItems: normalizedOrderItems,
                 shippingAddress: {
                     fullName,
@@ -106,9 +112,12 @@ const createOrder = (newOrder) => {
                 isPaid,
                 paidAt,
                 isDelivered: deliveryStatus,
-            });
+            }], { session });
 
-            const voucherCode = `PXK-ORDER-${createdOrder._id.toString().slice(-6).toUpperCase()}`;
+            // Lấy đơn hàng từ array result của create
+            const createdOrderDoc = Array.isArray(createdOrder) ? createdOrder[0] : createdOrder;
+
+            const voucherCode = `PXK-ORDER-${createdOrderDoc._id.toString().slice(-6).toUpperCase()}`;
             const voucherItems = normalizedOrderItems.map((item) => ({
                 product: item.product,
                 quantity: Number(item.amount || 0),
@@ -116,53 +125,58 @@ const createOrder = (newOrder) => {
                 amount: Number(item.amount || 0) * Number(item.price || 0),
             }));
 
-            const saleVoucher = await InventoryVoucher.create({
+            const saleVoucher = await InventoryVoucher.create([{
                 voucherCode,
                 transactionType: "EXPORT",
                 exportReason: "SALE",
                 performedBy: user,
-                linkedOrder: createdOrder._id,
+                linkedOrder: createdOrderDoc._id,
                 voucherDate: new Date(),
                 status: "confirmed",
                 items: voucherItems,
                 totalAmount: voucherItems.reduce((sum, item) => sum + item.amount, 0),
-                note: `Xuat kho tu don hang ${createdOrder._id}`,
+                note: `Xuat kho tu don hang ${createdOrderDoc._id}`,
                 confirmedAt: new Date(),
                 confirmedBy: user,
-            });
+            }], { session });
+
+            const saleVoucherDoc = Array.isArray(saleVoucher) ? saleVoucher[0] : saleVoucher;
 
             for (const item of normalizedOrderItems) {
-                const productData = await Product.findById(item.product);
-                await StockCard.create({
+                const productData = await Product.findById(item.product).session(session);
+                await StockCard.create([{
                     product: item.product,
                     date: new Date(),
                     transactionType: "EXPORT",
                     voucherCode,
-                    voucherRef: saleVoucher._id,
+                    voucherRef: saleVoucherDoc._id,
                     description: "Xuat kho - SALE",
                     quantityIn: 0,
                     quantityOut: Number(item.amount || 0),
                     balanceAfter: productData?.countInStock || 0,
                     performedBy: user,
-                    note: `Lien ket don hang ${createdOrder._id}`,
-                });
+                    note: `Lien ket don hang ${createdOrderDoc._id}`,
+                }], { session });
             }
+
+            // Commit transaction nếu tất cả thành công
+            await session.commitTransaction();
+            session.endSession();
 
             return resolve({
                 status: 'OK',
                 message: 'Order placed successfully!',
-                data: createdOrder
+                data: createdOrderDoc
             });
 
         } catch (e) {
-            // Trong trường hợp lỗi bất ngờ khác → rollback luôn
-            for (const item of updatedProducts) {
-                await Product.findByIdAndUpdate(item.productId, {
-                    $inc: {
-                        countInStock: +item.amount,
-                        sold: -item.amount,
-                    }
-                });
+            // Rollback transaction tự động nếu lỗi
+            try {
+                await session.abortTransaction();
+            } catch (abortError) {
+                console.error('Error aborting transaction:', abortError);
+            } finally {
+                session.endSession();
             }
 
             return reject(e);
