@@ -13,7 +13,7 @@ import {
     Container, ProductImageWrapper, ProductInfoWrapper,
     StyledAddButton, RatingSection,
     LeftColumnWrapper, ProductDescriptionContent, ProductDescriptionSection,
-    ProductDescriptionTitle, ProductDescriptionToggleButton, WrapperDiscountText,
+    ProductDescriptionTitle, ProductDescriptionToggleButton, WrapperDiscountText, BreadcrumbWrap,
 } from './Style';
 import * as CategoryService from '../../services/CategoryService';
 import * as ProductService from '../../services/ProductService';
@@ -224,8 +224,8 @@ const ProductDetailPage = () => {
         <Breadcrumb.Item>{product?.name}</Breadcrumb.Item>
       </Breadcrumb> */}
 
-            <div style={{ maxWidth: '1270px', width: '100%', margin: '0 auto', padding: '0 16px' }}>
-                <Breadcrumb style={{ background: 'linear-gradient(90deg, rgba(2,132,199,0.08), rgba(16,185,129,0.08))', border: '1px solid rgba(2,132,199,0.18)', borderRadius: 12, padding: '10px 14px', marginBottom: 12, cursor: 'pointer' }}>
+            <BreadcrumbWrap>
+                <Breadcrumb>
                     <Breadcrumb.Item onClick={handleNavigateHome}>Trang chủ</Breadcrumb.Item>
                     {categoryPath.map((cat) => (
                         <Breadcrumb.Item
@@ -237,7 +237,7 @@ const ProductDetailPage = () => {
                     ))}
                     <Breadcrumb.Item>{product?.name}</Breadcrumb.Item>
                 </Breadcrumb>
-            </div>
+            </BreadcrumbWrap>
 
             <Row gutter={[32, 32]} justify="center">
                 {/* Ảnh sản phẩm */}

@@ -16,6 +16,32 @@ export const Container = styled.div`
   }
 `;
 
+export const BreadcrumbWrap = styled.div`
+  max-width: 1270px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 10px 16px 4px;
+
+  .ant-breadcrumb {
+    padding: 10px 14px;
+    border-radius: 12px;
+    border: 1px solid rgba(2, 132, 199, 0.16);
+    background: rgba(255, 255, 255, 0.72);
+    backdrop-filter: blur(4px);
+  }
+
+  .ant-breadcrumb a,
+  .ant-breadcrumb-link {
+    color: #0369a1;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .ant-breadcrumb-separator {
+    color: #0ea5e9;
+  }
+`;
+
 export const ProductImageWrapper = styled.div`
   text-align: center;
   padding: 14px;
