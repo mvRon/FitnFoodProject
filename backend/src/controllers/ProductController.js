@@ -1,4 +1,5 @@
 const ProducService = require('../services/ProductService');
+const RecommendationService = require('../services/RecommendationService');
 
 const createProduct = async (req, res) => {
     try {
@@ -189,6 +190,78 @@ const getAllTypeProducts = async (req, res) => {
     }
 }
 
+const getRecommendationsByProduct = async (req, res) => {
+    try {
+        const productId = req.params.id;
+        const limit = Number(req.query.limit);
+        if (!productId) {
+            return res.status(200).json({
+                status: "ERR",
+                message: "Product ID is required!"
+            });
+        }
+
+        const response = await RecommendationService.getRecommendationsByProduct(productId, { limit });
+        return res.status(response.status === "OK" ? 200 : 404).json(response);
+    } catch (e) {
+        return res.status(500).json({
+            status: "ERR",
+            message: e.message || "Something went wrong!"
+        });
+    }
+};
+
+const getRecommendationsByCart = async (req, res) => {
+    try {
+        const { productIds, limit } = req.body || {};
+        const response = await RecommendationService.getRecommendationsByCart(productIds || [], { limit });
+        return res.status(200).json(response);
+    } catch (e) {
+        return res.status(500).json({
+            status: "ERR",
+            message: e.message || "Something went wrong!"
+        });
+    }
+};
+
+const getRecommendationsByHistory = async (req, res) => {
+    try {
+        const userId = req.user?.id;
+        const limit = Number(req.query.limit);
+        if (!userId) {
+            return res.status(401).json({
+                status: "ERR",
+                message: "User authentication required!"
+            });
+        }
+
+        const response = await RecommendationService.getRecommendationsByHistory(userId, { limit });
+        return res.status(200).json(response);
+    } catch (e) {
+        return res.status(500).json({
+            status: "ERR",
+            message: e.message || "Something went wrong!"
+        });
+    }
+};
+
+const rebuildProductEmbeddings = async (req, res) => {
+    try {
+        const limit = Number(req.body?.limit || req.query?.limit || 0);
+        const result = await RecommendationService.rebuildProductEmbeddings({ limit });
+        return res.status(200).json({
+            status: "OK",
+            message: "Product embeddings rebuilt successfully!",
+            data: result
+        });
+    } catch (e) {
+        return res.status(500).json({
+            status: "ERR",
+            message: e.message || "Something went wrong!"
+        });
+    }
+};
+
 
 
 
@@ -207,5 +280,9 @@ module.exports = {
     deleteReplyOfReview,
     deleteReview,
     checkRatingPermission,
-    getAllTypeProducts
+    getAllTypeProducts,
+    getRecommendationsByProduct,
+    getRecommendationsByCart,
+    getRecommendationsByHistory,
+    rebuildProductEmbeddings
 }
