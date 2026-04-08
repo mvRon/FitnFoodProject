@@ -19,6 +19,7 @@ import * as CategoryService from '../../services/CategoryService';
 import * as ProductService from '../../services/ProductService';
 import { slugify } from '../../utils';
 import SliderComponent from '../../components/SliderComponent/SliderComponent';
+import RecommendationCarousel from '../../components/RecommendationCarousel/RecommendationCarousel';
 
 
 
@@ -301,8 +302,12 @@ const ProductDetailPage = () => {
                     </ProductDescriptionSection>
                 </Col>
 
-                {/* Đánh giá sản phẩm */}
                 <Col xs={{ span: 24, order: 4 }} md={{ span: 20, order: 4 }}>
+                    <RecommendationCarousel context="product" productId={product?._id} />
+                </Col>
+
+                {/* Đánh giá sản phẩm */}
+                <Col xs={{ span: 24, order: 5 }} md={{ span: 20, order: 5 }}>
                     <RatingSection>
                         <ReviewComponent
                             productId={product._id}
