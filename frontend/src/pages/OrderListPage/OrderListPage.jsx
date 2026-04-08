@@ -260,12 +260,12 @@ const OrderListPage = () => {
   // Component mở rộng để hiển thị chi tiết sản phẩm cho mỗi đơn hàng
   const expandedRowRender = (record) => {
     const productColumns = [
-      {
-        title: 'Hình ảnh',
-        dataIndex: 'image',
-        key: 'image',
-        render: (image, record) => renderOrderItemThumb(image, record?.name),
-      },
+      // {
+      //   title: 'Hình ảnh',
+      //   dataIndex: 'image',
+      //   key: 'image',
+      //   render: (image, record) => renderOrderItemThumb(image, record?.name),
+      // },
       { title: 'Sản phẩm', dataIndex: 'name', key: 'name' },
       { title: 'Số lượng', dataIndex: 'quantity', key: 'quantity' },
       { title: 'Đơn giá', dataIndex: 'unitPrice', key: 'unitPrice', render: (price) => price.toLocaleString('vi-VN') + ' VNĐ' },
