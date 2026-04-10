@@ -1,6 +1,7 @@
 import React, { use, useEffect } from 'react'
 import HeaderComponent from '../HeaderComponent/HeaderComponent'
 import FooterComponent from '../FooterComponent/FooterComponent'
+import ChatWidget from '../ChatWidget/ChatWidget'
 import { LayoutContainer, LayoutContent } from './Style'
 import { useDispatch, useSelector } from 'react-redux'
 import { message } from 'antd'
@@ -16,6 +17,7 @@ const DefaultComponent = ({ children }) => {
         {children}
       </LayoutContent>
       <FooterComponent />
+      <ChatWidget />
     </LayoutContainer>
   )
 }

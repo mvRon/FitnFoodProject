@@ -2,11 +2,14 @@ require('dotenv').config();
 
 const express = require("express")
 const dotenv = require("dotenv")
+const http = require("http")
 const { default: mongoose } = require("mongoose")
+const { Server } = require("socket.io")
 const routes = require("./routes")
 const cors = require("cors")
 const bodyParser = require("body-parser")
 const cookieParser = require("cookie-parser")
+const registerChatSocket = require("./socket/chatSocket")
 dotenv.config()
 
 
@@ -38,7 +41,16 @@ mongoose.connect(`${process.env.MONGO_DB}`)
         console.log(err)
     })
 
+const server = http.createServer(app)
+const io = new Server(server, {
+    cors: {
+        origin: ['http://localhost:3000'],
+        credentials: true,
+    },
+})
 
-app.listen(port, '0.0.0.0', () => {
+registerChatSocket(io)
+
+server.listen(port, '0.0.0.0', () => {
     console.log("Server is running on port: " + port)
 })

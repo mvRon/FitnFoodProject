@@ -1,4 +1,4 @@
-import { AppstoreAddOutlined, ProductOutlined, UserOutlined, ShoppingCartOutlined, ShopOutlined, GiftOutlined, SettingOutlined } from '@ant-design/icons';
+import { AppstoreAddOutlined, ProductOutlined, UserOutlined, ShoppingCartOutlined, ShopOutlined, GiftOutlined, SettingOutlined, MessageOutlined } from '@ant-design/icons';
 import { Menu } from 'antd'
 import React, { useState } from 'react'
 import { getLevelKeys } from '../../utils';
@@ -14,6 +14,7 @@ import { AdminPageGlobalStyle, AdminPageShell } from './Style';
 import AdminDiscountComponent from '../../components/AdminDiscountComponent/AdminDiscountComponent.jsx';
 import AdminInventoryComponent from '../../components/AdminInventoryComponent/AdminInventoryComponent.jsx';
 import AdminUserComponent from '../../components/AdminUserComponent/AdminUserComponent';
+import AdminChatComponent from '../../components/AdminChatComponent/AdminChatComponent';
 
 
 const AdminPage = () => {
@@ -43,6 +44,10 @@ const AdminPage = () => {
             case 'Inventory':
                 return (
                     <AdminInventoryComponent />
+                )
+            case 'Chat':
+                return (
+                    <AdminChatComponent />
                 )
 
             default:
@@ -112,6 +117,11 @@ const AdminPage = () => {
                     label: 'Quản lý tồn kho',
                 },
             ],
+        },
+        {
+            key: 'Chat',
+            icon: <MessageOutlined />,
+            label: 'Chat hỗ trợ',
         }
     ];
 
