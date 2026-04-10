@@ -309,6 +309,25 @@ const getAdminConversations = async () => {
         .lean();
 };
 
+const deleteGuestConversations = async (guestId) => {
+    if (!guestId) return { deletedConversations: 0, deletedMessages: 0 };
+
+    const conversations = await Conversation.find({ guestId }).select("_id").lean();
+    const ids = conversations.map((item) => item._id);
+
+    if (!ids.length) {
+        return { deletedConversations: 0, deletedMessages: 0 };
+    }
+
+    const messageResult = await Message.deleteMany({ conversation: { $in: ids } });
+    const conversationResult = await Conversation.deleteMany({ _id: { $in: ids } });
+
+    return {
+        deletedConversations: conversationResult?.deletedCount || 0,
+        deletedMessages: messageResult?.deletedCount || 0,
+    };
+};
+
 module.exports = {
     createConversation,
     getOrCreateConversation,
@@ -317,5 +336,6 @@ module.exports = {
     getConversationForUser,
     updateConversationStatus,
     getAdminConversations,
+    deleteGuestConversations,
     generateBotMessage,
 };

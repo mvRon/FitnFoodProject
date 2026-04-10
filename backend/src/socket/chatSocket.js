@@ -169,6 +169,20 @@ const registerChatSocket = (io) => {
             io.to(conversationId).emit("chat:status", buildStatusPayload(updated));
             io.to("admin_notifications").emit("chat:handoff_request", buildStatusPayload(updated));
         });
+
+        socket.on("disconnect", async () => {
+            if (!user?.isGuest || !user?.guestId) return;
+
+            try {
+                await ChatService.deleteGuestConversations(user.guestId);
+                io.to("admin_notifications").emit("chat:handoff_request", {
+                    guestId: user.guestId,
+                    status: "closed",
+                });
+            } catch (error) {
+                console.warn("Guest chat cleanup failed:", error?.message || error);
+            }
+        });
     });
 };
 
