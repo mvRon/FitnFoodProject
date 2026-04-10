@@ -41,7 +41,26 @@ const getAccessToken = () => {
   }
 };
 
-const formatStatus = (status) => {
+const getOrCreateGuestId = () => {
+  const storageKey = "guest_chat_id";
+  const stored = localStorage.getItem(storageKey);
+  if (stored) return stored;
+  let generated = "";
+  if (typeof crypto !== "undefined" && crypto.randomUUID) {
+    generated = crypto.randomUUID();
+  } else {
+    generated = `guest_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+  }
+  localStorage.setItem(storageKey, generated);
+  return generated;
+};
+
+const formatStatus = (status, isGuest) => {
+  if (isGuest) {
+    if (status === "admin_active") return "Nhân viên đang hỗ trợ";
+    return "Đang chờ nhân viên hỗ trợ";
+  }
+
   switch (status) {
     case "waiting_for_admin":
       return "Đang chờ nhân viên tham gia";
@@ -67,6 +86,8 @@ const ChatWidget = () => {
   const [hasAuth, setHasAuth] = useState(true);
 
   const accessToken = useMemo(() => getAccessToken(), [user?.access_token]);
+  const guestId = useMemo(() => getOrCreateGuestId(), []);
+  const isGuest = !accessToken;
 
   const socketUrl = useMemo(() => {
     if (process.env.REACT_APP_SOCKET_URL) return process.env.REACT_APP_SOCKET_URL;
@@ -78,28 +99,25 @@ const ChatWidget = () => {
     if (!isOpen) return undefined;
 
     const initChat = async () => {
-      if (!accessToken) {
-        setHasAuth(false);
-        return;
-      }
-
       setHasAuth(true);
       setIsLoading(true);
 
       try {
-        const response = await ChatService.getOrCreateConversation(accessToken);
+        const response = accessToken
+          ? await ChatService.getOrCreateConversation(accessToken)
+          : await ChatService.getOrCreateGuestConversation(guestId);
         const data = response?.data || {};
         setConversation(data.conversation || null);
         setMessages(data.messages || []);
         setStatus(data.conversation?.status || "bot_active");
 
         if (!socketUrl) {
-          toast.error("CHưa cấu hình socket URL");
+          toast.error("Chưa cấu hình socket URL");
           return;
         }
 
         const socket = io(socketUrl, {
-          auth: { token: accessToken },
+          auth: accessToken ? { token: accessToken } : { guestId },
           transports: ["websocket"],
         });
         socketRef.current = socket;
@@ -146,7 +164,7 @@ const ChatWidget = () => {
         socketRef.current = null;
       }
     };
-  }, [accessToken, isOpen, socketUrl]);
+  }, [accessToken, guestId, isOpen, socketUrl]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -194,7 +212,7 @@ const ChatWidget = () => {
           <ChatHeader>
             <ChatHeaderText>
               <ChatTitle>FitnFood Chat</ChatTitle>
-              <ChatStatus>{formatStatus(status)}</ChatStatus>
+              <ChatStatus>{formatStatus(status, isGuest)}</ChatStatus>
             </ChatHeaderText>
             <Button
               type="text"
@@ -204,16 +222,11 @@ const ChatWidget = () => {
           </ChatHeader>
 
           <ChatBody>
-            {!hasAuth && (
-              <LoginHint>
-                Bạn cần đăng nhập để bắt đầu chat. <br />
-                <Button type="link" onClick={() => navigate("/login")}>
-                  Đăng nhập ngay
-                </Button>
-              </LoginHint>
+            {isGuest && messages.length === 0 && !isLoading && (
+              <LoginHint>Bạn đang chat với nhân viên hỗ trợ với tư cách khách.</LoginHint>
             )}
 
-            {hasAuth && messages.length === 0 && !isLoading && (
+            {!isGuest && messages.length === 0 && !isLoading && (
               <LoginHint>Chào bạn! Hãy đặt câu hỏi về sản phẩm định dưỡng.</LoginHint>
             )}
 
@@ -233,10 +246,8 @@ const ChatWidget = () => {
               return (
                 <MessageRow key={message._id || `${message.sender}-${timestamp}`} $isUser={isUser}>
                   <MessageStack $isUser={isUser}>
-                    <MessageBubble $isUser={isUser}>
-                      {!isUser && <MessageLabel $isUser={false}>{senderLabel}:</MessageLabel>}
-                      {message.content}
-                    </MessageBubble>
+                    <MessageLabel $isUser={isUser}>{senderLabel}</MessageLabel>
+                    <MessageBubble $isUser={isUser}>{message.content}</MessageBubble>
                     {timestamp && <MessageMeta>{timestamp}</MessageMeta>}
                     {productCards.length > 0 && (
                       <ProductRail>

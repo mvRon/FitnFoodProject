@@ -13,6 +13,16 @@ export const getOrCreateConversation = async (access_token) => {
     return res.data;
 };
 
+export const getOrCreateGuestConversation = async (guestId) => {
+    const res = await axios.get(
+        `${process.env.REACT_APP_API_URL_BACKEND}/chat/get-or-create-guest`,
+        {
+            params: { guestId },
+        }
+    );
+    return res.data;
+};
+
 export const getConversationMessages = async (conversationId, access_token) => {
     const res = await axiosJWT.get(
         `${process.env.REACT_APP_API_URL_BACKEND}/chat/get-conversation-messages/${conversationId}`,

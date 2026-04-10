@@ -2,7 +2,8 @@ const mongoose = require("mongoose");
 
 const conversationSchema = new mongoose.Schema(
     {
-        customer: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+        customer: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+        guestId: { type: String, default: null, index: true },
         admin: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
         status: {
             type: String,

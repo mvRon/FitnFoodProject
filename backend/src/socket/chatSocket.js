@@ -12,17 +12,24 @@ const buildStatusPayload = (conversation) => ({
 const registerChatSocket = (io) => {
     io.use((socket, next) => {
         const token = socket.handshake.auth?.token;
-        if (!token) {
-            return next(new Error("Unauthorized"));
+        const guestId = socket.handshake.auth?.guestId;
+
+        if (token) {
+            try {
+                const user = jwt.verify(token, process.env.ACCESS_TOKEN);
+                socket.user = user;
+                return next();
+            } catch (error) {
+                return next(new Error("Unauthorized"));
+            }
         }
 
-        try {
-            const user = jwt.verify(token, process.env.ACCESS_TOKEN);
-            socket.user = user;
+        if (guestId) {
+            socket.user = { isGuest: true, guestId };
             return next();
-        } catch (error) {
-            return next(new Error("Unauthorized"));
         }
+
+        return next(new Error("Unauthorized"));
     });
 
     io.on("connection", (socket) => {
@@ -33,7 +40,7 @@ const registerChatSocket = (io) => {
         }
 
         socket.on("chat:join", async ({ conversationId }) => {
-            const conversation = await ChatService.getConversationForUser(conversationId, user);
+            const conversation = await ChatService.getConversationForUser(conversationId, user, user?.guestId);
             if (!conversation) {
                 socket.emit("chat:error", { message: "Conversation not found" });
                 return;
@@ -49,15 +56,18 @@ const registerChatSocket = (io) => {
 
             let conversation = null;
             if (conversationId) {
-                conversation = await ChatService.getConversationForUser(conversationId, user);
+                conversation = await ChatService.getConversationForUser(conversationId, user, user?.guestId);
             }
 
             if (!conversation) {
-                if (!user?.id) {
+                if (!user?.id && !user?.guestId) {
                     socket.emit("chat:error", { message: "User authentication required" });
                     return;
                 }
-                conversation = await ChatService.createConversation(user.id);
+                conversation = await ChatService.createConversation({
+                    customerId: user?.id || null,
+                    guestId: user?.guestId || null,
+                });
                 conversationId = String(conversation._id);
                 socket.emit("chat:conversation", { conversation });
             }
@@ -70,6 +80,15 @@ const registerChatSocket = (io) => {
                 content: messageText,
             });
             io.to(conversationId).emit("chat:message", userMessage);
+
+            if (user?.isGuest) {
+                if (conversation.status === "bot_active") {
+                    const updated = await ChatService.updateConversationStatus(conversationId, "waiting_for_admin");
+                    io.to(conversationId).emit("chat:status", buildStatusPayload(updated));
+                    io.to("admin_notifications").emit("chat:handoff_request", buildStatusPayload(updated));
+                }
+                return;
+            }
 
             if (conversation.status === "bot_active") {
                 const botResult = await ChatService.generateBotMessage(messageText);
@@ -87,7 +106,7 @@ const registerChatSocket = (io) => {
         });
 
         socket.on("chat:handoff", async ({ conversationId }) => {
-            const conversation = await ChatService.getConversationForUser(conversationId, user);
+            const conversation = await ChatService.getConversationForUser(conversationId, user, user?.guestId);
             if (!conversation) {
                 socket.emit("chat:error", { message: "Conversation not found" });
                 return;
@@ -124,7 +143,7 @@ const registerChatSocket = (io) => {
             const messageText = String(content || "").trim();
             if (!messageText) return;
 
-            const conversation = await ChatService.getConversationForUser(conversationId, user);
+            const conversation = await ChatService.getConversationForUser(conversationId, user, user?.guestId);
             if (!conversation) {
                 socket.emit("chat:error", { message: "Conversation not found" });
                 return;
@@ -140,7 +159,7 @@ const registerChatSocket = (io) => {
         });
 
         socket.on("chat:close", async ({ conversationId }) => {
-            const conversation = await ChatService.getConversationForUser(conversationId, user);
+            const conversation = await ChatService.getConversationForUser(conversationId, user, user?.guestId);
             if (!conversation) {
                 socket.emit("chat:error", { message: "Conversation not found" });
                 return;

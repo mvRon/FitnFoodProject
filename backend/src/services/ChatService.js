@@ -200,22 +200,45 @@ const generateBotMessage = async (question) => {
     };
 };
 
-const createConversation = async (customerId) => {
+const resolveConversationInput = (input) => {
+    if (!input) return { customerId: null, guestId: null };
+    if (typeof input === "string") {
+        return { customerId: input, guestId: null };
+    }
+    return {
+        customerId: input.customerId || null,
+        guestId: input.guestId || null,
+    };
+};
+
+const createConversation = async (input) => {
+    const { customerId, guestId } = resolveConversationInput(input);
+    if (!customerId && !guestId) {
+        throw new Error("Customer or guest id is required");
+    }
+
     const conversation = await Conversation.create({
-        customer: customerId,
+        customer: customerId || null,
+        guestId: guestId || null,
         status: "bot_active",
     });
 
     return conversation;
 };
 
-const getOrCreateConversation = async (customerId) => {
-    let conversation = await Conversation.findOne({ customer: customerId })
+const getOrCreateConversation = async (input) => {
+    const { customerId, guestId } = resolveConversationInput(input);
+    if (!customerId && !guestId) {
+        throw new Error("Customer or guest id is required");
+    }
+
+    const query = customerId ? { customer: customerId } : { guestId };
+    let conversation = await Conversation.findOne(query)
         .sort({ updatedAt: -1 })
         .lean();
 
     if (!conversation) {
-        const created = await createConversation(customerId);
+        const created = await createConversation({ customerId, guestId });
         conversation = created.toObject();
     }
 
@@ -246,7 +269,7 @@ const createMessage = async ({ conversationId, sender, content, metadata }) => {
     return message.toObject();
 };
 
-const getConversationForUser = async (conversationId, user) => {
+const getConversationForUser = async (conversationId, user, guestId) => {
     if (!mongoose.Types.ObjectId.isValid(conversationId)) return null;
     const conversation = await Conversation.findById(conversationId).lean();
     if (!conversation) return null;
@@ -254,13 +277,17 @@ const getConversationForUser = async (conversationId, user) => {
     if (user?.isAdmin) return conversation;
 
     const userId = user?.id || user?._id;
-    if (!userId) return null;
+    const resolvedGuestId = guestId || user?.guestId || null;
 
-    if (String(conversation.customer) !== String(userId)) {
-        return null;
+    if (userId && conversation.customer && String(conversation.customer) === String(userId)) {
+        return conversation;
     }
 
-    return conversation;
+    if (resolvedGuestId && conversation.guestId && String(conversation.guestId) === String(resolvedGuestId)) {
+        return conversation;
+    }
+
+    return null;
 };
 
 const updateConversationStatus = async (conversationId, status, adminId = null) => {

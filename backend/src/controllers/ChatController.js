@@ -10,7 +10,7 @@ const getOrCreateConversation = async (req, res) => {
             });
         }
 
-        const result = await ChatService.getOrCreateConversation(userId);
+        const result = await ChatService.getOrCreateConversation({ customerId: userId });
         return res.status(200).json({
             status: "OK",
             message: "Conversation ready!",
@@ -72,8 +72,33 @@ const getAdminConversations = async (req, res) => {
     }
 };
 
+const getOrCreateGuestConversation = async (req, res) => {
+    try {
+        const guestId = String(req.query?.guestId || "").trim();
+        if (!guestId) {
+            return res.status(400).json({
+                status: "ERR",
+                message: "Guest ID is required!",
+            });
+        }
+
+        const result = await ChatService.getOrCreateConversation({ guestId });
+        return res.status(200).json({
+            status: "OK",
+            message: "Conversation ready!",
+            data: result,
+        });
+    } catch (error) {
+        return res.status(500).json({
+            status: "ERR",
+            message: error?.message || "Something went wrong!",
+        });
+    }
+};
+
 module.exports = {
     getOrCreateConversation,
     getConversationMessages,
     getAdminConversations,
+    getOrCreateGuestConversation,
 };

@@ -168,7 +168,10 @@ const AdminChatComponent = () => {
       <AdminChatList>
         {conversations.length === 0 && <ListMeta>Chưa có hội thoại cần hỗ trợ.</ListMeta>}
         {conversations.map((conversation) => {
-          const customerName = conversation?.customer?.name || conversation?.customer?.email || "Khách hàng";
+          const guestLabel = conversation?.guestId
+            ? `Guest ${String(conversation.guestId).slice(0, 6)}`
+            : "Khách hàng";
+          const customerName = conversation?.customer?.name || conversation?.customer?.email || guestLabel;
           const status = statusConfig(conversation?.status);
           return (
             <AdminChatListItem
@@ -177,7 +180,7 @@ const AdminChatComponent = () => {
               $active={String(activeConversation?._id) === String(conversation._id)}
             >
               <ListTitle>{customerName}</ListTitle>
-              <ListMeta>{conversation?.customer?.email || ""}</ListMeta>
+              <ListMeta>{conversation?.customer?.email || (conversation?.guestId ? `guest:${String(conversation.guestId).slice(0, 10)}` : "")}</ListMeta>
               <StatusBadge $color={status.color}>{status.label}</StatusBadge>
             </AdminChatListItem>
           );
@@ -189,7 +192,9 @@ const AdminChatComponent = () => {
           <div>
             <ListTitle>
               {activeConversation
-                ? `Hỗ trợ: ${activeConversation?.customer?.name || activeConversation?.customer?.email || "Khách hàng"}`
+                ? `Hỗ trợ: ${activeConversation?.customer?.name
+                  || activeConversation?.customer?.email
+                  || (activeConversation?.guestId ? `Guest ${String(activeConversation.guestId).slice(0, 6)}` : "Khách hàng")}`
                 : "Chọn hội thoại để bắt đầu hỗ trợ"}
             </ListTitle>
             <ListMeta>{activeConversation?.status ? statusConfig(activeConversation.status).label : ""}</ListMeta>
