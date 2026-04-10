@@ -1,4 +1,9 @@
-const { GoogleGenerativeAI } = require("@google/generative-ai");
+
+const { 
+    GoogleGenerativeAI, 
+    HarmCategory, 
+    HarmBlockThreshold 
+} = require("@google/generative-ai");
 const mongoose = require("mongoose");
 const Conversation = require("../models/ConversationModel");
 const Message = require("../models/MessageModel");
@@ -95,10 +100,10 @@ const buildPrompt = (question, products, categoryMap) => {
         const description = product?.description ? product.description : "";
         return [
             `${index + 1}. ${product?.name || ""}`,
-            categoryName ? `- Danh muc: ${categoryName}` : "",
-            price ? `- Gia: ${price}` : "",
-            discount ? `- Giam gia: ${discount}` : "",
-            description ? `- Mo ta: ${description}` : "",
+            categoryName ? `- Danh mục: ${categoryName}` : "",
+            price ? `- Giá: ${price}` : "",
+            discount ? `- Giảm giá: ${discount}` : "",
+            description ? `- Mô tả: ${description}` : "",
         ]
             .filter(Boolean)
             .join("\n");
@@ -107,20 +112,12 @@ const buildPrompt = (question, products, categoryMap) => {
     const productContext = lines.length ? lines.join("\n\n") : "(Không có sản phẩm phù hợp trong kho hàng)";
 
     return [
-        "Bạn là chuyên gia dinh dưỡng của FITNFOOD.",
-        "Nhiệm vụ: Tư vấn sản phẩm dinh dưỡng phù hợp dựa trên câu hỏi của khách hàng.",
-        "Nếu cần thiết, bạn có thể hỏi thêm thông tin về nhu cầu hoặc sở thích của khách hàng để đưa ra gợi ý chính xác hơn.",
-        "Chỉ đề xuất sản phẩm nếu bạn thấy phù hợp, nếu không hãy giải thích rõ lý do và hỏi thêm thông tin.",
-        "",
-        "Danh sách sản phẩm gợi ý (nếu có):",
+        "Danh sách sản phẩm từ kho hàng FITNFOOD:",
         productContext,
         "",
         `Câu hỏi của khách hàng: ${question}`,
         "",
-        "êu cầu trả lời:",
-        "- Viết bằng tiếng Việt.",
-        "- Nếu sản phẩm phù hợp, nên đề xuất tối đa 3 sản phẩm trở lên.",
-        "- Nếu không phù hợp, nói rõ lý do và hỏi thêm thông tin.",
+        "Dựa vào thông tin trên, hãy đề xuất và giải thích ngắn gọn lý do chọn sản phẩm cho khách. Nếu không có sản phẩm phù hợp, hãy nói rõ và xin thêm thông tin."
     ].join("\n");
 };
 
@@ -129,7 +126,10 @@ const getGeminiModel = () => {
     if (!geminiClient) {
         geminiClient = new GoogleGenerativeAI(GEMINI_API_KEY);
     }
-    return geminiClient.getGenerativeModel({ model: GEMINI_MODEL });
+    return geminiClient.getGenerativeModel({ 
+        model: GEMINI_MODEL,
+        systemInstruction: "Bạn là chuyên gia tư vấn dinh dưỡng của FITNFOOD. Nhiệm vụ của bạn là tư vấn thân thiện, ngắn gọn và dễ hiểu bằng tiếng Việt. Chỉ sử dụng thông tin sản phẩm được cung cấp, không tự bịa sản phẩm. Nếu không có sản phẩm phù hợp, hãy xin lỗi và hỏi thêm thông tin từ khách."
+    });
 };
 
 const generateGeminiReply = async (prompt) => {
@@ -138,23 +138,46 @@ const generateGeminiReply = async (prompt) => {
         return "Hiện tại hệ thống chưa được cấu hình AI. Bạn có thể mô tả rõ hơn nhu cầu để mình tư vấn tốt hơn không?";
     }
 
-    const result = await model.generateContent({
-        contents: [
-            {
-                role: "user",
-                parts: [{ text: prompt }],
+    try {
+        const result = await model.generateContent({
+            contents: [
+                {
+                    role: "user",
+                    parts: [{ text: prompt }],
+                },
+            ],
+            generationConfig: {
+                temperature: 0.4,
+                topK: 40,
+                topP: 0.95,
+                maxOutputTokens: 2048,
             },
-        ],
-        generationConfig: {
-            temperature: 0.3,
-            topK: 40,
-            topP: 0.95,
-            maxOutputTokens: 512,
-        },
-    });
+            safetySettings: [
+                {
+                    category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+                    threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+                },
+                {
+                    category: HarmCategory.HARM_CATEGORY_HARASSMENT,
+                    threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+                },
+                {
+                    category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+                    threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+                },
+                {
+                    category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
+                    threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+                }
+            ]
+        });
 
-    const text = result?.response?.text ? result.response.text().trim() : "";
-    return text || "Mình chưa thể trả lời câu hỏi của bạn. Bạn có thể mô tả rõ hơn nhu cầu để mình tư vấn tốt hơn không?";
+        const text = result?.response?.text ? result.response.text().trim() : "";
+        return text || "Mình chưa thể trả lời câu hỏi của bạn. Bạn có thể mô tả rõ hơn nhu cầu để mình tư vấn tốt hơn không?";
+    } catch (error) {
+        console.warn("Gemini generation failed:", error?.message || error);
+        throw error; // Ném lỗi ra để hàm generateBotMessage bắt và xử lý Human Handoff
+    }
 };
 
 const searchProductsByQuestion = async (question, limit) => {
@@ -186,8 +209,9 @@ const generateBotMessage = async (question) => {
     try {
         text = await generateGeminiReply(prompt);
     } catch (error) {
-        console.warn("Gemini call failed:", error?.message || error);
-        text = "Mình chưa thể trả lời câu hỏi của bạn. Bạn có thể mô tả rõ hơn nhu cầu để mình tư vấn tốt hơn không?";
+        console.warn("Gemini call failed or overloaded:", error?.message || error);
+        // Fallback khi AI lỗi 503 hoặc các lỗi khác
+        text = "Hiện tại chuyên viên AI của FITNFOOD đang hỗ trợ nhiều khách hàng cùng lúc nên phản hồi hơi chậm. Bạn vui lòng đợi một chút hoặc nhấn nút 'Gặp Nhân Viên' để kết nối trực tiếp với chuyên gia dinh dưỡng nhé!";
     }
 
     const productSnapshots = products.map(buildProductSnapshot).filter((item) => item?._id);
