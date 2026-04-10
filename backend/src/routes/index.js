@@ -5,6 +5,7 @@ const CartRouter = require('./CartRouter');
 const OrderRouter = require('./OrderRouter');
 const DiscountRouter = require('./DiscountRouter');
 const InventoryRouter = require('./InventoryRouter');
+const ChatRouter = require('./ChatRouter');
 
 
 
@@ -16,6 +17,7 @@ const routes = (app) => {
     app.use('/api/order', OrderRouter);
     app.use('/api/discount', DiscountRouter);
     app.use('/api/inventory', InventoryRouter);
+    app.use('/api/chat', ChatRouter);
 
 
 

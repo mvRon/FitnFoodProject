@@ -23,6 +23,7 @@
     "react-slick": "^0.31.0",
     "redux-persist": "^6.0.0",
     "slick-carousel": "^1.8.1",
+    "socket.io-client": "^4.7.5",
     "styled-components": "^6.3.11",
     "web-vitals": "^2.1.4"
   },
