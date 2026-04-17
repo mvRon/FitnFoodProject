@@ -105,6 +105,24 @@ const getAllProducts = async (req, res) => {
     }
 }
 
+const searchProducts = async (req, res) => {
+    try {
+        const { q, limit, page, includeImages, typeId } = req.query;
+        const result = await ProducService.searchProducts(q, {
+            limit,
+            page,
+            typeId,
+            includeImages: includeImages === 'true'
+        });
+        return res.status(200).json(result);
+    } catch (e) {
+        return res.status(500).json({
+            status: "ERR",
+            message: e.message || e
+        });
+    }
+}
+
 
 const addComment = async (req, res) => {
     const { productId } = req.params;
@@ -271,6 +289,7 @@ module.exports = {
     deleteProduct,
     getDetailsProduct,
     getAllProducts,
+    searchProducts,
     addComment,
     updateComment,
     addRating,

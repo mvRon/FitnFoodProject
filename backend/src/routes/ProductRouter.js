@@ -8,6 +8,7 @@ router.put('/update-product/:id', authMiddleWare, ProductController.updateProduc
 router.delete('/delete-product/:id', authMiddleWare, ProductController.deleteProduct);
 router.get('/get-details-product/:id', ProductController.getDetailsProduct);
 router.get('/get-all-products', ProductController.getAllProducts);
+router.get('/search-products', ProductController.searchProducts);
 router.get('/get-all-type-products', ProductController.getAllTypeProducts);
 
 

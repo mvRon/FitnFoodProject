@@ -75,10 +75,7 @@ const TypeProductPage = () => {
             .sort((a, b) => (a._id === parentId ? -1 : b._id === parentId ? 1 : 0)) // Cha nổi bật lên đầu
         : [];
 
-    const productAfterSearch = products?.filter((pro) => {
-        if (searchDebounce === '') return pro;
-        return pro?.name?.toLowerCase().includes(searchDebounce?.toLocaleLowerCase());
-    });
+    const isSearching = Boolean(searchDebounce);
 
     const fetchAllTypeProduct = async () => {
         const res = await CategoryService.getAllCategories();
@@ -112,15 +109,41 @@ const TypeProductPage = () => {
         return res
     }
 
+    const fetchProductBySearch = async (typeId, keyword, page, limit) => {
+        setIsLoading(true)
+        const res = await ProductService.searchProducts(keyword, {
+            limit,
+            page,
+            includeImages: true,
+            typeId,
+        })
+        if (res?.status === 'OK') {
+            setIsLoading(false)
+            setProducts(res?.data || [])
+            setPagination((prev) => ({ ...prev, total: res?.total || 0 }))
+        } else {
+            setIsLoading(false)
+            setProducts([])
+        }
+        return res
+    }
+
     useEffect(() => {
-        if (currentCategoryId) {
+        if (!currentCategoryId) return
+        if (isSearching) {
+            fetchProductBySearch(currentCategoryId, searchDebounce, pagination?.page, pagination?.limit)
+        } else {
             fetchProductByType(currentCategoryId, pagination?.page, pagination?.limit)
         }
-    }, [currentCategoryId, pagination?.page, pagination?.limit])
+    }, [currentCategoryId, pagination?.page, pagination?.limit, searchDebounce, isSearching])
 
     useEffect(() => {
         setPagination((prev) => ({ ...prev, page: 1 }))
     }, [currentCategoryId])
+
+    useEffect(() => {
+        setPagination((prev) => ({ ...prev, page: 1 }))
+    }, [searchDebounce])
 
     const onChange = (current, pageSize) => {
         setPagination((prev) => ({ ...prev, page: current, limit: pageSize }))
@@ -226,7 +249,7 @@ const TypeProductPage = () => {
 
                         <ProductsPanel>
                             <WrapperProducts>
-                                {productAfterSearch.length > 0 ? productAfterSearch?.map((product) => (
+                                {products.length > 0 ? products?.map((product) => (
                                     <CardComponent
                                         key={product?._id}
                                         countInStock={product.countInStock}

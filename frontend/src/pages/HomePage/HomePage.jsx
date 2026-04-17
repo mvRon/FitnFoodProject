@@ -30,7 +30,17 @@ const HomePage = () => {
   const [displayProducts, setDisplayProducts] = useState([])
   const [typeProduct, setTypeProduct] = useState([])
 
+  const SEARCH_LIMIT = 24
+
   const fetchProductAll = async (search, currentPage) => {
+    if (search) {
+      const res = await ProductService.searchProducts(search, {
+        limit: SEARCH_LIMIT,
+        includeImages: true,
+        page: 1,
+      })
+      return res
+    }
     const res = await ProductService.getAllProduct(search, currentPage, PAGE_SIZE, true)
     return res
   }
@@ -63,8 +73,15 @@ const HomePage = () => {
 
   const isLoadingMore = isFetching && page > 1
 
+  const isSearching = Boolean(searchDebounce)
+
   useEffect(() => {
     if (!products?.data) return
+
+    if (isSearching) {
+      setDisplayProducts(products.data)
+      return
+    }
 
     if (page === 1) {
       setDisplayProducts(products.data)
@@ -78,7 +95,7 @@ const HomePage = () => {
       })
       return Array.from(productMap.values())
     })
-  }, [products, page])
+  }, [products, page, isSearching])
 
   // console.log('products', products)
   //Chỉ lọc ra những Category cha
@@ -157,7 +174,7 @@ const HomePage = () => {
             </WrapperProducts>
             <div style={{ width: '100%', display: 'flex', marginTop: '10px', justifyContent: 'center' }}>
               <WrapperButtonMore
-                disabled={!products?.total || displayProducts.length >= products.total || isFetching}
+                disabled={isSearching || !products?.total || displayProducts.length >= products.total || isFetching}
                 onClick={() => setPage((prev) => prev + 1)}>
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
                   {isLoadingMore && <Spin size="small" />}

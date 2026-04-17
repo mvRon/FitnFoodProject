@@ -3,6 +3,106 @@ const Category = require("../models/CategoryModel");
 const Order = require("../models/OrderModel");
 const InventoryService = require("./InventoryService");
 const RecommendationService = require("./RecommendationService");
+const { embedText, normalizeText } = require("./EmbeddingService");
+
+const VECTOR_INDEX = process.env.MONGO_VECTOR_INDEX || "product_embedding_index";
+const EMBEDDING_DIM = Number(process.env.AI_EMBEDDING_DIM || 384);
+const SEARCH_DEFAULT_LIMIT = Number(process.env.SEARCH_LIMIT || 24);
+
+const escapeRegex = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const vectorSearchProductHits = async ({ queryVector, limit }) => {
+    if (!Array.isArray(queryVector) || queryVector.length !== EMBEDDING_DIM) {
+        return [];
+    }
+
+    const numCandidates = Math.max(limit * 20, 100);
+
+    try {
+        const results = await Product.aggregate([
+            {
+                $vectorSearch: {
+                    index: VECTOR_INDEX,
+                    path: "embedding",
+                    queryVector,
+                    numCandidates,
+                    limit,
+                },
+            },
+            {
+                $project: {
+                    _id: 1,
+                    score: { $meta: "vectorSearchScore" },
+                },
+            },
+        ]);
+
+        return results || [];
+    } catch (error) {
+        console.warn("Product search vector query failed:", error?.message || error);
+        return [];
+    }
+};
+
+const hydrateSearchResults = async (hits, includeImages) => {
+    const ids = (hits || []).map((item) => item?._id).filter(Boolean);
+    if (!ids.length) return [];
+
+    let query = Product.find({ _id: { $in: ids } }).populate("type").lean();
+    if (!includeImages) {
+        query = query.select("-images");
+    }
+
+    const docs = await query;
+    const docMap = new Map(docs.map((item) => [String(item._id), item]));
+    return hits
+        .map((hit) => {
+            const doc = docMap.get(String(hit._id));
+            if (!doc) return null;
+            return { ...doc, score: hit.score };
+        })
+        .filter(Boolean);
+};
+
+const resolveSearchCategoryFilter = async (typeId) => {
+    if (!typeId || !Category) return null;
+    const parentCategory = await Category.findById(typeId);
+    if (!parentCategory) return null;
+    const childCategories = await Category.find({ parent: parentCategory._id });
+    const categoryIds = [parentCategory._id, ...childCategories.map((cat) => cat._id)];
+    return { type: { $in: categoryIds } };
+};
+
+const buildKeywordScore = (query, product) => {
+    const content = `${product?.name || ""} ${product?.description || ""}`.toLowerCase();
+    const tokens = String(query)
+        .toLowerCase()
+        .split(/\s+/)
+        .filter((token) => token.length > 1);
+
+    if (!tokens.length) return 0;
+
+    let score = 0;
+    tokens.forEach((token) => {
+        if (product?.name?.toLowerCase().includes(token)) {
+            score += 1;
+        } else if (content.includes(token)) {
+            score += 0.5;
+        }
+    });
+
+    const normalized = score / tokens.length;
+    if (product?.name?.toLowerCase().startsWith(tokens[0])) {
+        return Math.min(1, normalized + 0.1);
+    }
+    return Math.min(1, normalized);
+};
+
+const buildHybridScore = (vectorScore, keywordScore) => {
+    const vectorWeight = 0.75;
+    const keywordWeight = 0.25;
+    return (Number(vectorScore) || 0) * vectorWeight + (Number(keywordScore) || 0) * keywordWeight;
+};
 
 
 const createProduct = (newProduct) => {
@@ -291,6 +391,94 @@ const getAllProducts = (limit, page, sort, filter, includeImages = false) => {
     })
 }
 
+const searchProducts = (query, options = {}) => {
+    return new Promise(async (resolve, reject) => {
+        try {
+            const normalized = normalizeText(query);
+            const includeImages = options.includeImages === true;
+            const limit = Number(options.limit) > 0 ? Number(options.limit) : SEARCH_DEFAULT_LIMIT;
+            const page = Number(options.page) > 0 ? Number(options.page) : 1;
+            const skip = (page - 1) * limit;
+            const typeId = options.typeId || null;
+            const categoryFilter = await resolveSearchCategoryFilter(typeId);
+
+            if (!normalized) {
+                return resolve({
+                    status: "OK",
+                    message: "No search query provided",
+                    total: 0,
+                    data: [],
+                });
+            }
+
+            const queryVector = await embedText(normalized);
+            const vectorLimit = Math.max(limit + skip, limit);
+            let hits = await vectorSearchProductHits({ queryVector, limit: vectorLimit });
+            let hydrated = await hydrateSearchResults(hits, includeImages);
+
+            if (categoryFilter && hydrated.length) {
+                hydrated = hydrated.filter((item) => {
+                    const typeIdValue = item?.type?._id ? String(item.type._id) : String(item.type || "");
+                    return categoryFilter.type.$in.map(String).includes(typeIdValue);
+                });
+            }
+
+            if (hydrated.length) {
+                const enriched = hydrated
+                    .map((item) => {
+                        const keywordScore = buildKeywordScore(normalized, item);
+                        const hybridScore = buildHybridScore(item.score, keywordScore);
+                        return { ...item, keywordScore, hybridScore };
+                    })
+                    .sort((a, b) => b.hybridScore - a.hybridScore);
+
+                const pageResults = enriched.slice(skip, skip + limit);
+                const total = enriched.length;
+
+                return resolve({
+                    status: "OK",
+                    message: "Search products successfully!",
+                    total,
+                    data: pageResults,
+                    currentPage: page,
+                    totalPage: Math.ceil(total / limit) || 1,
+                });
+            }
+
+            const escaped = escapeRegex(normalized);
+            const regex = new RegExp(escaped, "i");
+            const fallbackFilter = { name: regex };
+            if (categoryFilter) {
+                fallbackFilter.type = categoryFilter.type;
+            }
+
+            const total = await Product.countDocuments(fallbackFilter);
+            let fallbackQuery = Product.find(fallbackFilter)
+                .sort({ sold: -1, averageRating: -1, createdAt: -1 })
+                .skip(skip)
+                .limit(limit)
+                .populate("type")
+                .lean();
+
+            if (!includeImages) {
+                fallbackQuery = fallbackQuery.select("-images");
+            }
+
+            const results = await fallbackQuery;
+            resolve({
+                status: "OK",
+                message: "Search products successfully!",
+                total,
+                data: results,
+                currentPage: page,
+                totalPage: Math.ceil(total / limit) || 1,
+            });
+        } catch (e) {
+            reject(e);
+        }
+    });
+};
+
 const getAllTypeProducts = () => {
     return new Promise(async (resolve, reject) => {
         try {
@@ -544,6 +732,7 @@ module.exports = {
     deleteProduct,
     getDetailsProduct,
     getAllProducts,
+    searchProducts,
     addComment,
     updateComment,
     addRating,
