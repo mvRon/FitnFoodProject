@@ -12,6 +12,7 @@ import {
   CardImageWrapper,
   CarouselWrapper,
   PriceRow,
+  ProductName,
   QuickAddButton,
   RatingRow,
   RecommendationCard,
@@ -254,9 +255,7 @@ const RecommendationCarousel = ({
                   <ReasonBadge>{reason}</ReasonBadge>
                 </CardImageWrapper>
                 <CardBody>
-                  <div style={{ fontWeight: 700, color: "#0f172a", fontSize: 14, minHeight: 38 }}>
-                    {item?.name}
-                  </div>
+                  <ProductName>{item?.name}</ProductName>
                   <RatingRow>
                     <span>{ratingValue.toFixed(1).replace(".", ",")}</span>
                     <StarFilled />

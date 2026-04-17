@@ -72,6 +72,9 @@ export const RecommendationCard = styled.div`
   box-shadow: 0 12px 24px rgba(30, 41, 59, 0.1);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
   height: 100%;
+  min-height: 360px;
+  display: flex;
+  flex-direction: column;
 
   &:hover {
     transform: translateY(-4px);
@@ -81,9 +84,9 @@ export const RecommendationCard = styled.div`
 
 export const CardImageWrapper = styled.div`
   position: relative;
-  padding: 12px;
-  background: linear-gradient(180deg, rgba(16, 185, 129, 0.1), rgba(2, 132, 199, 0.08));
-  border-bottom: 1px solid rgba(2, 132, 199, 0.18);
+  padding: 14px;
+  background: #ffffff;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.2);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -91,6 +94,14 @@ export const CardImageWrapper = styled.div`
 
   .ant-image {
     width: 100%;
+  }
+
+  .ant-image-img {
+    background: radial-gradient(circle at 30% 20%, rgba(16, 185, 129, 0.08), transparent 60%),
+      #f8fafc;
+    border-radius: 14px;
+    border: 1px solid rgba(2, 132, 199, 0.18);
+    padding: 10px;
   }
 `;
 
@@ -113,6 +124,18 @@ export const CardBody = styled.div`
   display: flex;
   flex-direction: column;
   gap: 8px;
+  flex: 1;
+`;
+
+export const ProductName = styled.div`
+  font-weight: 700;
+  color: #0f172a;
+  font-size: 14px;
+  min-height: 40px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 `;
 
 export const RatingRow = styled.div`
