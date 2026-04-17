@@ -120,6 +120,34 @@ export const SearchButton = styled.button`
   }
 `;
 
+export const ClearButton = styled.button`
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(30, 41, 59, 0.5);
+  font-size: 16px;
+  padding: 4px;
+  border-radius: 999px;
+  transition: color 0.2s ease, background 0.2s ease;
+
+  &:hover {
+    color: var(--color-secondary);
+    background: rgba(2, 132, 199, 0.12);
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.4;
+  }
+
+  @media (max-width: 768px) {
+    font-size: 14px;
+  }
+`;
+
 export const SuggestionsPanel = styled.div`
   position: fixed;
   background: #ffffff;

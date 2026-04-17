@@ -1,11 +1,12 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { SearchOutlined } from '@ant-design/icons';
+import { CloseCircleFilled, SearchOutlined } from '@ant-design/icons';
 import {
   SearchShell,
   SearchInput,
   SearchButton,
   SearchIconWrap,
+  ClearButton,
   SuggestionsPanel,
   SuggestionItem,
   SuggestionThumb,
@@ -31,6 +32,7 @@ const SearchComponent = ({
   onSelectSuggestion,
   onFocus,
   onBlur,
+  onClear,
 }) => {
   const shellRef = useRef(null);
   const [dropdownStyle, setDropdownStyle] = useState({});
@@ -44,6 +46,17 @@ const SearchComponent = ({
 
   const hasQuery = Boolean(value && String(value).trim().length > 0);
   const shouldShow = showSuggestions && (hasQuery || isLoading || suggestions.length > 0);
+
+  const handleClear = () => {
+    if (disabled) return;
+    if (onClear) {
+      onClear();
+      return;
+    }
+    if (onChange) {
+      onChange({ target: { value: '' } });
+    }
+  };
 
   const updateDropdownPosition = () => {
     if (!shellRef.current) return;
@@ -88,6 +101,11 @@ const SearchComponent = ({
         onFocus={onFocus}
         onBlur={onBlur}
       />
+      {hasQuery && (
+        <ClearButton type="button" onClick={handleClear} disabled={disabled} aria-label="Xóa nội dung tìm kiếm">
+          <CloseCircleFilled />
+        </ClearButton>
+      )}
       <SearchButton type="submit" disabled={disabled}>
         {buttonText}
       </SearchButton>
