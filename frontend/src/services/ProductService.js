@@ -255,3 +255,28 @@ export const deleteCommentProduct = async (productId, reviewId, access_token) =>
         return { status: 'ERR', message: err.response?.data?.message || err.message };
     }
 };
+
+export const searchProducts = async (query, options = {}) => {
+    const {
+        limit = 24,
+        includeImages = true,
+        page = 1,
+        typeId,
+    } = options;
+
+    const queryParams = new URLSearchParams();
+    queryParams.append("q", query || "");
+    queryParams.append("limit", String(limit));
+    queryParams.append("page", String(page));
+    queryParams.append("includeImages", String(includeImages));
+    if (typeId) {
+        queryParams.append("typeId", String(typeId));
+    }
+
+    const res = await axios.get(
+        `${process.env.REACT_APP_API_URL_BACKEND}/product/search-products?${queryParams.toString()}`,
+        { withCredentials: true }
+    );
+
+    return res.data;
+};

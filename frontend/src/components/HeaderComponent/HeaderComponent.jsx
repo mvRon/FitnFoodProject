@@ -1,16 +1,18 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { Badge, Col, message, Popover } from 'antd';
 import { WrapperHeader, WrapperTextHeader, WrapperHeaderAccount, WrapperSpanHeader, WrapperContentPopup, WrapperEmailUser } from './Style'
 import { UserOutlined, CaretDownOutlined, ShoppingCartOutlined } from '@ant-design/icons';
-// import SearchComponent from '../SearchComponent/SearchComponent';
+import SearchComponent from '../SearchComponent/SearchComponent';
 
 import { useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import * as UserService from '../../services/UserService'
+import * as ProductService from '../../services/ProductService'
 import { resetUser } from '../../redux/slice/userSlice';
 import { searchProduct } from '../../redux/slice/productSlice';
 import Logo from '../../assets/logoFitnFood.jpg'
 import { clearOrder, syncCart } from '../../redux/slice/orderSlice';
+import { useDebounce } from '../../hooks/useDebounce';
 
 // import {
 //   AvatarImage,
@@ -27,7 +29,13 @@ const HeaderComponent = ({ isHiddenSearch = false, isHiddenCart = false }) => {
   const [userName, setUserName] = useState('')
   const [userAvatart, setUserAvatar] = useState('')
   const [search, setSearch] = useState('')
+  const [suggestions, setSuggestions] = useState([])
+  const [isSuggesting, setIsSuggesting] = useState(false)
+  const [showSuggestions, setShowSuggestions] = useState(false)
   const order = useSelector((state) => state.order)
+  const searchValue = useSelector((state) => state?.product?.search)
+  const searchDebounce = useDebounce(search, 350)
+  const blurTimeoutRef = useRef(null)
 
 
   const navigate = useNavigate()
@@ -66,6 +74,50 @@ const HeaderComponent = ({ isHiddenSearch = false, isHiddenCart = false }) => {
     setUserAvatar(user?.avatar)
   }, [user])
 
+  useEffect(() => {
+    if (typeof searchValue === 'string' && searchValue !== search) {
+      setSearch(searchValue)
+    }
+  }, [searchValue, search])
+
+  useEffect(() => {
+    return () => {
+      if (blurTimeoutRef.current) {
+        clearTimeout(blurTimeoutRef.current)
+      }
+    }
+  }, [])
+
+  useEffect(() => {
+    const query = (searchDebounce || '').trim()
+    if (!query) {
+      setSuggestions([])
+      setIsSuggesting(false)
+      return
+    }
+
+    let isActive = true
+    setIsSuggesting(true)
+
+    ProductService.searchProducts(query, { limit: 6, includeImages: true, page: 1 })
+      .then((res) => {
+        if (!isActive) return
+        setSuggestions(res?.data || [])
+      })
+      .catch(() => {
+        if (!isActive) return
+        setSuggestions([])
+      })
+      .finally(() => {
+        if (!isActive) return
+        setIsSuggesting(false)
+      })
+
+    return () => {
+      isActive = false
+    }
+  }, [searchDebounce])
+
 
 
   const content = (
@@ -97,9 +149,39 @@ const HeaderComponent = ({ isHiddenSearch = false, isHiddenCart = false }) => {
   }
 
   const onSearch = (e) => {
-    setSearch(e.target.value)
-    dispatch(searchProduct(e.target.value))
+    const nextValue = e.target.value
+    setSearch(nextValue)
+    dispatch(searchProduct(nextValue))
+  }
 
+  const handleSearchSubmit = () => {
+    const trimmed = (search || '').trim()
+    dispatch(searchProduct(trimmed))
+    if (trimmed.length > 0) {
+      navigate('/')
+    }
+    setShowSuggestions(false)
+  }
+
+  const handleSearchFocus = () => {
+    if (blurTimeoutRef.current) {
+      clearTimeout(blurTimeoutRef.current)
+    }
+    setShowSuggestions(true)
+  }
+
+  const handleSearchBlur = () => {
+    blurTimeoutRef.current = setTimeout(() => {
+      setShowSuggestions(false)
+    }, 120)
+  }
+
+  const handleSelectSuggestion = (product) => {
+    if (!product?._id) return
+    setSearch(product?.name || '')
+    dispatch(searchProduct(product?.name || ''))
+    setShowSuggestions(false)
+    navigate(`/productDetail/${product._id}`)
   }
 
 
@@ -154,13 +236,18 @@ const HeaderComponent = ({ isHiddenSearch = false, isHiddenCart = false }) => {
               justifyContent: 'center',
             }}
           >
-            {/* <SearchComponent
-              size="large"
-              placeholder="Nhấp vào để tìm kiếm"
-              textbutton="Tìm kiếm"
+            <SearchComponent
+              value={search}
               onChange={onSearch}
-              style={{ width: '100%' }}
-            /> */}
+              onSearch={handleSearchSubmit}
+              placeholder="Tìm sản phẩm phù hợp với bạn..."
+              suggestions={suggestions}
+              showSuggestions={showSuggestions}
+              isLoading={isSuggesting}
+              onSelectSuggestion={handleSelectSuggestion}
+              onFocus={handleSearchFocus}
+              onBlur={handleSearchBlur}
+            />
           </div>
         )}
 
