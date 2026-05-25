@@ -1,5 +1,6 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo } from "react";
 import { StarFilled } from "@ant-design/icons";
+import { useQuery } from "@tanstack/react-query";
 import { Image, message, Spin } from "antd";
 import { jwtDecode } from "jwt-decode";
 import { useDispatch, useSelector } from "react-redux";
@@ -60,8 +61,6 @@ const RecommendationCarousel = ({
   title,
   subtitle,
 }) => {
-  const [items, setItems] = useState([]);
-  const [loading, setLoading] = useState(false);
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const location = useLocation();
@@ -109,61 +108,30 @@ const RecommendationCarousel = ({
     []
   );
 
-  useEffect(() => {
-    let isMounted = true;
-
-    const fetchRecommendations = async () => {
-      if ((context === "history" || context === "cart") && !accessToken) {
-        setItems([]);
-        return;
+  const { data: recommendationsData, isLoading: loading } = useQuery({
+    queryKey: ["recommendations", context, productId, productIdsKey, accessToken, limit],
+    queryFn: async () => {
+      let response = null;
+      if (context === "product") {
+        response = await RecommendationService.getRecommendationsByProduct(productId, limit);
+      } else if (context === "cart") {
+        response = await RecommendationService.getRecommendationsByCart(productIds, limit, accessToken);
+      } else if (context === "history") {
+        response = await RecommendationService.getRecommendationsByHistory(accessToken, limit);
       }
-
-      if (context === "product" && !productId) {
-        setItems([]);
-        return;
+      if (response?.status === "OK") {
+        return response.data || [];
       }
+      return [];
+    },
+    enabled:
+      (context === "product" && !!productId) ||
+      (context === "cart" && !!accessToken && productIds.length > 0) ||
+      (context === "history" && !!accessToken),
+    staleTime: 5 * 60 * 1000,
+  });
 
-      if (context === "cart" && productIds.length === 0) {
-        setItems([]);
-        return;
-      }
-
-      setLoading(true);
-      try {
-        let response = null;
-        if (context === "product") {
-          response = await RecommendationService.getRecommendationsByProduct(productId, limit);
-        } else if (context === "cart") {
-          response = await RecommendationService.getRecommendationsByCart(productIds, limit, accessToken);
-        } else if (context === "history") {
-          response = await RecommendationService.getRecommendationsByHistory(accessToken, limit);
-        }
-
-        if (!isMounted) return;
-
-        if (response?.status === "OK") {
-          setItems(response.data || []);
-        } else {
-          setItems([]);
-        }
-      } catch (error) {
-        console.error("Recommendation fetch error:", error);
-        if (isMounted) {
-          setItems([]);
-        }
-      } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
-      }
-    };
-
-    fetchRecommendations();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [context, productId, productIdsKey, accessToken, limit]);
+  const items = recommendationsData || [];
 
   const handleQuickAdd = async (item) => {
     if (!accessToken) {

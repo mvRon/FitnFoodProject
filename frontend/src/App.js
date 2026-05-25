@@ -33,10 +33,10 @@ function App() {
   }, [])
 
   const handleGetDetailUser = async (token) => {
-    let storageRefreshToken = localStorage.getItem('refresh_token'); 
-    const refresh_token = JSON.parse(storageRefreshToken); 
+    let storageRefreshToken = localStorage.getItem('refresh_token');
+    const refresh_token = JSON.parse(storageRefreshToken);
     const res = await UserService.getDetailUser(token);
-    dispatch(updateUser({ ...res?.data, access_token: token, refresh_token: refresh_token })); 
+    dispatch(updateUser({ ...res?.data, access_token: token, refresh_token: refresh_token }));
     setIsLoading(false)
   };
 
@@ -67,6 +67,7 @@ function App() {
     const refresh_token = JSON.parse(storageRefreshToken); //byRon
     const decodedRefreshToken = jwtDecode(refresh_token);
     // console.log("Token cũ trước khi gọi API /refreshToken", storageData);
+
 
     if (decoded?.exp < currentTime.getTime() / 1000) {
       if (decodedRefreshToken?.exp > currentTime.getTime() / 1000) { //byRon
