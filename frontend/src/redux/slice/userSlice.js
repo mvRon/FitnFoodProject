@@ -11,7 +11,7 @@ const initialState = {
     access_token: '',
     isAdmin: false,
     city: '',
-    refresh_token: '' //byRon
+    refresh_token: '' 
 }
 
 
