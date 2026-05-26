@@ -294,10 +294,10 @@ const OrderListPage = () => {
           return (
 
             <Table.Summary.Row >
-              <Table.Summary.Cell index={0} colSpan={4}>
+              <Table.Summary.Cell index={0} colSpan={3}>
                 <Text strong>Tổng cộng đơn hàng này:</Text>
               </Table.Summary.Cell>
-              <Table.Summary.Cell index={4}>
+              <Table.Summary.Cell index={3}>
                 <Text strong>{record.totalAmount.toLocaleString('vi-VN')} VNĐ</Text>
               </Table.Summary.Cell>
             </Table.Summary.Row>
