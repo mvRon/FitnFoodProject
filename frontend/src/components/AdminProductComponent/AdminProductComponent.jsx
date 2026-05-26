@@ -3,7 +3,7 @@ import { Button, Checkbox, Form, Input, message, Modal, Select, Space, Tag, Inpu
 import { DeleteOutlined, EditOutlined, PlusOutlined, SearchOutlined, UploadOutlined } from '@ant-design/icons'
 import TableComponent from '../TableComponent/TableComponent'
 // import InputComponent from '../InputComponent/InputComponent'
-import { getBase64, renderOption } from '../../utils'
+import { getBase64, renderOption, compressImage } from '../../utils'
 import { AdminProductPageGlobalStyle, WrapperHeader, WrapperUploadFile } from './Style'
 import * as ProductService from '../../services/ProductService'
 import { useMutationHook } from '../../hooks/useMutationHook'
@@ -569,7 +569,8 @@ const AdminProductComponent = () => {
     const handleOnchangeAvatar = async ({ fileList }) => {
         const previews = await Promise.all(fileList.map(async (file) => {
             if (!file.url && !file.preview) {
-                file.preview = await getBase64(file.originFileObj);
+                const rawBase64 = await getBase64(file.originFileObj);
+                file.preview = await compressImage(rawBase64);
             }
             return file.preview;
         }));
@@ -583,7 +584,8 @@ const AdminProductComponent = () => {
     const handleOnchangeDetailAvatar = async ({ fileList }) => {
         const previews = await Promise.all(fileList.map(async (file) => {
             if (!file.url && !file.preview) {
-                file.preview = await getBase64(file.originFileObj);
+                const rawBase64 = await getBase64(file.originFileObj);
+                file.preview = await compressImage(rawBase64);
             }
             return file.preview;
         }));

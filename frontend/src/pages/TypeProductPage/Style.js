@@ -1,4 +1,5 @@
 import styled, { keyframes } from "styled-components";
+import { Button } from "antd";
 
 const floatIn = keyframes`
   from {
@@ -238,5 +239,34 @@ export const PaginationWrap = styled.div`
 
   .ant-pagination-options .ant-select-selector {
     border-color: rgba(2, 132, 199, 0.28) !important;
+  }
+`;
+
+export const WrapperButtonMore = styled(Button)`
+  text-align: center;
+  border: 1px solid var(--color-accent);
+  width: 240px;
+  height: 48px;
+  border-radius: 999px;
+  box-shadow: 0 10px 24px rgba(245, 158, 11, 0.25);
+
+  background-color: ${(props) => (props.disabled ? '#d9d9d9' : 'var(--color-accent)')};
+  color: ${(props) => (props.disabled ? '#888' : '#fff')};
+  cursor: ${(props) => (props.disabled ? 'not-allowed' : 'pointer')};
+
+  span {
+    color: ${(props) => (props.disabled ? '#fff' : '#fff')};
+    font-weight: 700;
+    letter-spacing: 0.2px;
+  }
+
+  &:hover {
+    background-color: ${(props) => props.disabled ? '#d9d9d9' : '#dd8d0a'} !important;
+    border-color: ${(props) => props.disabled ? '#d9d9d9' : '#dd8d0a'} !important;
+    transform: ${(props) => props.disabled ? 'none' : 'translateY(-1px)'};
+    
+    span {
+      color: ${(props) => (props.disabled ? '#fff' : '#fff')};
+    }
   }
 `;
