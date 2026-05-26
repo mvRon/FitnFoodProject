@@ -4,6 +4,7 @@ const mongoose = require('mongoose');
 const sharp = require('sharp');
 const Product = require('../src/models/ProductModel');
 const User = require('../src/models/UserModel');
+const Order = require('../src/models/OrderModel');
 
 const MONGO_DB = process.env.MONGO_DB;
 const MAX_DIMENSION = 800;
@@ -79,6 +80,7 @@ async function run() {
         let totalCompressedBytes = 0;
         let productsProcessed = 0;
         let usersProcessed = 0;
+        let ordersProcessed = 0;
 
         // 1. Process Products
         console.log("\n--- Processing Products ---");
@@ -148,9 +150,36 @@ async function run() {
             }
         }
 
+        // 3. Process Orders
+        console.log("\n--- Processing Order Items ---");
+        const orders = await Order.find({});
+        for (const order of orders) {
+            let updated = false;
+            if (Array.isArray(order.orderItems) && order.orderItems.length > 0) {
+                for (let i = 0; i < order.orderItems.length; i++) {
+                    const item = order.orderItems[i];
+                    if (item.image && item.image.startsWith('data:image')) {
+                        const result = await compressBase64Image(item.image);
+                        if (result && result.compressedSize < result.originalSize) {
+                            totalOriginalBytes += result.originalSize;
+                            totalCompressedBytes += result.compressedSize;
+                            item.image = result.data;
+                            updated = true;
+                        }
+                    }
+                }
+            }
+            if (updated) {
+                await Order.updateOne({ _id: order._id }, { orderItems: order.orderItems });
+                ordersProcessed++;
+                console.log(`Compressed order items for order ID: ${order._id}`);
+            }
+        }
+
         console.log("\n--- Migration Complete ---");
         console.log(`Products updated: ${productsProcessed}`);
         console.log(`Users updated: ${usersProcessed}`);
+        console.log(`Orders updated: ${ordersProcessed}`);
         
         const originalMB = (totalOriginalBytes / (1024 * 1024)).toFixed(2);
         const compressedMB = (totalCompressedBytes / (1024 * 1024)).toFixed(2);
