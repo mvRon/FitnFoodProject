@@ -71,7 +71,7 @@ export const slugify = (str) => {
     .replace(/[^a-z0-9_]/g, '');
 };
 
-export const compressImage = (base64Str, maxWidth = 800, maxHeight = 800, quality = 0.7) => {
+export const compressImage = (base64Str, maxWidth = 800, maxHeight = 800, quality = 0.8) => {
     return new Promise((resolve) => {
         if (!base64Str || !base64Str.startsWith('data:image')) {
             resolve(base64Str);

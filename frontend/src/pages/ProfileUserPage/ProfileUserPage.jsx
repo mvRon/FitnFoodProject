@@ -28,6 +28,7 @@ import {
 import * as UserService from '../../services/UserService';
 
 import { updateUser } from '../../redux/slice/userSlice'
+import { compressImage } from '../../utils'
 
 const ProfileUserPage = () => {
     const [form] = Form.useForm();
@@ -74,7 +75,8 @@ const ProfileUserPage = () => {
         const file = fileList[0];
         if (file) {
             if (!file.url && !file.preview) {
-                file.preview = await getBase64(file.originFileObj);
+                const rawBase64 = await getBase64(file.originFileObj);
+                file.preview = await compressImage(rawBase64);
             }
             setFormValues((prev) => ({
                 ...prev,
