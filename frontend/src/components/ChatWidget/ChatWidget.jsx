@@ -84,6 +84,14 @@ const ChatWidget = () => {
   const [status, setStatus] = useState("bot_active");
   const [input, setInput] = useState("");
   const [hasAuth, setHasAuth] = useState(true);
+  const [hasMore, setHasMore] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [isAdminTyping, setIsAdminTyping] = useState(false);
+  const [isBotTyping, setIsBotTyping] = useState(false);
+
+  const bodyRef = useRef(null);
+  const prevLastMessageIdRef = useRef(null);
+  const typingTimeoutRef = useRef(null);
 
   const accessToken = useMemo(() => getAccessToken(), [user?.access_token]);
   const guestId = useMemo(() => getOrCreateGuestId(), []);
@@ -94,6 +102,33 @@ const ChatWidget = () => {
     const apiBase = process.env.REACT_APP_API_URL_BACKEND || "";
     return apiBase.replace(/\/api\/?$/, "");
   }, []);
+
+  const formatMessageTime = (createdAt) => {
+    if (!createdAt) return "";
+    const date = new Date(createdAt);
+    const today = new Date();
+
+    const isToday =
+      date.getDate() === today.getDate() &&
+      date.getMonth() === today.getMonth() &&
+      date.getFullYear() === today.getFullYear();
+
+    const timeStr = date.toLocaleTimeString("vi-VN", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+
+    if (isToday) {
+      return timeStr;
+    } else {
+      const dateStr = date.toLocaleDateString("vi-VN", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      });
+      return `${timeStr} - ${dateStr}`;
+    }
+  };
 
   useEffect(() => {
     if (!isOpen) return undefined;
@@ -111,6 +146,16 @@ const ChatWidget = () => {
         setMessages(data.messages || []);
         setStatus(data.conversation?.status || "bot_active");
 
+        if (accessToken) {
+          if (data.messages && data.messages.length < 5) {
+            setHasMore(false);
+          } else {
+            setHasMore(true);
+          }
+        } else {
+          setHasMore(false);
+        }
+
         if (!socketUrl) {
           toast.error("Chưa cấu hình socket URL");
           return;
@@ -124,6 +169,15 @@ const ChatWidget = () => {
 
         socket.on("chat:message", (message) => {
           setMessages((prev) => [...prev, message]);
+          if (String(message.sender).toLowerCase() === "bot") {
+            setIsBotTyping(false);
+          }
+        });
+
+        socket.on("chat:typing", ({ sender, isTyping }) => {
+          if (sender === "admin") {
+            setIsAdminTyping(isTyping);
+          }
         });
 
         socket.on("chat:status", (payload) => {
@@ -167,9 +221,92 @@ const ChatWidget = () => {
   }, [accessToken, guestId, isOpen, socketUrl]);
 
   useEffect(() => {
-    if (!isOpen) return;
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (!isOpen || messages.length === 0) return;
+
+    const lastMessage = messages[messages.length - 1];
+    const lastMessageId = lastMessage._id || `${lastMessage.sender}-${lastMessage.createdAt}`;
+
+    if (prevLastMessageIdRef.current !== lastMessageId) {
+      if (bodyRef.current) {
+        bodyRef.current.scrollTo({
+          top: bodyRef.current.scrollHeight,
+          behavior: "smooth",
+        });
+      }
+      prevLastMessageIdRef.current = lastMessageId;
+    }
   }, [messages, isOpen]);
+
+  const handleScroll = async () => {
+    const container = bodyRef.current;
+    if (!container || isLoading || isLoadingMore || !hasMore || isGuest || !conversation?._id) return;
+
+    if (container.scrollTop <= 5) {
+      setIsLoadingMore(true);
+      const oldScrollHeight = container.scrollHeight;
+      const oldScrollTop = container.scrollTop;
+
+      try {
+        const oldestMessage = messages[0];
+        const before = oldestMessage ? oldestMessage.createdAt : null;
+
+        if (before) {
+          const response = await ChatService.getConversationMessages(
+            conversation._id,
+            accessToken,
+            before
+          );
+          const oldMessages = response?.data || [];
+
+          if (oldMessages.length === 0) {
+            setHasMore(false);
+          } else {
+            if (oldMessages.length < 5) {
+              setHasMore(false);
+            }
+            setMessages((prev) => [...oldMessages, ...prev]);
+
+            setTimeout(() => {
+              if (bodyRef.current) {
+                const newScrollHeight = bodyRef.current.scrollHeight;
+                bodyRef.current.scrollTop = newScrollHeight - oldScrollHeight + oldScrollTop;
+              }
+            }, 0);
+          }
+        }
+      } catch (error) {
+        console.error("Lỗi tải tin nhắn cũ:", error);
+      } finally {
+        setIsLoadingMore(false);
+      }
+    }
+  };
+
+  const handleInputChange = (event) => {
+    setInput(event.target.value);
+    if (!socketRef.current || !conversation?._id) return;
+
+    if (!typingTimeoutRef.current) {
+      socketRef.current.emit("chat:typing", {
+        conversationId: conversation._id,
+        isTyping: true,
+      });
+    }
+
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+
+    typingTimeoutRef.current = setTimeout(() => {
+      if (socketRef.current && conversation?._id) {
+        socketRef.current.emit("chat:typing", {
+          conversationId: conversation._id,
+          isTyping: false,
+        });
+      }
+      typingTimeoutRef.current = null;
+    }, 2000);
+  };
 
   const handleSend = () => {
     const messageText = input.trim();
@@ -180,6 +317,19 @@ const ChatWidget = () => {
       content: messageText,
     });
     setInput("");
+
+    if (status === "bot_active") {
+      setIsBotTyping(true);
+    }
+
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = null;
+    }
+    socketRef.current.emit("chat:typing", {
+      conversationId: conversation?._id,
+      isTyping: false,
+    });
   };
 
   const handleHandoff = () => {
@@ -221,7 +371,12 @@ const ChatWidget = () => {
             />
           </ChatHeader>
 
-          <ChatBody>
+          <ChatBody ref={bodyRef} onScroll={handleScroll}>
+            {isLoadingMore && (
+              <div style={{ textAlign: "center", fontSize: "11px", color: "#94a3b8", paddingBottom: "8px" }}>
+                Đang tải tin nhắn cũ...
+              </div>
+            )}
             {isGuest && messages.length === 0 && !isLoading && (
               <LoginHint>Bạn đang chat với nhân viên hỗ trợ với tư cách khách.</LoginHint>
             )}
@@ -236,12 +391,7 @@ const ChatWidget = () => {
               const isAdmin = sender === "admin";
               const senderLabel = isUser ? "Bạn" : isAdmin ? "Nhân viên" : "FITnFOOD AI";
               const productCards = message?.metadata?.products || [];
-              const timestamp = message?.createdAt
-                ? new Date(message.createdAt).toLocaleTimeString("vi-VN", {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })
-                : "";
+              const timestamp = formatMessageTime(message?.createdAt);
 
               return (
                 <MessageRow key={message._id || `${message.sender}-${timestamp}`} $isUser={isUser}>
@@ -275,6 +425,27 @@ const ChatWidget = () => {
                 </MessageRow>
               );
             })}
+            {isBotTyping && (
+              <MessageRow $isUser={false}>
+                <MessageStack $isUser={false}>
+                  <MessageLabel $isUser={false}>FITnFOOD AI</MessageLabel>
+                  <MessageBubble $isUser={false} style={{ opacity: 0.8, fontStyle: "italic", background: "#f1f5f9" }}>
+                    FITnFOOD AI đang phân tích câu hỏi...
+                  </MessageBubble>
+                </MessageStack>
+              </MessageRow>
+            )}
+
+            {isAdminTyping && (
+              <MessageRow $isUser={false}>
+                <MessageStack $isUser={false}>
+                  <MessageLabel $isUser={false}>Nhân viên</MessageLabel>
+                  <MessageBubble $isUser={false} style={{ opacity: 0.8, fontStyle: "italic", background: "#f1f5f9" }}>
+                    Nhân viên đang nhập tin nhắn...
+                  </MessageBubble>
+                </MessageStack>
+              </MessageRow>
+            )}
             <div ref={bottomRef} />
           </ChatBody>
 
@@ -300,7 +471,7 @@ const ChatWidget = () => {
                 rows={1}
                 value={input}
                 placeholder="Nhập tin nhắn..."
-                onChange={(event) => setInput(event.target.value)}
+                onChange={handleInputChange}
                 onKeyDown={handleKeyDown}
                 disabled={!hasAuth}
               />

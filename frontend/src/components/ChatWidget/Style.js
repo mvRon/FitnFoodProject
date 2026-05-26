@@ -70,6 +70,7 @@ export const ChatBody = styled.div`
   flex: 1;
   padding: 14px 16px;
   overflow-y: auto;
+  overflow-x: hidden;
   background: linear-gradient(180deg, rgba(248, 250, 252, 0.95), rgba(241, 245, 249, 0.9));
 `;
 
@@ -128,7 +129,24 @@ export const ProductRail = styled.div`
   display: flex;
   gap: 10px;
   overflow-x: auto;
-  padding-bottom: 4px;
+  padding-bottom: 6px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+
+  &::-webkit-scrollbar {
+    height: 4px;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: rgba(16, 185, 129, 0.3);
+    border-radius: 4px;
+  }
+  &::-webkit-scrollbar-thumb:hover {
+    background: rgba(16, 185, 129, 0.5);
+  }
 `;
 
 export const ProductCard = styled.div`

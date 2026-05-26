@@ -44,12 +44,15 @@ const AdminChatComponent = () => {
   const socketRef = useRef(null);
   const bottomRef = useRef(null);
   const activeConversationRef = useRef(null);
+  const adminBodyRef = useRef(null);
 
   const [conversations, setConversations] = useState([]);
   const [activeConversation, setActiveConversation] = useState(null);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isUserTyping, setIsUserTyping] = useState(false);
+  const typingTimeoutRef = useRef(null);
 
   const accessToken = useMemo(() => getAccessToken(), [user?.access_token]);
 
@@ -94,6 +97,12 @@ const AdminChatComponent = () => {
       }
     });
 
+    socket.on("chat:typing", ({ sender, isTyping }) => {
+      if (sender === "user") {
+        setIsUserTyping(isTyping);
+      }
+    });
+
     socket.on("chat:status", (payload) => {
       refreshConversations();
       if (payload?.conversationId && String(payload.conversationId) === String(activeConversationRef.current?._id)) {
@@ -116,13 +125,19 @@ const AdminChatComponent = () => {
   }, [accessToken, user?.isAdmin, socketUrl]);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (adminBodyRef.current) {
+      adminBodyRef.current.scrollTo({
+        top: adminBodyRef.current.scrollHeight,
+        behavior: "smooth",
+      });
+    }
   }, [messages]);
 
   const handleSelectConversation = async (conversation) => {
     if (!conversation?._id || !accessToken) return;
 
     setActiveConversation(conversation);
+    setIsUserTyping(false);
     setIsLoading(true);
 
     try {
@@ -143,6 +158,32 @@ const AdminChatComponent = () => {
     }
   };
 
+  const handleInputChange = (event) => {
+    setInput(event.target.value);
+    if (!socketRef.current || !activeConversation?._id) return;
+
+    if (!typingTimeoutRef.current) {
+      socketRef.current.emit("chat:typing", {
+        conversationId: activeConversation._id,
+        isTyping: true,
+      });
+    }
+
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+
+    typingTimeoutRef.current = setTimeout(() => {
+      if (socketRef.current && activeConversation?._id) {
+        socketRef.current.emit("chat:typing", {
+          conversationId: activeConversation._id,
+          isTyping: false,
+        });
+      }
+      typingTimeoutRef.current = null;
+    }, 2000);
+  };
+
   const handleSend = () => {
     const messageText = input.trim();
     if (!messageText || !socketRef.current || !activeConversation?._id) return;
@@ -152,6 +193,15 @@ const AdminChatComponent = () => {
       content: messageText,
     });
     setInput("");
+
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = null;
+    }
+    socketRef.current.emit("chat:typing", {
+      conversationId: activeConversation._id,
+      isTyping: false,
+    });
   };
 
   const handleCloseSupport = () => {
@@ -207,7 +257,7 @@ const AdminChatComponent = () => {
             Kết thúc hỗ trợ
           </Button>
         </AdminChatHeader>
-        <AdminChatBody>
+        <AdminChatBody ref={adminBodyRef}>
           {isLoading && <ListMeta>Đang tải tin nhắn...</ListMeta>}
           {!isLoading && messages.length === 0 && <ListMeta>Chưa có tin nhắn.</ListMeta>}
           {messages.map((message) => (
@@ -215,13 +265,18 @@ const AdminChatComponent = () => {
               <AdminMessageBubble $isAdmin={message.sender === "admin"}>{message.content}</AdminMessageBubble>
             </AdminMessageRow>
           ))}
+          {isUserTyping && (
+            <div style={{ textAlign: "left", fontSize: "11px", color: "#64748b", paddingLeft: "12px", marginBottom: "8px", fontStyle: "italic" }}>
+              Khách hàng đang nhập...
+            </div>
+          )}
           <div ref={bottomRef} />
         </AdminChatBody>
         <AdminChatFooter>
           <Input
             value={input}
             placeholder="Nhập tin nhắn..."
-            onChange={(event) => setInput(event.target.value)}
+            onChange={handleInputChange}
             onPressEnter={handleSend}
             disabled={!activeConversation}
           />

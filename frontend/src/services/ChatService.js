@@ -23,10 +23,11 @@ export const getOrCreateGuestConversation = async (guestId) => {
     return res.data;
 };
 
-export const getConversationMessages = async (conversationId, access_token) => {
+export const getConversationMessages = async (conversationId, access_token, before = null) => {
     const res = await axiosJWT.get(
         `${process.env.REACT_APP_API_URL_BACKEND}/chat/get-conversation-messages/${conversationId}`,
         {
+            params: before ? { before } : {},
             headers: {
                 token: `Bearer ${access_token}`,
             },

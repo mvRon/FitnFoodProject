@@ -98,11 +98,21 @@ const registerChatSocket = (io) => {
                     content: botResult.text,
                     metadata: {
                         productIds: botResult.productIds,
-                        products: botResult.products,
                     },
                 });
+                if (botMessage.metadata) {
+                    botMessage.metadata.products = botResult.products;
+                }
                 io.to(conversationId).emit("chat:message", botMessage);
             }
+        });
+
+        socket.on("chat:typing", ({ conversationId, isTyping }) => {
+            if (!conversationId) return;
+            socket.to(conversationId).emit("chat:typing", {
+                sender: user?.isAdmin ? "admin" : "user",
+                isTyping: !!isTyping,
+            });
         });
 
         socket.on("chat:handoff", async ({ conversationId }) => {
