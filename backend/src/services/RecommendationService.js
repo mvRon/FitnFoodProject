@@ -46,7 +46,6 @@ const mapRecommendation = (product, reason, score) => {
     return {
         _id: product?._id,
         name: product?.name,
-        images,
         image: images[0] || product?.image || "",
         price: product?.price,
         discount: product?.discount,
@@ -85,7 +84,7 @@ const vectorSearchProducts = async ({ queryVector, limit, excludeIds }) => {
             {
                 $project: {
                     name: 1,
-                    images: 1,
+                    images: { $slice: ["$images", 1] },
                     price: 1,
                     discount: 1,
                     countInStock: 1,
@@ -107,6 +106,8 @@ const vectorSearchProducts = async ({ queryVector, limit, excludeIds }) => {
 const fetchFallbackProducts = async ({ limit, excludeIds }) => {
     const query = excludeIds?.length ? { _id: { $nin: excludeIds } } : {};
     const products = await Product.find(query)
+        .select("-embedding")
+        .slice("images", 1)
         .sort({ sold: -1, averageRating: -1, createdAt: -1 })
         .limit(limit)
         .lean();
@@ -177,7 +178,9 @@ const getRecommendationsByCart = async (productIds, options = {}) => {
         };
     }
 
-    const products = await Product.find({ _id: { $in: excludeIds } }).lean();
+    const products = await Product.find({ _id: { $in: excludeIds } })
+        .select("name type description")
+        .lean();
     const categoryIds = Array.from(
         new Set(products.map((item) => resolveCategoryId(item.type)).filter(Boolean))
     );
@@ -225,7 +228,9 @@ const getRecommendationsByHistory = async (userId, options = {}) => {
     }
 
     const products = purchasedIds.length
-        ? await Product.find({ _id: { $in: purchasedIds } }).lean()
+        ? await Product.find({ _id: { $in: purchasedIds } })
+            .select("name type description")
+            .lean()
         : [];
 
     const categoryIds = Array.from(
