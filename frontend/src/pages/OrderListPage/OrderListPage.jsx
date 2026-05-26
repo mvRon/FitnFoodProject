@@ -161,8 +161,7 @@ const OrderListPage = () => {
   const mutationDeleteOrder = useMutationHook(
     (data) => {
       const { token, id } = data
-      const res = OrderService.deleteOrder(token, id)
-      return res.data
+      return OrderService.deleteOrder(token, id)
     }
   )
 
