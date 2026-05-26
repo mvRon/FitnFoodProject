@@ -8,38 +8,43 @@ const StockCard = require("../models/StockCardModel");
 
 const createOrder = (newOrder) => {
     return new Promise(async (resolve, reject) => {
-        const { orderItems, paymentMethod, itemsPrice, shippingPrice, totalPrice, fullName, address, city, phone, user, isPaid, paidAt, isDelivered } = newOrder;
+        const { orderItems, paymentMethod, itemsPrice, shippingPrice, totalPrice, fullName, address, city, phone, user, isPaid, paidAt, isDelivered, email } = newOrder;
         const deliveryStatus = ["pending", "processing", "shipping", "delivered"].includes(isDelivered)
             ? isDelivered
             : "pending";
 
-        // Lấy session từ MongoDB để dùng transaction - đảm bảo atomicity
-        const session = await require('mongoose').startSession();
-        session.startTransaction();
-
-        const updatedProducts = []; //Lưu lại các sản phẩm đã cập nhật
-        const normalizedOrderItems = [];
-        const failedItems = [];
+        let session = null;
 
         try {
+            // Check user existence and get email outside the transaction to minimize database locking
+            const userData = await User.findById(user).select('email').lean();
+            if (!userData) {
+                return resolve({
+                    status: 'ERR',
+                    message: `User not found!`
+                });
+            }
+            const userEmail = email || userData.email;
+
+            // Lấy session từ MongoDB để dùng transaction - đảm bảo atomicity
+            session = await require('mongoose').startSession();
+            session.startTransaction();
+
+            const updatedProducts = []; //Lưu lại các sản phẩm đã cập nhật
+            const normalizedOrderItems = [];
+            const failedItems = [];
+
             // Duyệt từng sản phẩm để cập nhật kho
             for (const order of orderItems) {
-                // Double-check tồn kho trước khi update (additional safety check)
-                const productCheck = await Product.findById(order.product).session(session);
-                if (!productCheck || Number(productCheck.countInStock || 0) < Number(order.amount || 0)) {
-                    failedItems.push(order.product);
-                    break;
-                }
-
                 const productData = await Product.findOneAndUpdate(
                     {
                         _id: order.product,
-                        countInStock: { $gte: order.amount }
+                        countInStock: { $gte: Number(order.amount || 0) }
                     },
                     {
                         $inc: {
-                            countInStock: -order.amount,
-                            sold: +order.amount,
+                            countInStock: -Number(order.amount || 0),
+                            sold: +Number(order.amount || 0),
                         },
                         $set: {
                             lastStockMovementAt: new Date(),
@@ -54,7 +59,7 @@ const createOrder = (newOrder) => {
                 }
 
                 // Lưu lại sản phẩm đã cập nhật thành công để rollback nếu cần
-                updatedProducts.push({ productId: order.product, amount: order.amount });
+                updatedProducts.push({ productId: order.product, amount: Number(order.amount || 0) });
 
                 const primaryImage = Array.isArray(order.images) && order.images.length > 0
                     ? order.images[0]
@@ -82,19 +87,6 @@ const createOrder = (newOrder) => {
                 });
             }
 
-            //check user có tồn tại không
-            const userData = await User.findById(user).session(session);
-            if (!userData) {
-                await session.abortTransaction();
-                session.endSession();
-                return resolve({
-                    status: 'ERR',
-                    message: `User not found!`
-                });
-            }
-
-
-            const sendEmailOrder = await EmailService.sendEmailOrder({ email: userData.email, orderItems: normalizedOrderItems, totalPrice })
             // Tạo đơn hàng duy nhất sau khi kiểm tra và cập nhật kho thành công
             const createdOrder = await Order.create([{
                 orderItems: normalizedOrderItems,
@@ -142,41 +134,64 @@ const createOrder = (newOrder) => {
 
             const saleVoucherDoc = Array.isArray(saleVoucher) ? saleVoucher[0] : saleVoucher;
 
-            for (const item of normalizedOrderItems) {
-                const productData = await Product.findById(item.product).session(session);
-                await StockCard.create([{
-                    product: item.product,
-                    date: new Date(),
-                    transactionType: "EXPORT",
-                    voucherCode,
-                    voucherRef: saleVoucherDoc._id,
-                    description: "Xuat kho - SALE",
-                    quantityIn: 0,
-                    quantityOut: Number(item.amount || 0),
-                    balanceAfter: productData?.countInStock || 0,
-                    performedBy: user,
-                    note: `Lien ket don hang ${createdOrderDoc._id}`,
-                }], { session });
-            }
+            const stockCardsToCreate = normalizedOrderItems.map((item) => ({
+                product: item.product,
+                date: new Date(),
+                transactionType: "EXPORT",
+                voucherCode,
+                voucherRef: saleVoucherDoc._id,
+                description: "Xuat kho - SALE",
+                quantityIn: 0,
+                quantityOut: Number(item.amount || 0),
+                balanceAfter: Number(item.countInStock || 0),
+                performedBy: user,
+                note: `Lien ket don hang ${createdOrderDoc._id}`,
+            }));
+
+            await StockCard.insertMany(stockCardsToCreate, { session });
 
             // Commit transaction nếu tất cả thành công
             await session.commitTransaction();
             session.endSession();
+            session = null;
+
+            // Gửi email bất đồng bộ ngoài transaction bằng setImmediate để phản hồi HTTP ngay lập tức
+            setImmediate(() => {
+                EmailService.sendEmailOrder({ 
+                    email: userEmail, 
+                    orderItems: normalizedOrderItems, 
+                    totalPrice 
+                }).catch((err) => {
+                    console.error("Failed to send order confirmation email:", err);
+                });
+            });
+
+            // Loại bỏ trường image (chứa base64) ra khỏi data trả về để giảm dung lượng payload xuống < 1KB
+            const orderResponse = createdOrderDoc.toObject();
+            if (orderResponse && Array.isArray(orderResponse.orderItems)) {
+                orderResponse.orderItems.forEach(item => {
+                    delete item.image;
+                });
+            }
 
             return resolve({
                 status: 'OK',
                 message: 'Order placed successfully!',
-                data: createdOrderDoc
+                data: orderResponse
             });
 
         } catch (e) {
             // Rollback transaction tự động nếu lỗi
             try {
-                await session.abortTransaction();
+                if (session) {
+                    await session.abortTransaction();
+                }
             } catch (abortError) {
                 console.error('Error aborting transaction:', abortError);
             } finally {
-                session.endSession();
+                if (session) {
+                    session.endSession();
+                }
             }
 
             return reject(e);

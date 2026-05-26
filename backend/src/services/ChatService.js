@@ -14,7 +14,7 @@ const { embedText, normalizeText } = require("./EmbeddingService");
 const VECTOR_INDEX = process.env.MONGO_VECTOR_INDEX || "product_embedding_index";
 const EMBEDDING_DIM = Number(process.env.AI_EMBEDDING_DIM || 384);
 const CHAT_VECTOR_LIMIT = Number(process.env.CHAT_VECTOR_LIMIT || 3);
-const CHAT_HISTORY_LIMIT = Number(process.env.CHAT_HISTORY_LIMIT || 50);
+const CHAT_HISTORY_LIMIT = Number(process.env.CHAT_HISTORY_LIMIT || 5);
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
 const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
 let geminiClient = null;
@@ -37,11 +37,12 @@ const getCategoryMap = async (categoryIds) => {
 
 const buildProductSnapshot = (product) => {
     const images = Array.isArray(product?.images) ? product.images : [];
+    const singleImage = images.length > 0 ? [images[0]] : [];
     return {
         _id: product?._id,
         name: product?.name,
         price: product?.price,
-        images,
+        images: singleImage,
         discount: product?.discount,
     };
 };
@@ -250,6 +251,69 @@ const createConversation = async (input) => {
     return conversation;
 };
 
+const populateMessagesProducts = async (messages) => {
+    if (!Array.isArray(messages) || messages.length === 0) return [];
+
+    const productIdsSet = new Set();
+    messages.forEach((msg) => {
+        if (msg?.metadata) {
+            if (Array.isArray(msg.metadata.productIds)) {
+                msg.metadata.productIds.forEach((id) => {
+                    if (id) productIdsSet.add(String(id));
+                });
+            }
+            if (Array.isArray(msg.metadata.products)) {
+                msg.metadata.products.forEach((p) => {
+                    if (p && p._id) productIdsSet.add(String(p._id));
+                });
+            }
+        }
+    });
+
+    const productIds = Array.from(productIdsSet);
+    if (productIds.length === 0) return messages;
+
+    const products = await Product.find({ _id: { $in: productIds } })
+        .select("name price discount images")
+        .lean();
+
+    const productMap = products.reduce((acc, prod) => {
+        const images = Array.isArray(prod?.images) ? prod.images : [];
+        const singleImage = images.length > 0 ? [images[0]] : [];
+        acc[String(prod._id)] = {
+            _id: prod._id,
+            name: prod.name,
+            price: prod.price,
+            discount: prod.discount,
+            images: singleImage,
+        };
+        return acc;
+    }, {});
+
+    return messages.map((msg) => {
+        if (msg?.metadata) {
+            let pIds = msg.metadata.productIds || [];
+            if (pIds.length === 0 && Array.isArray(msg.metadata.products)) {
+                pIds = msg.metadata.products.map((p) => p._id).filter(Boolean);
+            }
+
+            const populated = pIds
+                .map((id) => productMap[String(id)])
+                .filter(Boolean);
+
+            return {
+                ...msg,
+                metadata: {
+                    ...msg.metadata,
+                    productIds: pIds,
+                    products: populated,
+                },
+            };
+        }
+        return msg;
+    });
+};
+
 const getOrCreateConversation = async (input) => {
     const { customerId, guestId } = resolveConversationInput(input);
     if (!customerId && !guestId) {
@@ -266,19 +330,27 @@ const getOrCreateConversation = async (input) => {
         conversation = created.toObject();
     }
 
-    const messages = await Message.find({ conversation: conversation._id })
-        .sort({ createdAt: 1 })
+    const rawMessages = await Message.find({ conversation: conversation._id })
+        .sort({ createdAt: -1 })
         .limit(CHAT_HISTORY_LIMIT)
         .lean();
+
+    const messages = await populateMessagesProducts(rawMessages.reverse());
 
     return { conversation, messages };
 };
 
-const getMessages = async (conversationId, limit = CHAT_HISTORY_LIMIT) => {
-    return Message.find({ conversation: conversationId })
-        .sort({ createdAt: 1 })
+const getMessages = async (conversationId, before = null, limit = CHAT_HISTORY_LIMIT) => {
+    const query = { conversation: conversationId };
+    if (before) {
+        query.createdAt = { $lt: new Date(before) };
+    }
+    const rawMessages = await Message.find(query)
+        .sort({ createdAt: -1 })
         .limit(limit)
         .lean();
+
+    return populateMessagesProducts(rawMessages.reverse());
 };
 
 const createMessage = async ({ conversationId, sender, content, metadata }) => {

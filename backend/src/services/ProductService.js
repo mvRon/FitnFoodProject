@@ -49,8 +49,11 @@ const hydrateSearchResults = async (hits, includeImages) => {
     if (!ids.length) return [];
 
     let query = Product.find({ _id: { $in: ids } }).populate("type").lean();
+    query = query.select("-embedding");
     if (!includeImages) {
         query = query.select("-images");
+    } else {
+        query = query.slice("images", 1);
     }
 
     const docs = await query;
@@ -272,7 +275,11 @@ const deleteProduct = (productId) => {
 const getDetailsProduct = (productId) => {
     return new Promise(async (resolve, reject) => {
         try {
-            const productDetails = await Product.findById(productId).populate('type').populate('reviews.user').populate('reviews.replies.user');
+            const productDetails = await Product.findById(productId)
+                .select("-embedding")
+                .populate('type')
+                .populate('reviews.user')
+                .populate('reviews.replies.user');
             if (productDetails) {
                 resolve({
                     status: "OK",
@@ -368,8 +375,11 @@ const getAllProducts = (limit, page, sort, filter, includeImages = false) => {
                 .skip(skip)
                 .sort(sortObject);
 
+            productQuery = productQuery.select("-embedding");
             if (!includeImages) {
                 productQuery = productQuery.select("-images");
+            } else {
+                productQuery = productQuery.slice("images", 1);
             }
 
             if (populateType) {
@@ -460,8 +470,11 @@ const searchProducts = (query, options = {}) => {
                 .populate("type")
                 .lean();
 
+            fallbackQuery = fallbackQuery.select("-embedding");
             if (!includeImages) {
                 fallbackQuery = fallbackQuery.select("-images");
+            } else {
+                fallbackQuery = fallbackQuery.slice("images", 1);
             }
 
             const results = await fallbackQuery;

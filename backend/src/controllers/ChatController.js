@@ -42,7 +42,10 @@ const getConversationMessages = async (req, res) => {
             });
         }
 
-        const messages = await ChatService.getMessages(conversationId);
+        const before = req.query.before || null;
+        const limit = req.query.limit ? Number(req.query.limit) : undefined;
+
+        const messages = await ChatService.getMessages(conversationId, before, limit);
         return res.status(200).json({
             status: "OK",
             message: "Messages loaded successfully!",

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import CardComponent from '../../components/CardComponent/CardComponent'
-import { Breadcrumb, Pagination } from 'antd'
+import { Breadcrumb, Spin } from 'antd'
 import {
     BreadcrumbWrap,
     CategoryBar,
@@ -19,7 +19,9 @@ import {
     ParentCategory,
     ProductsPanel,
     WrapperProducts,
+    WrapperButtonMore,
 } from './Style'
+import { useQuery } from '@tanstack/react-query'
 import { useLocation, useNavigate } from 'react-router-dom'
 import * as ProductService from '../../services/ProductService'
 import * as CategoryService from '../../services/CategoryService'
@@ -39,13 +41,8 @@ const TypeProductPage = () => {
     const searchDebounce = useDebounce(searchProduct, 500)
     const location = useLocation()
     const navigate = useNavigate()
-    const [products, setProducts] = useState([])
-    const [isloading, setIsLoading] = useState(false)
-    const [pagination, setPagination] = useState({
-        page: 1,
-        limit: 12,
-        total: 0,
-    })
+    const [displayProducts, setDisplayProducts] = useState([])
+    const [page, setPage] = useState(1)
     const [typeProduct, setTypeProduct] = useState([])
     const [selectedChildId, setSelectedChildId] = useState(null);
 
@@ -95,59 +92,51 @@ const TypeProductPage = () => {
         setSelectedChildId(hasParent ? currentCategory._id : null)
     }, [currentCategory])
 
-    const fetchProductByType = async (typeId, page, limit) => {
-        setIsLoading(true)
-        const res = await ProductService.getProductByType(typeId, page, limit)
-        if (res?.status === 'OK') {
-            setIsLoading(false)
-            setProducts(res?.data)
-            setPagination((prev) => ({ ...prev, total: res?.total || 0 }))
-        } else {
-            setIsLoading(false)
-            setProducts([])
+    const fetchProducts = async (typeId, keyword, currentPage) => {
+        if (!typeId) return { data: [], total: 0 };
+        if (keyword) {
+            return await ProductService.searchProducts(keyword, {
+                limit: 12,
+                page: currentPage,
+                includeImages: true,
+                typeId,
+            });
         }
-        return res
-    }
+        return await ProductService.getProductByType(typeId, currentPage, 12);
+    };
 
-    const fetchProductBySearch = async (typeId, keyword, page, limit) => {
-        setIsLoading(true)
-        const res = await ProductService.searchProducts(keyword, {
-            limit,
-            page,
-            includeImages: true,
-            typeId,
-        })
-        if (res?.status === 'OK') {
-            setIsLoading(false)
-            setProducts(res?.data || [])
-            setPagination((prev) => ({ ...prev, total: res?.total || 0 }))
-        } else {
-            setIsLoading(false)
-            setProducts([])
-        }
-        return res
-    }
+    const { data: productsData, isPending, isFetching } = useQuery({
+        queryKey: ['products-by-type', currentCategoryId, searchDebounce, page],
+        queryFn: () => fetchProducts(currentCategoryId, searchDebounce, page),
+        enabled: Boolean(currentCategoryId),
+        retry: 3,
+        retryDelay: 1000,
+    });
+
+    const isloading = isPending && page === 1;
+    const isLoadingMore = isFetching && page > 1;
 
     useEffect(() => {
-        if (!currentCategoryId) return
-        if (isSearching) {
-            fetchProductBySearch(currentCategoryId, searchDebounce, pagination?.page, pagination?.limit)
-        } else {
-            fetchProductByType(currentCategoryId, pagination?.page, pagination?.limit)
+        setPage(1);
+        setDisplayProducts([]);
+    }, [currentCategoryId, searchDebounce]);
+
+    useEffect(() => {
+        if (!productsData?.data) return;
+
+        if (page === 1) {
+            setDisplayProducts(productsData.data);
+            return;
         }
-    }, [currentCategoryId, pagination?.page, pagination?.limit, searchDebounce, isSearching])
 
-    useEffect(() => {
-        setPagination((prev) => ({ ...prev, page: 1 }))
-    }, [currentCategoryId])
-
-    useEffect(() => {
-        setPagination((prev) => ({ ...prev, page: 1 }))
-    }, [searchDebounce])
-
-    const onChange = (current, pageSize) => {
-        setPagination((prev) => ({ ...prev, page: current, limit: pageSize }))
-    }
+        setDisplayProducts((prev) => {
+            const productMap = new Map(prev.map((item) => [item._id, item]));
+            productsData.data.forEach((item) => {
+                productMap.set(item._id, item);
+            });
+            return Array.from(productMap.values());
+        });
+    }, [productsData, page]);
 
     if (!typeProduct.length) return <div>Loading...</div>;
 
@@ -207,7 +196,7 @@ const TypeProductPage = () => {
                                 {currentCategory ? currentCategory.name : 'Khám phá danh mục thực phẩm'}
                             </HeroTitle>
                             <HeroMeta>
-                                {totalCategoryCount} danh mục liên quan • {pagination.total} sản phẩm
+                                {totalCategoryCount} danh mục liên quan • {productsData?.total || 0} sản phẩm
                             </HeroMeta>
                             <HeroMeta>
                                 Bộ lọc thông minh theo nhóm thực phẩm giúp bạn chọn nhanh theo mục tiêu dinh dưỡng.
@@ -249,7 +238,7 @@ const TypeProductPage = () => {
 
                         <ProductsPanel>
                             <WrapperProducts>
-                                {products.length > 0 ? products?.map((product) => (
+                                {displayProducts.length > 0 ? displayProducts?.map((product) => (
                                     <CardComponent
                                         key={product?._id}
                                         countInStock={product.countInStock}
@@ -272,14 +261,15 @@ const TypeProductPage = () => {
                             </WrapperProducts>
 
                             <PaginationWrap>
-                                <Pagination
-                                    current={pagination.page}
-                                    pageSize={pagination.limit}
-                                    total={pagination.total}
-                                    onChange={onChange}
-                                    showSizeChanger
-                                    pageSizeOptions={['8', '12', '16', '20']}
-                                />
+                                <WrapperButtonMore
+                                    disabled={!productsData?.total || displayProducts.length >= productsData.total || isFetching}
+                                    onClick={() => setPage((prev) => prev + 1)}
+                                >
+                                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                                        {isLoadingMore && <Spin size="small" />}
+                                        <span>{isLoadingMore ? 'Đang tải thêm' : 'Xem thêm'}</span>
+                                    </span>
+                                </WrapperButtonMore>
                             </PaginationWrap>
                         </ProductsPanel>
                     </ContentContainer>
