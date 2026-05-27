@@ -170,7 +170,8 @@ const ChatWidget = () => {
 
         socket.on("chat:message", (message) => {
           setMessages((prev) => [...prev, message]);
-          if (String(message.sender).toLowerCase() === "bot") {
+          const sender = String(message.sender).toLowerCase();
+          if (sender === "bot" || sender === "admin") {
             setIsBotTyping(false);
             setBotStatusText("");
           }
@@ -192,6 +193,10 @@ const ChatWidget = () => {
             setConversation((prev) =>
               prev ? { ...prev, status: payload.status, admin: payload.admin || null } : prev
             );
+            if (payload.status !== "bot_active") {
+              setIsBotTyping(false);
+              setBotStatusText("");
+            }
           }
         });
 
@@ -199,10 +204,21 @@ const ChatWidget = () => {
           if (nextConversation) {
             setConversation(nextConversation);
             setStatus(nextConversation.status || "bot_active");
+            if (nextConversation.status !== "bot_active") {
+              setIsBotTyping(false);
+              setBotStatusText("");
+            }
           }
         });
 
+        socket.on("disconnect", () => {
+          setIsBotTyping(false);
+          setBotStatusText("");
+        });
+
         socket.on("connect_error", () => {
+          setIsBotTyping(false);
+          setBotStatusText("");
           toast.error("Không thể kết nối chat. Vui lòng thử lại.");
         });
 
@@ -324,7 +340,7 @@ const ChatWidget = () => {
     });
     setInput("");
 
-    if (status === "bot_active") {
+    if (status === "bot_active" && !isGuest) {
       setIsBotTyping(true);
     }
 
