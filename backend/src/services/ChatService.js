@@ -249,12 +249,35 @@ const fetchConversationHistory = async (conversationId, limit = AI_CONTEXT_LIMIT
     const ordered = messages.reverse();
 
     // Map sang format Gemini multi-turn: user → "user", bot → "model"
-    return ordered
+    const mapped = ordered
         .filter((msg) => msg.sender === "user" || msg.sender === "bot")
         .map((msg) => ({
             role: msg.sender === "user" ? "user" : "model",
             parts: [{ text: msg.content || "" }],
         }));
+
+    // Tối ưu hóa lịch sử cuộc trò chuyện cho Gemini:
+    // 1. Phải luân phiên các vai trò (role). Gộp các tin nhắn liên tiếp cùng vai trò.
+    const optimized = [];
+    for (const msg of mapped) {
+        if (optimized.length === 0) {
+            optimized.push(msg);
+        } else {
+            const last = optimized[optimized.length - 1];
+            if (last.role === msg.role) {
+                last.parts[0].text = last.parts[0].text + "\n" + msg.parts[0].text;
+            } else {
+                optimized.push(msg);
+            }
+        }
+    }
+
+    // 2. Tin nhắn đầu tiên phải có vai trò "user".
+    while (optimized.length > 0 && optimized[0].role !== "user") {
+        optimized.shift();
+    }
+
+    return optimized;
 };
 
 // =============================================
