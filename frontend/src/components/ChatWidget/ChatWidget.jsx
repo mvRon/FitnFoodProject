@@ -88,6 +88,7 @@ const ChatWidget = () => {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [isAdminTyping, setIsAdminTyping] = useState(false);
   const [isBotTyping, setIsBotTyping] = useState(false);
+  const [botStatusText, setBotStatusText] = useState("");
 
   const bodyRef = useRef(null);
   const prevLastMessageIdRef = useRef(null);
@@ -171,7 +172,12 @@ const ChatWidget = () => {
           setMessages((prev) => [...prev, message]);
           if (String(message.sender).toLowerCase() === "bot") {
             setIsBotTyping(false);
+            setBotStatusText("");
           }
+        });
+
+        socket.on("chat:bot_status", ({ status }) => {
+          setBotStatusText(status || "");
         });
 
         socket.on("chat:typing", ({ sender, isTyping }) => {
@@ -430,7 +436,7 @@ const ChatWidget = () => {
                 <MessageStack $isUser={false}>
                   <MessageLabel $isUser={false}>FITnFOOD AI</MessageLabel>
                   <MessageBubble $isUser={false} style={{ opacity: 0.8, fontStyle: "italic", background: "#f1f5f9" }}>
-                    FITnFOOD AI đang phân tích câu hỏi...
+                    {botStatusText || "FITnFOOD AI đang phân tích câu hỏi..."}
                   </MessageBubble>
                 </MessageStack>
               </MessageRow>

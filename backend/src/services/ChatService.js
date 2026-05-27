@@ -9,12 +9,14 @@ const Conversation = require("../models/ConversationModel");
 const Message = require("../models/MessageModel");
 const Product = require("../models/ProductModel");
 const Category = require("../models/CategoryModel");
+const Order = require("../models/OrderModel");
 const { embedText, normalizeText } = require("./EmbeddingService");
 
 const VECTOR_INDEX = process.env.MONGO_VECTOR_INDEX || "product_embedding_index";
 const EMBEDDING_DIM = Number(process.env.AI_EMBEDDING_DIM || 384);
 const CHAT_VECTOR_LIMIT = Number(process.env.CHAT_VECTOR_LIMIT || 3);
 const CHAT_HISTORY_LIMIT = Number(process.env.CHAT_HISTORY_LIMIT || 5);
+const AI_CONTEXT_LIMIT = Number(process.env.AI_CONTEXT_LIMIT || 10);
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
 const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
 let geminiClient = null;
@@ -129,24 +131,165 @@ const getGeminiModel = () => {
     }
     return geminiClient.getGenerativeModel({ 
         model: GEMINI_MODEL,
-        systemInstruction: "Bạn là chuyên gia tư vấn dinh dưỡng của FITNFOOD. Nhiệm vụ của bạn là tư vấn thân thiện, ngắn gọn và dễ hiểu bằng tiếng Việt. Chỉ sử dụng thông tin sản phẩm được cung cấp, không tự bịa sản phẩm. Nếu không có sản phẩm phù hợp, hãy xin lỗi và hỏi thêm thông tin từ khách."
+        systemInstruction: `Bạn là chuyên gia tư vấn dinh dưỡng của FITNFOOD. Nhiệm vụ:
+1. Tư vấn thân thiện, ngắn gọn và dễ hiểu bằng tiếng Việt.
+2. Chỉ sử dụng thông tin sản phẩm được cung cấp, không tự bịa sản phẩm.
+3. Nếu không có sản phẩm phù hợp, hãy xin lỗi và hỏi thêm thông tin từ khách.
+4. Khi khách hỏi về đơn hàng hoặc tồn kho, hãy sử dụng các function tool được cung cấp.
+5. Luôn duy trì ngữ cảnh hội thoại, nhớ những gì khách đã nói trước đó.
+6. Khi cần thêm thông tin sức khỏe (cân nặng, chiều cao, mục tiêu...), hãy hỏi ngắn gọn và chỉ hỏi 1 câu tại 1 thời điểm.`
     });
 };
 
-const generateGeminiReply = async (prompt) => {
+// =============================================
+// Gemini Function Calling — Tool Declarations
+// =============================================
+
+const functionDeclarations = [
+    {
+        name: "lookup_user_orders",
+        description: "Tra cứu đơn hàng gần nhất của khách hàng đang chat. Dùng khi khách hỏi về đơn hàng, trạng thái giao hàng, lịch sử mua hàng.",
+        parameters: {
+            type: "object",
+            properties: {
+                limit: {
+                    type: "number",
+                    description: "Số đơn hàng cần lấy (mặc định 3)",
+                },
+            },
+        },
+    },
+    {
+        name: "check_product_stock",
+        description: "Kiểm tra tồn kho của một sản phẩm cụ thể. Dùng khi khách hỏi sản phẩm còn hàng không, có sẵn không.",
+        parameters: {
+            type: "object",
+            properties: {
+                productName: {
+                    type: "string",
+                    description: "Tên sản phẩm cần kiểm tra tồn kho",
+                },
+            },
+            required: ["productName"],
+        },
+    },
+];
+
+// =============================================
+// Function Call Executor
+// =============================================
+
+const executeFunctionCall = async (functionCall, userId) => {
+    const { name, args } = functionCall;
+
+    if (name === "lookup_user_orders") {
+        if (!userId) return { error: "Bạn cần đăng nhập để xem đơn hàng." };
+        const limit = args?.limit || 3;
+        const orders = await Order.find({ user: userId })
+            .sort({ createdAt: -1 })
+            .limit(limit)
+            .select("orderItems totalPrice isPaid isDelivered createdAt shippingAddress")
+            .lean();
+
+        if (!orders.length) return { message: "Không tìm thấy đơn hàng nào." };
+
+        return orders.map((order) => ({
+            orderId: order._id,
+            totalPrice: order.totalPrice,
+            isPaid: order.isPaid,
+            deliveryStatus: order.isDelivered,
+            createdAt: order.createdAt,
+            items: (order.orderItems || []).map((item) => ({
+                name: item.name,
+                amount: item.amount,
+                price: item.price,
+            })),
+        }));
+    }
+
+    if (name === "check_product_stock") {
+        const productName = args?.productName || "";
+        const product = await Product.findOne({
+            name: { $regex: productName, $options: "i" },
+        })
+            .select("name countInStock price discount")
+            .lean();
+
+        if (!product) return { message: `Không tìm thấy sản phẩm "${productName}".` };
+
+        const stockStatus =
+            product.countInStock <= 0
+                ? "Hết hàng"
+                : product.countInStock <= 5
+                    ? `Còn ít (${product.countInStock} sản phẩm)`
+                    : `Còn hàng (${product.countInStock} sản phẩm)`;
+
+        return {
+            name: product.name,
+            stockStatus,
+            price: product.price,
+            discount: product.discount,
+        };
+    }
+
+    return { error: "Chức năng không hỗ trợ." };
+};
+
+// =============================================
+// Multi-turn Conversation History
+// =============================================
+
+const fetchConversationHistory = async (conversationId, limit = AI_CONTEXT_LIMIT) => {
+    const messages = await Message.find({ conversation: conversationId })
+        .sort({ createdAt: -1 })
+        .limit(limit)
+        .lean();
+
+    // Đảo ngược để đúng thứ tự thời gian
+    const ordered = messages.reverse();
+
+    // Map sang format Gemini multi-turn: user → "user", bot → "model"
+    return ordered
+        .filter((msg) => msg.sender === "user" || msg.sender === "bot")
+        .map((msg) => ({
+            role: msg.sender === "user" ? "user" : "model",
+            parts: [{ text: msg.content || "" }],
+        }));
+};
+
+// =============================================
+// Context-Aware RAG Query Builder
+// =============================================
+
+const buildContextQuery = (currentQuestion, history) => {
+    // Lấy 2-3 tin nhắn user gần nhất từ history để tổng hợp ngữ cảnh
+    const recentUserMessages = history
+        .filter((msg) => msg.role === "user")
+        .slice(-3)
+        .map((msg) => msg.parts[0]?.text || "")
+        .filter(Boolean);
+
+    // Nối với câu hỏi hiện tại để tạo query tổng hợp
+    return [...recentUserMessages, currentQuestion]
+        .filter(Boolean)
+        .join(" | ");
+};
+
+// =============================================
+// Gemini Multi-turn Reply + Function Calling
+// =============================================
+
+const generateGeminiReply = async (prompt, conversationHistory, userId, statusCallback) => {
     const model = getGeminiModel();
     if (!model) {
         return "Hiện tại hệ thống chưa được cấu hình AI. Bạn có thể mô tả rõ hơn nhu cầu để mình tư vấn tốt hơn không?";
     }
 
     try {
-        const result = await model.generateContent({
-            contents: [
-                {
-                    role: "user",
-                    parts: [{ text: prompt }],
-                },
-            ],
+        // Khởi tạo multi-turn chat với conversation history + function calling tools
+        const chat = model.startChat({
+            history: conversationHistory,
+            tools: [{ functionDeclarations }],
             generationConfig: {
                 temperature: 0.4,
                 topK: 40,
@@ -169,17 +312,60 @@ const generateGeminiReply = async (prompt) => {
                 {
                     category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
                     threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH,
-                }
-            ]
+                },
+            ],
         });
 
-        const text = result?.response?.text ? result.response.text().trim() : "";
+        // Gửi message hiện tại
+        let result = await chat.sendMessage(prompt);
+        let response = result.response;
+
+        // Function Calling loop — xử lý khi Gemini yêu cầu gọi function
+        const MAX_FUNCTION_CALLS = 3;
+        let functionCallCount = 0;
+
+        while (functionCallCount < MAX_FUNCTION_CALLS) {
+            const functionCalls = response.functionCalls?.() || [];
+            if (functionCalls.length === 0) break;
+
+            functionCallCount++;
+            const functionResponses = [];
+
+            for (const fc of functionCalls) {
+                // Gửi status update cho frontend
+                if (statusCallback) {
+                    statusCallback(
+                        fc.name === "lookup_user_orders"
+                            ? "Đang tra cứu đơn hàng của bạn..."
+                            : "Đang kiểm tra tồn kho sản phẩm..."
+                    );
+                }
+
+                const fcResult = await executeFunctionCall(fc, userId);
+                functionResponses.push({
+                    functionResponse: {
+                        name: fc.name,
+                        response: { result: fcResult },
+                    },
+                });
+            }
+
+            // Gửi kết quả function call lại cho Gemini để tạo câu trả lời
+            result = await chat.sendMessage(functionResponses);
+            response = result.response;
+        }
+
+        const text = response?.text ? response.text().trim() : "";
         return text || "Mình chưa thể trả lời câu hỏi của bạn. Bạn có thể mô tả rõ hơn nhu cầu để mình tư vấn tốt hơn không?";
     } catch (error) {
         console.warn("Gemini generation failed:", error?.message || error);
         throw error; // Ném lỗi ra để hàm generateBotMessage bắt và xử lý Human Handoff
     }
 };
+
+// =============================================
+// Product Search (RAG)
+// =============================================
 
 const searchProductsByQuestion = async (question, limit) => {
     const normalized = normalizeText(question);
@@ -202,13 +388,34 @@ const searchProductsByQuestion = async (question, limit) => {
     };
 };
 
-const generateBotMessage = async (question) => {
-    const { products, categoryMap } = await searchProductsByQuestion(question, CHAT_VECTOR_LIMIT);
+// =============================================
+// Main Bot Message Generator (Context-Aware RAG + Multi-turn + Function Calling)
+// =============================================
+
+const generateBotMessage = async (question, conversationId, userId, statusCallback) => {
+    // 1. Lấy conversation history từ DB cho multi-turn context
+    const conversationHistory = conversationId
+        ? await fetchConversationHistory(conversationId)
+        : [];
+
+    // 2. Context-aware RAG: tổng hợp ngữ cảnh từ history để vector search chính xác hơn
+    if (statusCallback) statusCallback("Đang tìm sản phẩm phù hợp...");
+
+    const contextQuery = buildContextQuery(question, conversationHistory);
+    const { products, categoryMap } = await searchProductsByQuestion(
+        contextQuery,
+        CHAT_VECTOR_LIMIT
+    );
+
+    // 3. Build prompt với sản phẩm từ RAG
     const prompt = buildPrompt(question, products, categoryMap);
+
+    // 4. Gọi Gemini với multi-turn history + function calling
+    if (statusCallback) statusCallback("Đang tạo câu trả lời...");
 
     let text = "";
     try {
-        text = await generateGeminiReply(prompt);
+        text = await generateGeminiReply(prompt, conversationHistory, userId, statusCallback);
     } catch (error) {
         console.warn("Gemini call failed or overloaded:", error?.message || error);
         // Fallback khi AI lỗi 503 hoặc các lỗi khác

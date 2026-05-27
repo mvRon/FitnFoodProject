@@ -91,7 +91,17 @@ const registerChatSocket = (io) => {
             }
 
             if (conversation.status === "bot_active") {
-                const botResult = await ChatService.generateBotMessage(messageText);
+                // Status callback để stream progress cho user
+                const statusCallback = (statusText) => {
+                    io.to(conversationId).emit("chat:bot_status", { status: statusText });
+                };
+
+                const botResult = await ChatService.generateBotMessage(
+                    messageText,
+                    conversationId,
+                    user?.id || null,
+                    statusCallback
+                );
                 const botMessage = await ChatService.createMessage({
                     conversationId,
                     sender: "bot",
