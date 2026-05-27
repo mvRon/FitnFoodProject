@@ -14,9 +14,9 @@ const { embedText, normalizeText } = require("./EmbeddingService");
 
 const VECTOR_INDEX = process.env.MONGO_VECTOR_INDEX || "product_embedding_index";
 const EMBEDDING_DIM = Number(process.env.AI_EMBEDDING_DIM || 384);
-const CHAT_VECTOR_LIMIT = Number(process.env.CHAT_VECTOR_LIMIT || 3);
+const CHAT_VECTOR_LIMIT = Number(process.env.CHAT_VECTOR_LIMIT || 6);
 const CHAT_HISTORY_LIMIT = Number(process.env.CHAT_HISTORY_LIMIT || 5);
-const AI_CONTEXT_LIMIT = Number(process.env.AI_CONTEXT_LIMIT || 10);
+const AI_CONTEXT_LIMIT = Number(process.env.AI_CONTEXT_LIMIT || 20);
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
 const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
 let geminiClient = null;
@@ -135,9 +135,12 @@ const getGeminiModel = () => {
 1. Tư vấn thân thiện, ngắn gọn và dễ hiểu bằng tiếng Việt.
 2. Chỉ sử dụng thông tin sản phẩm được cung cấp, không tự bịa sản phẩm.
 3. Nếu không có sản phẩm phù hợp, hãy xin lỗi và hỏi thêm thông tin từ khách.
-4. Khi khách hỏi về đơn hàng hoặc tồn kho, hãy sử dụng các function tool được cung cấp.
-5. Luôn duy trì ngữ cảnh hội thoại, nhớ những gì khách đã nói trước đó.
-6. Khi cần thêm thông tin sức khỏe (cân nặng, chiều cao, mục tiêu...), hãy hỏi ngắn gọn và chỉ hỏi 1 câu tại 1 thời điểm.`
+4. Khi khách hỏi về đơn hàng hoặc tồn kho, hãy sử dụng các function tool được cung cấp. Khi phản hồi về thông tin đơn hàng từ tool lookup_user_orders, chỉ cung cấp chi tiết đơn hàng thu được, KHÔNG cần nhận xét/báo cáo về việc các sản phẩm trong đơn hàng đó có thuộc danh mục của FITNFOOD hay gợi ý kiểm tra tồn kho của chúng trừ khi khách hỏi riêng biệt.
+5. Luôn duy trì ngữ cảnh hội thoại, nhớ những gì khách đã nói và những quyết định bạn đã đưa ra trước đó trong cuộc hội thoại.
+6. Khi cần thêm thông tin sức khỏe (cân nặng, chiều cao, mục tiêu...), hãy hỏi ngắn gọn và chỉ hỏi 1 câu tại 1 thời điểm.
+7. Nếu bạn chưa có đủ thông tin hoặc ngữ cảnh để tư vấn sản phẩm cụ thể và cần hỏi thêm thông tin từ khách (như chiều cao, cân nặng, mục tiêu...), hoặc khi bạn đang trong quá trình hỏi thăm để lấy thêm thông tin mà chưa đề xuất sản phẩm cụ thể, hãy thêm từ khóa "[NEEDS_INFO]" vào cuối câu trả lời.
+8. QUAN TRỌNG: Đọc kỹ lịch sử hội thoại trước khi hỏi thêm. Nếu khách đã trả lời câu hỏi của bạn hoặc bạn đã đề xuất sản phẩm cho yêu cầu đó rồi, KHÔNG hỏi lại câu hỏi đó nữa. Thay vào đó, hãy tiếp tục hội thoại tự nhiên dựa trên thông tin đã có và chỉ đặt câu hỏi mới nếu thực sự cần thêm thông tin khác.
+9. QUAN TRỌNG: Khi gợi ý sản phẩm, bạn phải in đậm (**) tên sản phẩm và dùng ĐÚNG tên gốc của sản phẩm như trong danh sách được cung cấp ở đầu prompt. Không viết tắt hoặc thay đổi tên. Ví dụ: nếu tên trong danh sách là "Viên uống bổ sung vitamin C, tăng cường sức đề kháng C 500mg Nature's Bounty " thì phải in đậm đúng tên đó, không viết tắt thành "C 500mg Nature's Bounty" hay "Nature's Bounty".`
     });
 };
 
@@ -305,7 +308,10 @@ const buildContextQuery = (currentQuestion, history) => {
 const generateGeminiReply = async (prompt, conversationHistory, userId, statusCallback) => {
     const model = getGeminiModel();
     if (!model) {
-        return "Hiện tại hệ thống chưa được cấu hình AI. Bạn có thể mô tả rõ hơn nhu cầu để mình tư vấn tốt hơn không?";
+        return {
+            text: "Hiện tại hệ thống chưa được cấu hình AI. Bạn có thể mô tả rõ hơn nhu cầu để mình tư vấn tốt hơn không?",
+            wasFunctionCalled: false
+        };
     }
 
     try {
@@ -346,12 +352,14 @@ const generateGeminiReply = async (prompt, conversationHistory, userId, statusCa
         // Function Calling loop — xử lý khi Gemini yêu cầu gọi function
         const MAX_FUNCTION_CALLS = 3;
         let functionCallCount = 0;
+        let wasFunctionCalled = false;
 
         while (functionCallCount < MAX_FUNCTION_CALLS) {
             const functionCalls = response.functionCalls?.() || [];
             if (functionCalls.length === 0) break;
 
             functionCallCount++;
+            wasFunctionCalled = true;
             const functionResponses = [];
 
             for (const fc of functionCalls) {
@@ -379,7 +387,10 @@ const generateGeminiReply = async (prompt, conversationHistory, userId, statusCa
         }
 
         const text = response?.text ? response.text().trim() : "";
-        return text || "Mình chưa thể trả lời câu hỏi của bạn. Bạn có thể mô tả rõ hơn nhu cầu để mình tư vấn tốt hơn không?";
+        return {
+            text: text || "Mình chưa thể trả lời câu hỏi của bạn. Bạn có thể mô tả rõ hơn nhu cầu để mình tư vấn tốt hơn không?",
+            wasFunctionCalled
+        };
     } catch (error) {
         console.warn("Gemini generation failed:", error?.message || error);
         throw error; // Ném lỗi ra để hàm generateBotMessage bắt và xử lý Human Handoff
@@ -411,6 +422,82 @@ const searchProductsByQuestion = async (question, limit) => {
     };
 };
 
+const escapeRegExp = (string) => {
+    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+};
+
+// Extract các chuỗi in đậm (**...**) từ Markdown response của bot
+const extractBoldTexts = (text) => {
+    const boldPattern = /\*\*([^*]+)\*\*/g;
+    const results = [];
+    let match;
+    while ((match = boldPattern.exec(text)) !== null) {
+        const boldText = match[1].trim();
+        if (boldText.length >= 3) {
+            results.push(boldText);
+        }
+    }
+    return results;
+};
+
+// So khớp một chuỗi bold với tên sản phẩm trong DB
+// Hỗ trợ: khớp chính xác, bold là sub-string của tên DB, hoặc tên DB là sub-string của bold
+const boldMatchesProduct = (boldText, productName) => {
+    if (!boldText || !productName) return false;
+
+    const normalB = boldText.trim().toLowerCase();
+    const normalP = productName.trim().toLowerCase();
+
+    // 1. Khớp chính xác (sau khi normalize, bỏ khoảng trắng thừa)
+    if (normalP === normalB) return true;
+
+    // 2. Tên DB chứa toàn bộ nội dung bold — bold là sub-chuỗi đặc trưng của tên DB
+    //    Yêu cầu bold phải đủ dài (>= 6 ký tự) để tránh khớp sai với từ ngắn chung chung
+    if (normalP.includes(normalB) && normalB.length >= 6) return true;
+
+    // 3. Bold chứa toàn bộ tên DB — bot đã thêm thông tin vào sau tên
+    if (normalB.includes(normalP) && normalP.length >= 6) return true;
+
+    return false;
+};
+
+const extractProductsFromText = async (text) => {
+    if (!text) return [];
+    try {
+        // Bước 1: Lấy các chuỗi in đậm từ response của bot
+        const boldTexts = extractBoldTexts(text);
+        if (boldTexts.length === 0) return [];
+
+        // Bước 2: Load tất cả sản phẩm từ DB
+        const allProducts = await Product.find({})
+            .select("name price discount images")
+            .lean();
+
+        const matchedProducts = [];
+        const seenIds = new Set();
+
+        // Bước 3: Với mỗi chuỗi bold, tìm sản phẩm khớp trong DB
+        for (const boldText of boldTexts) {
+            for (const product of allProducts) {
+                if (!product.name || seenIds.has(String(product._id))) continue;
+
+                if (boldMatchesProduct(boldText, product.name)) {
+                    matchedProducts.push(product);
+                    seenIds.add(String(product._id));
+                    break; // Mỗi bold text chỉ khớp tối đa 1 sản phẩm
+                }
+            }
+        }
+
+        return matchedProducts;
+    } catch (error) {
+        console.warn("Error extracting products from text:", error?.message || error);
+        return [];
+    }
+};
+
+
+
 // =============================================
 // Main Bot Message Generator (Context-Aware RAG + Multi-turn + Function Calling)
 // =============================================
@@ -437,15 +524,28 @@ const generateBotMessage = async (question, conversationId, userId, statusCallba
     if (statusCallback) statusCallback("Đang tạo câu trả lời...");
 
     let text = "";
+    let wasFunctionCalled = false;
     try {
-        text = await generateGeminiReply(prompt, conversationHistory, userId, statusCallback);
+        const replyResult = await generateGeminiReply(prompt, conversationHistory, userId, statusCallback);
+        text = replyResult.text;
+        wasFunctionCalled = replyResult.wasFunctionCalled;
     } catch (error) {
         console.warn("Gemini call failed or overloaded:", error?.message || error);
         // Fallback khi AI lỗi 503 hoặc các lỗi khác
         text = "Hiện tại chuyên viên AI của FITNFOOD đang hỗ trợ nhiều khách hàng cùng lúc nên phản hồi hơi chậm. Bạn vui lòng đợi một chút hoặc nhấn nút 'Gặp Nhân Viên' để kết nối trực tiếp với chuyên gia dinh dưỡng nhé!";
     }
 
-    const productSnapshots = products.map(buildProductSnapshot).filter((item) => item?._id);
+    // 5. Kiểm tra nếu cần ẩn danh sách sản phẩm gợi ý (khi thực hiện function call hoặc chưa đủ ngữ cảnh)
+    let hideProducts = wasFunctionCalled;
+    if (text.includes("[NEEDS_INFO]")) {
+        hideProducts = true;
+        // Xóa cờ [NEEDS_INFO] khỏi câu trả lời của bot trước khi gửi đi
+        text = text.replace(/\[NEEDS_INFO\]/gi, "").trim();
+    }
+
+    // Gợi ý chính xác các sản phẩm được đề cập trong text (nếu không bị ẩn)
+    const matchedProducts = hideProducts ? [] : await extractProductsFromText(text);
+    const productSnapshots = matchedProducts.map(buildProductSnapshot).filter((item) => item?._id);
     const productIds = productSnapshots.map((item) => item._id).filter(Boolean);
 
     return {
