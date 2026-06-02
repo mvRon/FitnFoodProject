@@ -194,8 +194,12 @@ const AdminInventoryComponent = () => {
     alertsQuery.refetch()
     productsQuery.refetch()
     ordersQuery.refetch()
-    stockCardQuery.refetch()
-    voucherDetailQuery.refetch()
+    if (stockCardFilters.productId) {
+      stockCardQuery.refetch()
+    }
+    if (voucherSelected?._id) {
+      voucherDetailQuery.refetch()
+    }
   }
 
   useEffect(() => {
@@ -282,7 +286,9 @@ const AdminInventoryComponent = () => {
     if (updateVoucherNoteMutation.data?.status === 'OK') {
       message.success(updateVoucherNoteMutation.data?.message || 'Đã cập nhật ghi chú phiếu')
       vouchersQuery.refetch()
-      voucherDetailQuery.refetch()
+      if (voucherSelected?._id) {
+        voucherDetailQuery.refetch()
+      }
     } else {
       message.error(updateVoucherNoteMutation.data?.message || 'Không thể cập nhật ghi chú phiếu')
     }
@@ -978,7 +984,12 @@ const AdminInventoryComponent = () => {
             <Button
               className="admin-inventory-btn-outline"
               icon={<ReloadOutlined />}
-              onClick={() => stockCardQuery.refetch()}
+              onClick={() => {
+                if (stockCardFilters.productId) {
+                  stockCardQuery.refetch()
+                }
+              }}
+              disabled={!stockCardFilters.productId}
               block
             >
               Xem
