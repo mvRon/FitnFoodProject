@@ -238,3 +238,83 @@ export const LoginHint = styled.div`
   padding: 8px 0 4px;
   text-align: center;
 `;
+
+export const ActionButtonsRow = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+  width: 100%;
+`;
+
+export const ActionButton = styled.button`
+  border: none;
+  padding: 8px 14px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: ${(props) => (props.disabled ? "not-allowed" : "pointer")};
+  transition: all 0.2s ease;
+  opacity: ${(props) => (props.disabled ? 0.5 : 1)};
+  white-space: nowrap;
+
+  background: ${(props) => {
+    if (props.disabled) return "#e2e8f0";
+    if (props.$variant === "primary")
+      return "linear-gradient(135deg, rgba(16, 185, 129, 0.95), rgba(2, 132, 199, 0.95))";
+    return "#f1f5f9";
+  }};
+  color: ${(props) => {
+    if (props.disabled) return "#94a3b8";
+    if (props.$variant === "primary") return "#ffffff";
+    return "#0f172a";
+  }};
+  box-shadow: ${(props) => {
+    if (props.disabled) return "none";
+    if (props.$variant === "primary")
+      return "0 4px 14px rgba(2, 132, 199, 0.25)";
+    return "0 2px 8px rgba(15, 23, 42, 0.08)";
+  }};
+  border: ${(props) =>
+    props.$variant === "primary" ? "none" : "1px solid rgba(148, 163, 184, 0.3)"};
+
+  &:hover {
+    transform: ${(props) => (props.disabled ? "none" : "translateY(-1px)")};
+    box-shadow: ${(props) => {
+      if (props.disabled) return "none";
+      if (props.$variant === "primary")
+        return "0 8px 20px rgba(2, 132, 199, 0.35)";
+      return "0 4px 12px rgba(15, 23, 42, 0.12)";
+    }};
+  }
+
+  &:active {
+    transform: ${(props) => (props.disabled ? "none" : "scale(0.97)")};
+  }
+`;
+
+export const CartNotification = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  margin: 6px 0;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #065f46;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.12), rgba(2, 132, 199, 0.08));
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  animation: slideIn 0.3s ease-out;
+
+  @keyframes slideIn {
+    from {
+      opacity: 0;
+      transform: translateY(-8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+`;

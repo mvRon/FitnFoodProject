@@ -164,7 +164,8 @@ export const {
   removeAllOrder,
   selectedOrder,
   resetOrder,
-  clearOrder
+  clearOrder,
+  setCartFromSocket
 } = orderSlice.actions
 
 export default orderSlice.reducer
