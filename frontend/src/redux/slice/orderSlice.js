@@ -137,6 +137,11 @@ export const orderSlice = createSlice({
       state.paidAt = ''
       state.isDelivered = false
       state.isSuccessOrder = false
+    },
+    // Nhận dữ liệu giỏ hàng trực tiếp từ socket event (chatbot cart sync)
+    setCartFromSocket: (state, action) => {
+      state.orderItems = action.payload || []
+      state.orderItemSelected = []
     }
   },
   extraReducers: (builder) => {
