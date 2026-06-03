@@ -567,6 +567,22 @@ const executeFunctionCall = async (functionCall, userId, context = {}) => {
         // Xử lý voucher nếu có
         let voucherDiscount = 0;
         const voucherCode = args?.voucherCode || "";
+        if (voucherCode) {
+            const discount = await Discount.findOne({
+                code: voucherCode.toUpperCase().trim(),
+                isActive: true,
+                usesLeft: { $gt: 0 },
+                minValue: { $lte: itemsPrice },
+                usersUsed: { $ne: userId }
+            });
+            if (discount) {
+                if (discount.type === "percent") {
+                    voucherDiscount = (itemsPrice * discount.value) / 100;
+                } else {
+                    voucherDiscount = discount.value;
+                }
+            }
+        }
 
         const totalBeforeVoucher = itemsPrice - itemDiscount + shippingPrice;
         const totalPrice = Math.max(totalBeforeVoucher - voucherDiscount, 0);
@@ -670,7 +686,28 @@ const executeFunctionCall = async (functionCall, userId, context = {}) => {
         if (itemsPrice < 200000 && cart.items.length > 0) shippingPrice = 20000;
         else if (itemsPrice >= 200000 && itemsPrice < 500000) shippingPrice = 10000;
 
-        const totalPrice = Math.max(itemsPrice - itemDiscount + shippingPrice, 0);
+        // Xử lý voucher nếu có
+        let voucherDiscount = 0;
+        const voucherCode = args?.voucherCode || "";
+        if (voucherCode) {
+            const discount = await Discount.findOne({
+                code: voucherCode.toUpperCase().trim(),
+                isActive: true,
+                usesLeft: { $gt: 0 },
+                minValue: { $lte: itemsPrice },
+                usersUsed: { $ne: userId }
+            });
+            if (discount) {
+                if (discount.type === "percent") {
+                    voucherDiscount = (itemsPrice * discount.value) / 100;
+                } else {
+                    voucherDiscount = discount.value;
+                }
+            }
+        }
+
+        const totalBeforeVoucher = itemsPrice - itemDiscount + shippingPrice;
+        const totalPrice = Math.max(totalBeforeVoucher - voucherDiscount, 0);
 
         // Chuẩn bị orderItems
         const orderItems = cart.items.map(item => ({
@@ -706,6 +743,21 @@ const executeFunctionCall = async (functionCall, userId, context = {}) => {
             }
 
             const order = orderResult.data;
+
+            // Áp dụng voucher nếu có (sau khi tạo đơn thành công)
+            if (voucherCode) {
+                try {
+                    const DiscountService = require("./DiscountService");
+                    await DiscountService.useDiscount({
+                        code: voucherCode,
+                        orderValue: itemsPrice,
+                        userId,
+                    });
+                } catch (discountError) {
+                    console.warn("Voucher apply failed (order already created):", discountError?.message);
+                }
+            }
+
             const payosOrderCode = PayOSService.generateOrderCode(order._id);
             const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
 
@@ -1071,8 +1123,8 @@ const generateBotMessage = async (question, conversationId, userId, statusCallba
         text = "Hiện tại chuyên viên AI của FITNFOOD đang hỗ trợ nhiều khách hàng cùng lúc nên phản hồi hơi chậm. Bạn vui lòng đợi một chút hoặc nhấn nút 'Gặp Nhân Viên' để kết nối trực tiếp với chuyên gia dinh dưỡng nhé!";
     }
 
-    // 5. Kiểm tra nếu cần ẩn danh sách sản phẩm gợi ý (khi thực hiện function call hoặc chưa đủ ngữ cảnh)
-    let hideProducts = wasFunctionCalled;
+    // 5. Kiểm tra nếu cần ẩn danh sách sản phẩm gợi ý (khi thực hiện checkout hoặc chưa đủ ngữ cảnh)
+    let hideProducts = text.includes("[CHECKOUT_CONFIRM]");
     if (text.includes("[NEEDS_INFO]")) {
         hideProducts = true;
         // Xóa cờ [NEEDS_INFO] khỏi câu trả lời của bot trước khi gửi đi
