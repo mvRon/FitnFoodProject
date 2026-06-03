@@ -13,7 +13,7 @@
  */
 
 require('dotenv').config();
-const ngrok = require('ngrok');
+const ngrok = require('@ngrok/ngrok');
 const fs = require('fs');
 const path = require('path');
 const { spawn } = require('child_process');
@@ -54,13 +54,14 @@ async function main() {
     try {
         console.log(`🚀 Đang khởi động Ngrok tunnel cho port ${PORT}...`);
 
-        // Kết nối Ngrok
-        const url = await ngrok.connect({
+        // Kết nối Ngrok sử dụng SDK chính thức của Ngrok (@ngrok/ngrok)
+        const listener = await ngrok.forward({
             addr: PORT,
             authtoken,
             // Nếu có domain cố định (trả phí), uncomment và điền vào:
-            // hostname: 'your-static-domain.ngrok-free.app',
+            // domain: 'your-static-domain.ngrok-free.app',
         });
+        const url = listener.url();
 
         console.log(`\n✅ Ngrok tunnel đang chạy!`);
         console.log(`📡 Public URL: ${url}`);
@@ -80,16 +81,18 @@ async function main() {
 
         server.on('close', async (code) => {
             console.log(`\nBackend server thoát với code: ${code}`);
-            await ngrok.disconnect();
-            await ngrok.kill();
+            try {
+                await listener.close();
+            } catch (e) {}
             process.exit(code);
         });
 
         // Xử lý tắt gracefully
         const cleanup = async () => {
             console.log('\n🛑 Đang tắt Ngrok...');
-            await ngrok.disconnect();
-            await ngrok.kill();
+            try {
+                await listener.close();
+            } catch (e) {}
             server.kill();
             process.exit(0);
         };

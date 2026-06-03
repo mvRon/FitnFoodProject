@@ -1,12 +1,11 @@
 const { PayOS } = require("@payos/node");
 
-// Khởi tạo PayOS client từ biến môi trường
-// SDK cần clientId, apiKey, checksumKey truyền trực tiếp
-const payosClient = new PayOS(
-    process.env.CLIENT_ID,
-    process.env.API_KEY,
-    process.env.CHECKSUM_KEY
-);
+// Khởi tạo PayOS client từ cấu hình hoặc các biến môi trường
+const payosClient = new PayOS({
+    clientId: process.env.PAYOS_CLIENT_ID || process.env.CLIENT_ID,
+    apiKey: process.env.PAYOS_API_KEY || process.env.API_KEY,
+    checksumKey: process.env.PAYOS_CHECKSUM_KEY || process.env.CHECKSUM_KEY
+});
 
 /**
  * Tạo payment link PayOS từ thông tin đơn hàng
@@ -51,7 +50,8 @@ const createPaymentLink = async ({
     if (buyerPhone) paymentData.buyerPhone = buyerPhone;
     if (buyerEmail) paymentData.buyerEmail = buyerEmail;
 
-    const response = await payosClient.createPaymentLink(paymentData);
+    // SDK v2 dùng payosClient.paymentRequests.create()
+    const response = await payosClient.paymentRequests.create(paymentData);
 
     return {
         checkoutUrl: response.checkoutUrl,
@@ -68,7 +68,8 @@ const createPaymentLink = async ({
  * @throws {Error} - Nếu signature không hợp lệ
  */
 const verifyWebhookData = (webhookData) => {
-    return payosClient.verifyPaymentWebhookData(webhookData);
+    // SDK v2 dùng payosClient.webhooks.verify()
+    return payosClient.webhooks.verify(webhookData);
 };
 
 /**
@@ -77,7 +78,8 @@ const verifyWebhookData = (webhookData) => {
  * @returns {Promise<Object>} - Thông tin payment link từ PayOS
  */
 const getPaymentInfo = async (orderCode) => {
-    return await payosClient.getPaymentLinkInformation(orderCode);
+    // SDK v2 dùng payosClient.paymentRequests.get()
+    return await payosClient.paymentRequests.get(orderCode);
 };
 
 /**
@@ -87,7 +89,8 @@ const getPaymentInfo = async (orderCode) => {
  */
 const cancelPaymentLink = async (orderCode, reason = "Order expired") => {
     try {
-        return await payosClient.cancelPaymentLink(orderCode, reason);
+        // SDK v2 dùng payosClient.paymentRequests.cancel()
+        return await payosClient.paymentRequests.cancel(orderCode, reason);
     } catch (err) {
         console.warn(`[PayOS] cancelPaymentLink failed for ${orderCode}:`, err?.message);
         return null;
