@@ -69,7 +69,16 @@ const PaymentPage = () => {
   const [delivery, setDelivery] = useState("fast");
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("cash"); // "cash" | "payos"
   const [isCreatingPayOS, setIsCreatingPayOS] = useState(false);
-  const [payosModal, setPayosModal] = useState({ isOpen: false, qrCode: "", checkoutUrl: "", orderId: "" });
+  const [payosModal, setPayosModal] = useState({
+    isOpen: false,
+    qrCode: "",
+    checkoutUrl: "",
+    orderId: "",
+    bin: "",
+    accountNumber: "",
+    accountName: "",
+    description: "",
+  });
 
   const successHandledRef = useRef(false);
   const socketRef = useRef(null);
@@ -244,6 +253,10 @@ const PaymentPage = () => {
           qrCode: res.data?.qrCode || "",
           checkoutUrl: res.data?.checkoutUrl || "",
           orderId: String(res.data?.orderId || ""),
+          bin: res.data?.bin || "",
+          accountNumber: res.data?.accountNumber || "",
+          accountName: res.data?.accountName || "",
+          description: res.data?.description || "",
         });
 
         // Dọn giỏ hàng trên Redux (sẽ xóa thật sau khi thanh toán thành công)
@@ -277,7 +290,7 @@ const PaymentPage = () => {
 
   // Thanh toán PayOS thành công
   const handlePayOSSuccess = useCallback(async (payload) => {
-    setPayosModal({ isOpen: false, qrCode: "", checkoutUrl: "", orderId: "" });
+    setPayosModal({ isOpen: false, qrCode: "", checkoutUrl: "", orderId: "", bin: "", accountNumber: "", accountName: "", description: "" });
 
     // Dọn giỏ hàng
     const orderArray = (order?.orderItemSelected || []).map((e) => e?.product).filter(Boolean);
@@ -311,13 +324,13 @@ const PaymentPage = () => {
 
   // Thanh toán PayOS hết hạn — đơn đã bị hủy tự động (bởi webhook)
   const handlePayOSExpire = useCallback(() => {
-    setPayosModal({ isOpen: false, qrCode: "", checkoutUrl: "", orderId: "" });
+    setPayosModal({ isOpen: false, qrCode: "", checkoutUrl: "", orderId: "", bin: "", accountNumber: "", accountName: "", description: "" });
   }, []);
 
   // User chủ động hủy
   const handlePayOSCancel = useCallback(async () => {
     const { orderId } = payosModal;
-    setPayosModal({ isOpen: false, qrCode: "", checkoutUrl: "", orderId: "" });
+    setPayosModal({ isOpen: false, qrCode: "", checkoutUrl: "", orderId: "", bin: "", accountNumber: "", accountName: "", description: "" });
     if (orderId) {
       try { await OrderService.cancelPayment(storageToken, orderId); }
       catch (e) { console.error(e); }
@@ -610,6 +623,10 @@ const PaymentPage = () => {
           onSuccess={handlePayOSSuccess}
           onCancel={handlePayOSCancel}
           onExpire={handlePayOSExpire}
+          bin={payosModal.bin}
+          accountNumber={payosModal.accountNumber}
+          accountName={payosModal.accountName}
+          description={payosModal.description}
         />
       </LoadingComponent>
     </PaymentPageShell>

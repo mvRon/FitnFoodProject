@@ -132,6 +132,10 @@ const PaymentQRModal = ({
     onSuccess,
     onCancel,
     onExpire,
+    bin,
+    accountNumber,
+    accountName,
+    description,
 }) => {
     const [secondsLeft, setSecondsLeft] = useState(PAYMENT_TIMEOUT_SECONDS);
     const [paymentStatus, setPaymentStatus] = useState("pending"); // pending | success | cancelled | expired
@@ -262,6 +266,12 @@ const PaymentQRModal = ({
         );
     };
 
+    const qrImageUrl = (bin && accountNumber)
+        ? `https://img.vietqr.io/image/${bin}-${accountNumber}-qr_only.jpg?amount=${amount}&addInfo=${encodeURIComponent(description || "")}&accountName=${encodeURIComponent(accountName || "")}`
+        : qrCode?.startsWith("http")
+            ? qrCode
+            : `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(qrCode || "")}`;
+
     return (
         <Modal
             open={isOpen}
@@ -296,7 +306,7 @@ const PaymentQRModal = ({
                 {/* QR Code */}
                 {qrCode && (
                     <QRWrapper $expired={isExpired}>
-                        <img src={qrCode} alt="QR Code thanh toán PayOS" />
+                        <img src={qrImageUrl} alt="QR Code thanh toán PayOS" />
                         {isExpired && <ExpiredOverlay>Hết hạn</ExpiredOverlay>}
                         {isSuccess && (
                             <ExpiredOverlay style={{ background: "rgba(34,197,94,0.8)" }}>

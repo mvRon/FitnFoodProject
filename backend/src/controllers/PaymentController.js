@@ -89,6 +89,10 @@ const createPaymentLink = async (req, res) => {
                 checkoutUrl: paymentLinkData.checkoutUrl,
                 paymentLinkId: paymentLinkData.paymentLinkId,
                 totalPrice,
+                bin: paymentLinkData.bin,
+                accountNumber: paymentLinkData.accountNumber,
+                accountName: paymentLinkData.accountName,
+                description: paymentLinkData.description,
             },
         });
 
@@ -109,18 +113,29 @@ const createPaymentLink = async (req, res) => {
 const handleWebhook = async (req, res) => {
     try {
         const webhookData = req.body;
+        console.log("[PayOS Webhook Raw Body]:", JSON.stringify(webhookData, null, 2));
 
         // Xác thực chữ ký HMAC từ PayOS
         let verifiedData;
         try {
             verifiedData = PayOSService.verifyWebhookData(webhookData);
+            console.log("[PayOS Webhook Verified Data]:", JSON.stringify(verifiedData, null, 2));
         } catch (verifyErr) {
             console.warn("[PayOS Webhook] Invalid signature:", verifyErr?.message);
             return res.status(200).json({ error: "0" }); // PayOS yêu cầu response 200 dù lỗi
         }
 
-        const { orderCode, code, desc } = verifiedData;
+        // Trong SDK v2, một số trường có thể nằm ở raw body hoặc verifiedData
+        const orderCode = verifiedData?.orderCode || webhookData?.data?.orderCode;
+        const code = verifiedData?.code || webhookData?.data?.code || webhookData?.code;
+        const desc = verifiedData?.desc || webhookData?.data?.desc || webhookData?.desc;
+
         console.log(`[PayOS Webhook] orderCode=${orderCode} code=${code} desc=${desc}`);
+
+        if (orderCode === undefined || orderCode === null || isNaN(Number(orderCode))) {
+            console.warn(`[PayOS Webhook] Invalid or missing orderCode: ${orderCode}. Ignoring.`);
+            return res.status(200).json({ error: "0" });
+        }
 
         // Tìm đơn hàng theo payosOrderCode
         const order = await Order.findOne({ payosOrderCode: Number(orderCode) });
