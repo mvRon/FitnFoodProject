@@ -1,11 +1,14 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useSelector } from "react-redux";
-import { Button, Input, message as toast } from "antd";
+import { useSelector, useDispatch } from "react-redux";
+import { Button, Input, Form, Modal, message as toast } from "antd";
 import { CloseOutlined, CustomerServiceOutlined, MessageOutlined, SendOutlined } from "@ant-design/icons";
 import { io } from "socket.io-client";
 import * as ChatService from "../../services/ChatService";
+import * as UserService from "../../services/UserService";
 import { convertPrice } from "../../utils";
+import { setCartFromSocket, clearOrder } from "../../redux/slice/orderSlice";
+import { updateUser } from "../../redux/slice/userSlice";
 import {
   ChatBody,
   ChatFooter,
@@ -29,6 +32,9 @@ import {
   ProductPrice,
   ProductRail,
   EndSupportButton,
+  ActionButtonsRow,
+  ActionButton,
+  CartNotification,
 } from "./Style";
 
 const getAccessToken = () => {
@@ -73,6 +79,7 @@ const formatStatus = (status, isGuest) => {
 
 const ChatWidget = () => {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
   const user = useSelector((state) => state.user);
   const socketRef = useRef(null);
   const bottomRef = useRef(null);
@@ -88,6 +95,10 @@ const ChatWidget = () => {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [isAdminTyping, setIsAdminTyping] = useState(false);
   const [isBotTyping, setIsBotTyping] = useState(false);
+  const [botStatusText, setBotStatusText] = useState("");
+  const [disabledActions, setDisabledActions] = useState(new Set());
+  const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
+  const [addressForm] = Form.useForm();
 
   const bodyRef = useRef(null);
   const prevLastMessageIdRef = useRef(null);
@@ -169,9 +180,15 @@ const ChatWidget = () => {
 
         socket.on("chat:message", (message) => {
           setMessages((prev) => [...prev, message]);
-          if (String(message.sender).toLowerCase() === "bot") {
+          const sender = String(message.sender).toLowerCase();
+          if (sender === "bot" || sender === "admin") {
             setIsBotTyping(false);
+            setBotStatusText("");
           }
+        });
+
+        socket.on("chat:bot_status", ({ status }) => {
+          setBotStatusText(status || "");
         });
 
         socket.on("chat:typing", ({ sender, isTyping }) => {
@@ -186,6 +203,10 @@ const ChatWidget = () => {
             setConversation((prev) =>
               prev ? { ...prev, status: payload.status, admin: payload.admin || null } : prev
             );
+            if (payload.status !== "bot_active") {
+              setIsBotTyping(false);
+              setBotStatusText("");
+            }
           }
         });
 
@@ -193,10 +214,36 @@ const ChatWidget = () => {
           if (nextConversation) {
             setConversation(nextConversation);
             setStatus(nextConversation.status || "bot_active");
+            if (nextConversation.status !== "bot_active") {
+              setIsBotTyping(false);
+              setBotStatusText("");
+            }
           }
         });
 
+        // Lắng nghe cart update từ chatbot
+        socket.on("chat:cart_updated", (payload) => {
+          if (payload?.items) {
+            dispatch(setCartFromSocket(payload.items));
+          }
+        });
+
+        // Lắng nghe order created từ chatbot
+        socket.on("chat:order_created", (payload) => {
+          if (payload?.orderId) {
+            dispatch(clearOrder());
+            toast.success(`Đặt hàng thành công! Mã đơn: ${String(payload.orderId).slice(-8).toUpperCase()}`);
+          }
+        });
+
+        socket.on("disconnect", () => {
+          setIsBotTyping(false);
+          setBotStatusText("");
+        });
+
         socket.on("connect_error", () => {
+          setIsBotTyping(false);
+          setBotStatusText("");
           toast.error("Không thể kết nối chat. Vui lòng thử lại.");
         });
 
@@ -318,7 +365,7 @@ const ChatWidget = () => {
     });
     setInput("");
 
-    if (status === "bot_active") {
+    if (status === "bot_active" && !isGuest) {
       setIsBotTyping(true);
     }
 
@@ -330,6 +377,74 @@ const ChatWidget = () => {
       conversationId: conversation?._id,
       isTyping: false,
     });
+  };
+
+  // Xử lý Quick Reply button clicks
+  const handleAction = useCallback((actionType, payload = {}, messageId) => {
+    if (!socketRef.current || !conversation?._id) return;
+
+    // Disable nút đã click
+    setDisabledActions((prev) => new Set([...prev, `${messageId}-${actionType}`]));
+
+    if (actionType === "change_address") {
+      // Mở modal đổi địa chỉ
+      addressForm.setFieldsValue({
+        name: user?.name || "",
+        phone: user?.phone || "",
+        address: user?.address || "",
+        city: user?.city || "",
+      });
+      setIsAddressModalOpen(true);
+      return;
+    }
+
+    // Emit action qua socket
+    socketRef.current.emit("chat:action", {
+      conversationId: conversation._id,
+      actionType,
+      payload,
+    });
+
+    if (status === "bot_active" && !isGuest) {
+      setIsBotTyping(true);
+    }
+  }, [conversation?._id, status, isGuest, user, addressForm]);
+
+  // Xử lý submit đổi địa chỉ
+  const handleAddressSubmit = async () => {
+    try {
+      const values = await addressForm.validateFields();
+      const accessTokenValue = accessToken;
+      if (!accessTokenValue || !user?.id) {
+        toast.error("Vui lòng đăng nhập để cập nhật thông tin");
+        return;
+      }
+
+      await UserService.updateUser(user.id, accessTokenValue, {
+        name: values.name,
+        address: values.address,
+        phone: values.phone,
+        city: values.city,
+      });
+
+      dispatch(updateUser({
+        _id: user?.id,
+        name: values.name,
+        email: user?.email,
+        address: values.address,
+        phone: values.phone,
+        city: values.city,
+        avatar: user?.avatar,
+        isAdmin: user?.isAdmin,
+        refresh_token: user?.refresh_token,
+      }));
+
+      setIsAddressModalOpen(false);
+      toast.success("Cập nhật địa chỉ thành công! Bạn có thể tiếp tục xác nhận đặt hàng.");
+    } catch (error) {
+      if (error?.errorFields) return; // Form validation errors
+      toast.error("Có lỗi xảy ra khi cập nhật địa chỉ");
+    }
   };
 
   const handleHandoff = () => {
@@ -385,20 +500,41 @@ const ChatWidget = () => {
               <LoginHint>Chào bạn! Hãy đặt câu hỏi về sản phẩm định dưỡng.</LoginHint>
             )}
 
-            {messages.map((message) => {
+            {messages.map((message, msgIndex) => {
               const sender = String(message.sender || "bot").toLowerCase();
               const isUser = sender === "user";
               const isAdmin = sender === "admin";
               const senderLabel = isUser ? "Bạn" : isAdmin ? "Nhân viên" : "FITnFOOD AI";
               const productCards = message?.metadata?.products || [];
+              const actionButtons = message?.metadata?.actions || [];
+              const cartUpdate = message?.metadata?.cartUpdate;
+              const orderCreated = message?.metadata?.orderCreated;
               const timestamp = formatMessageTime(message?.createdAt);
+              const messageId = message._id || `${message.sender}-${timestamp}`;
+              const isLastMessage = msgIndex === messages.length - 1;
 
               return (
-                <MessageRow key={message._id || `${message.sender}-${timestamp}`} $isUser={isUser}>
+                <MessageRow key={messageId} $isUser={isUser}>
                   <MessageStack $isUser={isUser}>
                     <MessageLabel $isUser={isUser}>{senderLabel}</MessageLabel>
                     <MessageBubble $isUser={isUser}>{message.content}</MessageBubble>
                     {timestamp && <MessageMeta>{timestamp}</MessageMeta>}
+
+                    {/* Cart update notification */}
+                    {cartUpdate && cartUpdate.totalItems >= 0 && (
+                      <CartNotification>
+                        🛒 Giỏ hàng: {cartUpdate.totalItems} sản phẩm
+                      </CartNotification>
+                    )}
+
+                    {/* Order created notification */}
+                    {orderCreated && orderCreated.orderId && (
+                      <CartNotification>
+                        ✅ Đơn hàng #{String(orderCreated.orderId).slice(-8).toUpperCase()} — {convertPrice(orderCreated.totalPrice)}
+                      </CartNotification>
+                    )}
+
+                    {/* Product cards */}
                     {productCards.length > 0 && (
                       <ProductRail>
                         {productCards.map((product) => {
@@ -421,6 +557,26 @@ const ChatWidget = () => {
                         })}
                       </ProductRail>
                     )}
+
+                    {/* Quick Reply action buttons */}
+                    {actionButtons.length > 0 && (
+                      <ActionButtonsRow>
+                        {actionButtons.map((action, actionIdx) => {
+                          const actionKey = `${messageId}-${action.type}`;
+                          const isDisabled = disabledActions.has(actionKey) || !isLastMessage;
+                          return (
+                            <ActionButton
+                              key={`${actionKey}-${actionIdx}`}
+                              $variant={action.type === "confirm_order" ? "primary" : "secondary"}
+                              disabled={isDisabled}
+                              onClick={() => handleAction(action.type, action.payload, messageId)}
+                            >
+                              {action.label}
+                            </ActionButton>
+                          );
+                        })}
+                      </ActionButtonsRow>
+                    )}
                   </MessageStack>
                 </MessageRow>
               );
@@ -430,7 +586,7 @@ const ChatWidget = () => {
                 <MessageStack $isUser={false}>
                   <MessageLabel $isUser={false}>FITnFOOD AI</MessageLabel>
                   <MessageBubble $isUser={false} style={{ opacity: 0.8, fontStyle: "italic", background: "#f1f5f9" }}>
-                    FITnFOOD AI đang phân tích câu hỏi...
+                    {botStatusText || "FITnFOOD AI đang phân tích câu hỏi..."}
                   </MessageBubble>
                 </MessageStack>
               </MessageRow>
@@ -485,6 +641,36 @@ const ChatWidget = () => {
           </ChatFooter>
         </ChatWindow>
       )}
+
+      {/* Modal đổi địa chỉ giao hàng */}
+      <Modal
+        title="Đổi địa chỉ giao hàng"
+        open={isAddressModalOpen}
+        onCancel={() => setIsAddressModalOpen(false)}
+        onOk={handleAddressSubmit}
+        okText="Cập nhật"
+        cancelText="Hủy"
+        destroyOnClose
+      >
+        <Form
+          form={addressForm}
+          layout="vertical"
+          style={{ marginTop: 16 }}
+        >
+          <Form.Item label="Họ tên" name="name" rules={[{ required: true, message: "Vui lòng nhập họ tên" }]}>
+            <Input />
+          </Form.Item>
+          <Form.Item label="Số điện thoại" name="phone" rules={[{ required: true, message: "Vui lòng nhập SĐT" }]}>
+            <Input />
+          </Form.Item>
+          <Form.Item label="Địa chỉ" name="address" rules={[{ required: true, message: "Vui lòng nhập địa chỉ" }]}>
+            <Input />
+          </Form.Item>
+          <Form.Item label="Tỉnh/Thành phố" name="city" rules={[{ required: true, message: "Vui lòng nhập tỉnh/TP" }]}>
+            <Input />
+          </Form.Item>
+        </Form>
+      </Modal>
     </ChatWidgetShell>
   );
 };

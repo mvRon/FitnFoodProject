@@ -91,19 +91,126 @@ const registerChatSocket = (io) => {
             }
 
             if (conversation.status === "bot_active") {
-                const botResult = await ChatService.generateBotMessage(messageText);
+                // Status callback để stream progress cho user
+                const statusCallback = (statusText) => {
+                    io.to(conversationId).emit("chat:bot_status", { status: statusText });
+                };
+
+                const botResult = await ChatService.generateBotMessage(
+                    messageText,
+                    conversationId,
+                    user?.id || null,
+                    statusCallback
+                );
                 const botMessage = await ChatService.createMessage({
                     conversationId,
                     sender: "bot",
                     content: botResult.text,
                     metadata: {
                         productIds: botResult.productIds,
+                        actions: botResult.actions || [],
+                        cartUpdate: botResult.cartUpdate || undefined,
+                        orderCreated: botResult.orderCreated || undefined,
                     },
                 });
                 if (botMessage.metadata) {
                     botMessage.metadata.products = botResult.products;
                 }
                 io.to(conversationId).emit("chat:message", botMessage);
+
+                // Emit cart update event nếu giỏ hàng thay đổi
+                if (botResult.sideEffects?.cartUpdated) {
+                    io.to(conversationId).emit("chat:cart_updated", {
+                        items: botResult.sideEffects.cartItems || [],
+                        totalItems: (botResult.sideEffects.cartItems || []).reduce(
+                            (sum, item) => sum + (item.amount || 0), 0
+                        ),
+                    });
+                }
+
+                // Emit order created event nếu đơn hàng được tạo
+                if (botResult.sideEffects?.orderCreated) {
+                    io.to(conversationId).emit("chat:order_created", {
+                        orderId: botResult.sideEffects.orderId,
+                        totalPrice: botResult.sideEffects.orderTotalPrice,
+                    });
+                }
+            }
+        });
+
+        // Xử lý Quick Reply button clicks từ frontend
+        socket.on("chat:action", async ({ conversationId, actionType, payload }) => {
+            if (!conversationId || !actionType) return;
+
+            const conversation = await ChatService.getConversationForUser(conversationId, user, user?.guestId);
+            if (!conversation) {
+                socket.emit("chat:error", { message: "Conversation not found" });
+                return;
+            }
+
+            // Map action type sang message text tương ứng
+            let messageText = "";
+            if (actionType === "confirm_order") {
+                messageText = "Xác nhận đặt hàng";
+            } else if (actionType === "select_voucher" && payload?.voucherCode) {
+                messageText = `Tôi chọn mã giảm giá ${payload.voucherCode}`;
+            } else if (actionType === "quick_reply" && payload?.text) {
+                messageText = payload.text;
+            } else {
+                return;
+            }
+
+            // Lưu tin nhắn user
+            const userMessage = await ChatService.createMessage({
+                conversationId,
+                sender: "user",
+                content: messageText,
+            });
+            io.to(conversationId).emit("chat:message", userMessage);
+
+            // Xử lý bot response giống chat:send
+            if (conversation.status === "bot_active") {
+                const statusCallback = (statusText) => {
+                    io.to(conversationId).emit("chat:bot_status", { status: statusText });
+                };
+
+                const botResult = await ChatService.generateBotMessage(
+                    messageText,
+                    conversationId,
+                    user?.id || null,
+                    statusCallback
+                );
+                const botMessage = await ChatService.createMessage({
+                    conversationId,
+                    sender: "bot",
+                    content: botResult.text,
+                    metadata: {
+                        productIds: botResult.productIds,
+                        actions: botResult.actions || [],
+                        cartUpdate: botResult.cartUpdate || undefined,
+                        orderCreated: botResult.orderCreated || undefined,
+                    },
+                });
+                if (botMessage.metadata) {
+                    botMessage.metadata.products = botResult.products;
+                }
+                io.to(conversationId).emit("chat:message", botMessage);
+
+                if (botResult.sideEffects?.cartUpdated) {
+                    io.to(conversationId).emit("chat:cart_updated", {
+                        items: botResult.sideEffects.cartItems || [],
+                        totalItems: (botResult.sideEffects.cartItems || []).reduce(
+                            (sum, item) => sum + (item.amount || 0), 0
+                        ),
+                    });
+                }
+
+                if (botResult.sideEffects?.orderCreated) {
+                    io.to(conversationId).emit("chat:order_created", {
+                        orderId: botResult.sideEffects.orderId,
+                        totalPrice: botResult.sideEffects.orderTotalPrice,
+                    });
+                }
             }
         });
 

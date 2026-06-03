@@ -9,12 +9,18 @@ const Conversation = require("../models/ConversationModel");
 const Message = require("../models/MessageModel");
 const Product = require("../models/ProductModel");
 const Category = require("../models/CategoryModel");
+const Order = require("../models/OrderModel");
+const { Cart } = require("../models/CartModel");
+const User = require("../models/UserModel");
+const Discount = require("../models/DiscountModel");
+const OrderService = require("./OrderService");
 const { embedText, normalizeText } = require("./EmbeddingService");
 
 const VECTOR_INDEX = process.env.MONGO_VECTOR_INDEX || "product_embedding_index";
 const EMBEDDING_DIM = Number(process.env.AI_EMBEDDING_DIM || 384);
-const CHAT_VECTOR_LIMIT = Number(process.env.CHAT_VECTOR_LIMIT || 3);
+const CHAT_VECTOR_LIMIT = Number(process.env.CHAT_VECTOR_LIMIT || 6);
 const CHAT_HISTORY_LIMIT = Number(process.env.CHAT_HISTORY_LIMIT || 5);
+const AI_CONTEXT_LIMIT = Number(process.env.AI_CONTEXT_LIMIT || 20);
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
 const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
 let geminiClient = null;
@@ -129,24 +135,589 @@ const getGeminiModel = () => {
     }
     return geminiClient.getGenerativeModel({ 
         model: GEMINI_MODEL,
-        systemInstruction: "Bạn là chuyên gia tư vấn dinh dưỡng của FITNFOOD. Nhiệm vụ của bạn là tư vấn thân thiện, ngắn gọn và dễ hiểu bằng tiếng Việt. Chỉ sử dụng thông tin sản phẩm được cung cấp, không tự bịa sản phẩm. Nếu không có sản phẩm phù hợp, hãy xin lỗi và hỏi thêm thông tin từ khách."
+        systemInstruction: `Bạn là chuyên gia tư vấn dinh dưỡng của FITNFOOD. Nhiệm vụ:
+1. Tư vấn thân thiện, ngắn gọn và dễ hiểu bằng tiếng Việt.
+2. Chỉ sử dụng thông tin sản phẩm được cung cấp, không tự bịa sản phẩm.
+3. Nếu không có sản phẩm phù hợp, hãy xin lỗi và hỏi thêm thông tin từ khách.
+4. Khi khách hỏi về đơn hàng hoặc tồn kho, hãy sử dụng các function tool được cung cấp. Khi phản hồi về thông tin đơn hàng từ tool lookup_user_orders, chỉ cung cấp chi tiết đơn hàng thu được, KHÔNG cần nhận xét/báo cáo về việc các sản phẩm trong đơn hàng đó có thuộc danh mục của FITNFOOD hay gợi ý kiểm tra tồn kho của chúng trừ khi khách hỏi riêng biệt.
+5. Luôn duy trì ngữ cảnh hội thoại, nhớ những gì khách đã nói và những quyết định bạn đã đưa ra trước đó trong cuộc hội thoại.
+6. Khi cần thêm thông tin sức khỏe (cân nặng, chiều cao, mục tiêu...), hãy hỏi ngắn gọn và chỉ hỏi 1 câu tại 1 thời điểm.
+7. Nếu bạn chưa có đủ thông tin hoặc ngữ cảnh để tư vấn sản phẩm cụ thể và cần hỏi thêm thông tin từ khách (như chiều cao, cân nặng, mục tiêu...), hoặc khi bạn đang trong quá trình hỏi thăm để lấy thêm thông tin mà chưa đề xuất sản phẩm cụ thể, hãy thêm từ khóa "[NEEDS_INFO]" vào cuối câu trả lời.
+8. QUAN TRỌNG: Đọc kỹ lịch sử hội thoại trước khi hỏi thêm. Nếu khách đã trả lời câu hỏi của bạn hoặc bạn đã đề xuất sản phẩm cho yêu cầu đó rồi, KHÔNG hỏi lại câu hỏi đó nữa. Thay vào đó, hãy tiếp tục hội thoại tự nhiên dựa trên thông tin đã có và chỉ đặt câu hỏi mới nếu thực sự cần thêm thông tin khác.
+9. QUAN TRỌNG: Khi gợi ý sản phẩm, bạn phải in đậm (**) tên sản phẩm và dùng ĐÚNG tên gốc của sản phẩm như trong danh sách được cung cấp ở đầu prompt. Không viết tắt hoặc thay đổi tên. Ví dụ: nếu tên trong danh sách là "Viên uống bổ sung vitamin C, tăng cường sức đề kháng C 500mg Nature's Bounty " thì phải in đậm đúng tên đó, không viết tắt thành "C 500mg Nature's Bounty" hay "Nature's Bounty".
+
+--- LUỒNG MUA HÀNG QUA CHAT ---
+10. KHI KHÁCH MUỐN MUA / THÊM GIỎ HÀNG: Khi khách nói muốn mua, đặt hàng, thêm giỏ hàng, lấy sản phẩm nào đó → gọi function add_to_cart. Nếu khách nói rõ tên sản phẩm và số lượng thì thêm luôn. Nếu thiếu thông tin (tên sản phẩm không rõ, chưa nói số lượng) thì hỏi lại trước.
+11. SAU KHI THÊM GIỎ HÀNG THÀNH CÔNG: Luôn gợi ý sản phẩm bổ sung liên quan (upsell/cross-sell). Ví dụ: nếu khách mua Whey Protein → gợi ý bình lắc, creatine, hoặc BCAA. Nếu khách mua vitamin → gợi ý thêm sản phẩm bổ sung khác.
+12. KHI KHÁCH MUỐN THANH TOÁN / CHECKOUT: Khi khách nói muốn thanh toán, đặt hàng luôn, checkout → thực hiện theo thứ tự: (a) Gọi view_cart để xem giỏ hàng hiện tại, (b) Liệt kê ngắn gọn các sản phẩm trong giỏ và tổng tiền, (c) Gọi get_user_address để lấy địa chỉ mặc định, (d) Gọi find_applicable_vouchers để quét voucher phù hợp, (e) Trình bày thông tin tổng hợp cho khách và đợi xác nhận. QUAN TRỌNG: Thêm tag "[CHECKOUT_CONFIRM]" vào cuối response khi đang chờ khách xác nhận đặt hàng.
+13. KHI KHÁCH XÁC NHẬN ĐẶT HÀNG: Khi khách nói "đúng rồi", "xác nhận", "OK", "đặt hàng đi" hoặc bấm nút xác nhận → gọi function create_cod_order để tạo đơn hàng COD. Sau khi tạo thành công, thông báo mã đơn hàng.
+14. THANH TOÁN CHUYỂN KHOẢN: Nếu khách hỏi về thanh toán chuyển khoản, banking, hoặc chuyển tiền → phản hồi: "Tính năng thanh toán chuyển khoản đang được phát triển. Hiện tại bạn có thể thanh toán khi nhận hàng (COD). Xin lỗi vì sự bất tiện!"
+15. KHI KHÁCH MUỐN XEM GIỎ HÀNG: Gọi function view_cart.
+16. KHI KHÁCH MUỐN XÓA SẢN PHẨM KHỎI GIỎ: Gọi function remove_from_cart.`
     });
 };
 
-const generateGeminiReply = async (prompt) => {
-    const model = getGeminiModel();
-    if (!model) {
-        return "Hiện tại hệ thống chưa được cấu hình AI. Bạn có thể mô tả rõ hơn nhu cầu để mình tư vấn tốt hơn không?";
+// =============================================
+// Gemini Function Calling — Tool Declarations
+// =============================================
+
+const functionDeclarations = [
+    {
+        name: "lookup_user_orders",
+        description: "Tra cứu đơn hàng gần nhất của khách hàng đang chat. Dùng khi khách hỏi về đơn hàng, trạng thái giao hàng, lịch sử mua hàng.",
+        parameters: {
+            type: "object",
+            properties: {
+                limit: {
+                    type: "number",
+                    description: "Số đơn hàng cần lấy (mặc định 3)",
+                },
+            },
+        },
+    },
+    {
+        name: "check_product_stock",
+        description: "Kiểm tra tồn kho của một sản phẩm cụ thể. Dùng khi khách hỏi sản phẩm còn hàng không, có sẵn không.",
+        parameters: {
+            type: "object",
+            properties: {
+                productName: {
+                    type: "string",
+                    description: "Tên sản phẩm cần kiểm tra tồn kho",
+                },
+            },
+            required: ["productName"],
+        },
+    },
+    {
+        name: "add_to_cart",
+        description: "Thêm sản phẩm vào giỏ hàng của khách. Dùng khi khách muốn mua, đặt hàng, thêm giỏ hàng, hoặc lấy sản phẩm nào đó.",
+        parameters: {
+            type: "object",
+            properties: {
+                productName: {
+                    type: "string",
+                    description: "Tên sản phẩm cần thêm vào giỏ hàng (có thể bao gồm hương vị, size nếu có)",
+                },
+                quantity: {
+                    type: "number",
+                    description: "Số lượng cần thêm (mặc định 1)",
+                },
+            },
+            required: ["productName"],
+        },
+    },
+    {
+        name: "view_cart",
+        description: "Xem giỏ hàng hiện tại của khách. Dùng khi khách hỏi giỏ hàng có gì, muốn xem giỏ, hoặc trước khi thanh toán.",
+        parameters: {
+            type: "object",
+            properties: {},
+        },
+    },
+    {
+        name: "remove_from_cart",
+        description: "Xóa sản phẩm khỏi giỏ hàng. Dùng khi khách muốn bỏ, xóa, không lấy sản phẩm nào đó khỏi giỏ.",
+        parameters: {
+            type: "object",
+            properties: {
+                productName: {
+                    type: "string",
+                    description: "Tên sản phẩm cần xóa khỏi giỏ hàng",
+                },
+            },
+            required: ["productName"],
+        },
+    },
+    {
+        name: "get_user_address",
+        description: "Lấy địa chỉ giao hàng mặc định của khách. Dùng khi cần xác nhận địa chỉ trước khi tạo đơn hàng.",
+        parameters: {
+            type: "object",
+            properties: {},
+        },
+    },
+    {
+        name: "find_applicable_vouchers",
+        description: "Tìm mã giảm giá (voucher) phù hợp cho đơn hàng. Dùng khi đang checkout để gợi ý voucher cho khách.",
+        parameters: {
+            type: "object",
+            properties: {
+                orderValue: {
+                    type: "number",
+                    description: "Tổng giá trị đơn hàng (VND) để lọc voucher phù hợp",
+                },
+            },
+            required: ["orderValue"],
+        },
+    },
+    {
+        name: "create_cod_order",
+        description: "Tạo đơn hàng COD (thanh toán khi nhận hàng) từ giỏ hàng hiện tại. Chỉ gọi khi khách đã xác nhận muốn đặt hàng.",
+        parameters: {
+            type: "object",
+            properties: {
+                voucherCode: {
+                    type: "string",
+                    description: "Mã voucher giảm giá nếu có (tùy chọn)",
+                },
+                paymentMethod: {
+                    type: "string",
+                    description: "Phương thức thanh toán: cod hoặc bank_transfer",
+                    enum: ["cod", "bank_transfer"],
+                },
+            },
+        },
+    },
+];
+
+// =============================================
+// Function Call Executor
+// =============================================
+
+const executeFunctionCall = async (functionCall, userId, context = {}) => {
+    const { name, args } = functionCall;
+    const { sideEffects } = context;
+
+    if (name === "lookup_user_orders") {
+        if (!userId) return { error: "Bạn cần đăng nhập để xem đơn hàng." };
+        const limit = args?.limit || 3;
+        const orders = await Order.find({ user: userId })
+            .sort({ createdAt: -1 })
+            .limit(limit)
+            .select("orderItems totalPrice isPaid isDelivered createdAt shippingAddress")
+            .lean();
+
+        if (!orders.length) return { message: "Không tìm thấy đơn hàng nào." };
+
+        return orders.map((order) => ({
+            orderId: order._id,
+            totalPrice: order.totalPrice,
+            isPaid: order.isPaid,
+            deliveryStatus: order.isDelivered,
+            createdAt: order.createdAt,
+            items: (order.orderItems || []).map((item) => ({
+                name: item.name,
+                amount: item.amount,
+                price: item.price,
+            })),
+        }));
     }
 
+    if (name === "check_product_stock") {
+        const productName = args?.productName || "";
+        const product = await Product.findOne({
+            name: { $regex: productName, $options: "i" },
+        })
+            .select("name countInStock price discount")
+            .lean();
+
+        if (!product) return { message: `Không tìm thấy sản phẩm "${productName}".` };
+
+        const stockStatus =
+            product.countInStock <= 0
+                ? "Hết hàng"
+                : product.countInStock <= 5
+                    ? `Còn ít (${product.countInStock} sản phẩm)`
+                    : `Còn hàng (${product.countInStock} sản phẩm)`;
+
+        return {
+            name: product.name,
+            stockStatus,
+            price: product.price,
+            discount: product.discount,
+        };
+    }
+
+    // =============================================
+    // Bước 3: Cart Management Functions
+    // =============================================
+
+    if (name === "add_to_cart") {
+        if (!userId) return { error: "Bạn cần đăng nhập để thêm sản phẩm vào giỏ hàng." };
+        const productName = args?.productName || "";
+        const quantity = Math.max(Number(args?.quantity) || 1, 1);
+
+        // Tìm sản phẩm bằng regex match (hỗ trợ cả variant/hương vị trong tên)
+        const product = await Product.findOne({
+            name: { $regex: productName, $options: "i" },
+        })
+            .select("name price discount countInStock images")
+            .lean();
+
+        if (!product) return { message: `Không tìm thấy sản phẩm "${productName}". Bạn có thể mô tả rõ hơn không?` };
+
+        if (product.countInStock <= 0) {
+            return { message: `Sản phẩm "${product.name}" hiện đã hết hàng.` };
+        }
+        if (quantity > product.countInStock) {
+            return { message: `Sản phẩm "${product.name}" chỉ còn ${product.countInStock} sản phẩm trong kho.` };
+        }
+
+        // Lấy hoặc tạo giỏ hàng
+        let cart = await Cart.findOne({ userId });
+        if (!cart) {
+            cart = await Cart.create({ userId, items: [] });
+        }
+
+        // Kiểm tra sản phẩm đã có trong giỏ chưa
+        const existingItem = cart.items.find(item => String(item.product) === String(product._id));
+        if (existingItem) {
+            const newAmount = existingItem.amount + quantity;
+            if (newAmount > product.countInStock) {
+                return { message: `Không thể thêm. Giỏ đã có ${existingItem.amount} sản phẩm, kho chỉ còn ${product.countInStock}.` };
+            }
+            existingItem.amount = newAmount;
+        } else {
+            const primaryImage = Array.isArray(product.images) && product.images.length > 0 ? product.images[0] : "";
+            cart.items.push({
+                product: product._id,
+                name: product.name,
+                amount: quantity,
+                image: primaryImage,
+                price: product.price,
+                discount: product.discount || 0,
+                countInStock: product.countInStock,
+            });
+        }
+
+        await cart.save();
+
+        // Đánh dấu side effect để socket layer emit cart update
+        if (sideEffects) {
+            sideEffects.cartUpdated = true;
+            sideEffects.cartItems = cart.items;
+        }
+
+        return {
+            message: `Đã thêm ${quantity} x "${product.name}" vào giỏ hàng.`,
+            addedProduct: product.name,
+            quantity,
+            cartTotalItems: cart.items.reduce((sum, item) => sum + item.amount, 0),
+        };
+    }
+
+    if (name === "view_cart") {
+        if (!userId) return { error: "Bạn cần đăng nhập để xem giỏ hàng." };
+
+        const cart = await Cart.findOne({ userId }).lean();
+        if (!cart || !cart.items || cart.items.length === 0) {
+            return { message: "Giỏ hàng của bạn đang trống." };
+        }
+
+        const items = cart.items.map(item => ({
+            name: item.name,
+            quantity: item.amount,
+            price: item.price,
+            discount: item.discount || 0,
+            subtotal: item.amount * item.price,
+        }));
+
+        const totalPrice = items.reduce((sum, item) => sum + item.subtotal, 0);
+        const totalDiscount = items.reduce((sum, item) => sum + (item.discount * item.price * item.quantity / 100), 0);
+
+        return {
+            items,
+            totalItems: items.reduce((sum, item) => sum + item.quantity, 0),
+            totalPrice,
+            totalDiscount,
+            finalPrice: totalPrice - totalDiscount,
+        };
+    }
+
+    if (name === "remove_from_cart") {
+        if (!userId) return { error: "Bạn cần đăng nhập để thao tác giỏ hàng." };
+        const productName = args?.productName || "";
+
+        const cart = await Cart.findOne({ userId });
+        if (!cart || !cart.items || cart.items.length === 0) {
+            return { message: "Giỏ hàng đang trống, không có gì để xóa." };
+        }
+
+        const itemIndex = cart.items.findIndex(item =>
+            item.name && item.name.toLowerCase().includes(productName.toLowerCase())
+        );
+
+        if (itemIndex === -1) {
+            return { message: `Không tìm thấy sản phẩm "${productName}" trong giỏ hàng.` };
+        }
+
+        const removedItem = cart.items[itemIndex];
+        cart.items.splice(itemIndex, 1);
+        await cart.save();
+
+        if (sideEffects) {
+            sideEffects.cartUpdated = true;
+            sideEffects.cartItems = cart.items;
+        }
+
+        return {
+            message: `Đã xóa "${removedItem.name}" khỏi giỏ hàng.`,
+            removedProduct: removedItem.name,
+            cartTotalItems: cart.items.reduce((sum, item) => sum + item.amount, 0),
+        };
+    }
+
+    // =============================================
+    // Bước 4: Checkout Functions
+    // =============================================
+
+    if (name === "get_user_address") {
+        if (!userId) return { error: "Bạn cần đăng nhập để lấy thông tin giao hàng." };
+
+        const user = await User.findById(userId)
+            .select("name phone address city email")
+            .lean();
+
+        if (!user) return { error: "Không tìm thấy thông tin người dùng." };
+
+        const hasFullAddress = user.name && user.phone && user.address && user.city;
+        return {
+            fullName: user.name || "",
+            phone: user.phone || "",
+            address: user.address || "",
+            city: user.city || "",
+            email: user.email || "",
+            isComplete: !!hasFullAddress,
+        };
+    }
+
+    if (name === "find_applicable_vouchers") {
+        if (!userId) return { error: "Bạn cần đăng nhập để xem mã giảm giá." };
+        const orderValue = Number(args?.orderValue) || 0;
+
+        const now = new Date();
+        const vouchers = await Discount.find({
+            isActive: true,
+            startDate: { $lte: now },
+            endDate: { $gte: now },
+            usesLeft: { $gt: 0 },
+            minValue: { $lte: orderValue },
+            usersUsed: { $ne: userId },
+        })
+            .select("name code type value minValue")
+            .limit(5)
+            .lean();
+
+        if (!vouchers.length) {
+            return { message: "Hiện tại không có mã giảm giá phù hợp cho đơn hàng này." };
+        }
+
+        return {
+            vouchers: vouchers.map(v => ({
+                name: v.name,
+                code: v.code,
+                type: v.type,
+                value: v.value,
+                minValue: v.minValue,
+                description: v.type === "percent"
+                    ? `Giảm ${v.value}% (đơn tối thiểu ${v.minValue.toLocaleString("vi-VN")} VND)`
+                    : `Giảm ${v.value.toLocaleString("vi-VN")} VND (đơn tối thiểu ${v.minValue.toLocaleString("vi-VN")} VND)`,
+            })),
+        };
+    }
+
+    if (name === "create_cod_order") {
+        if (!userId) return { error: "Bạn cần đăng nhập để đặt hàng." };
+
+        // Kiểm tra phương thức thanh toán
+        const paymentMethod = args?.paymentMethod || "cod";
+        if (paymentMethod === "bank_transfer") {
+            return { message: "Tính năng thanh toán chuyển khoản đang được phát triển. Hiện tại bạn có thể thanh toán khi nhận hàng (COD). Xin lỗi vì sự bất tiện!" };
+        }
+
+        // Lấy giỏ hàng
+        const cart = await Cart.findOne({ userId }).lean();
+        if (!cart || !cart.items || cart.items.length === 0) {
+            return { error: "Giỏ hàng đang trống. Vui lòng thêm sản phẩm trước khi đặt hàng." };
+        }
+
+        // Lấy thông tin user
+        const user = await User.findById(userId).select("name phone address city email").lean();
+        if (!user) return { error: "Không tìm thấy thông tin người dùng." };
+        if (!user.name || !user.phone || !user.address || !user.city) {
+            return { error: "Thông tin giao hàng chưa đầy đủ. Vui lòng cập nhật tên, số điện thoại, địa chỉ và tỉnh/thành phố." };
+        }
+
+        // Tính tổng tiền
+        const itemsPrice = cart.items.reduce((sum, item) => sum + (item.price * item.amount), 0);
+        const itemDiscount = cart.items.reduce((sum, item) => sum + ((item.discount || 0) * item.price * item.amount / 100), 0);
+
+        // Tính phí ship (logic tương tự PaymentPage)
+        let shippingPrice = 0;
+        if (itemsPrice < 200000 && cart.items.length > 0) {
+            shippingPrice = 20000;
+        } else if (itemsPrice >= 200000 && itemsPrice < 500000) {
+            shippingPrice = 10000;
+        }
+
+        // Xử lý voucher nếu có
+        let voucherDiscount = 0;
+        const voucherCode = args?.voucherCode || "";
+
+        const totalBeforeVoucher = itemsPrice - itemDiscount + shippingPrice;
+        const totalPrice = Math.max(totalBeforeVoucher - voucherDiscount, 0);
+
+        // Chuẩn bị orderItems
+        const orderItems = cart.items.map(item => ({
+            name: item.name,
+            amount: item.amount,
+            image: item.image || "",
+            price: item.price,
+            discount: item.discount || 0,
+            product: item.product,
+            countInStock: item.countInStock,
+        }));
+
+        // Tạo đơn hàng qua OrderService (tái sử dụng logic transaction, trừ kho, phiếu xuất)
+        try {
+            const orderResult = await OrderService.createOrder({
+                orderItems,
+                paymentMethod: "cash",
+                itemsPrice,
+                shippingPrice,
+                totalPrice,
+                fullName: user.name,
+                address: user.address,
+                city: user.city,
+                phone: user.phone,
+                user: userId,
+                email: user.email,
+            });
+
+            if (orderResult.status === "ERR") {
+                return { error: orderResult.message || "Không thể tạo đơn hàng." };
+            }
+
+            // Áp dụng voucher nếu có (sau khi tạo đơn thành công)
+            if (voucherCode) {
+                try {
+                    const DiscountService = require("./DiscountService");
+                    await DiscountService.useDiscount({
+                        code: voucherCode,
+                        orderValue: itemsPrice,
+                        userId,
+                    });
+                } catch (discountError) {
+                    console.warn("Voucher apply failed (order already created):", discountError?.message);
+                }
+            }
+
+            // Xóa giỏ hàng sau khi đặt hàng thành công
+            await Cart.findOneAndDelete({ userId });
+
+            // Đánh dấu side effects
+            if (sideEffects) {
+                sideEffects.cartUpdated = true;
+                sideEffects.cartItems = [];
+                sideEffects.orderCreated = true;
+                sideEffects.orderId = orderResult.data?._id;
+                sideEffects.orderTotalPrice = totalPrice;
+            }
+
+            return {
+                message: "Đặt hàng thành công!",
+                orderId: orderResult.data?._id,
+                totalPrice,
+                shippingAddress: `${user.address}, ${user.city}`,
+                phone: user.phone,
+                paymentMethod: "Thanh toán khi nhận hàng (COD)",
+                itemCount: cart.items.length,
+            };
+        } catch (orderError) {
+            console.error("Create COD order failed:", orderError?.message || orderError);
+            return { error: "Có lỗi xảy ra khi tạo đơn hàng. Vui lòng thử lại." };
+        }
+    }
+
+    return { error: "Chức năng không hỗ trợ." };
+};
+
+// =============================================
+// Multi-turn Conversation History
+// =============================================
+
+const fetchConversationHistory = async (conversationId, limit = AI_CONTEXT_LIMIT) => {
+    const messages = await Message.find({ conversation: conversationId })
+        .sort({ createdAt: -1 })
+        .limit(limit)
+        .lean();
+
+    // Đảo ngược để đúng thứ tự thời gian
+    const ordered = messages.reverse();
+
+    // Map sang format Gemini multi-turn: user → "user", bot → "model"
+    const mapped = ordered
+        .filter((msg) => msg.sender === "user" || msg.sender === "bot")
+        .map((msg) => ({
+            role: msg.sender === "user" ? "user" : "model",
+            parts: [{ text: msg.content || "" }],
+        }));
+
+    // Tối ưu hóa lịch sử cuộc trò chuyện cho Gemini:
+    // 1. Phải luân phiên các vai trò (role). Gộp các tin nhắn liên tiếp cùng vai trò.
+    const optimized = [];
+    for (const msg of mapped) {
+        if (optimized.length === 0) {
+            optimized.push(msg);
+        } else {
+            const last = optimized[optimized.length - 1];
+            if (last.role === msg.role) {
+                last.parts[0].text = last.parts[0].text + "\n" + msg.parts[0].text;
+            } else {
+                optimized.push(msg);
+            }
+        }
+    }
+
+    // 2. Tin nhắn đầu tiên phải có vai trò "user".
+    while (optimized.length > 0 && optimized[0].role !== "user") {
+        optimized.shift();
+    }
+
+    return optimized;
+};
+
+// =============================================
+// Context-Aware RAG Query Builder
+// =============================================
+
+const buildContextQuery = (currentQuestion, history) => {
+    // Lấy 2-3 tin nhắn user gần nhất từ history để tổng hợp ngữ cảnh
+    const recentUserMessages = history
+        .filter((msg) => msg.role === "user")
+        .slice(-3)
+        .map((msg) => msg.parts[0]?.text || "")
+        .filter(Boolean);
+
+    // Nối với câu hỏi hiện tại để tạo query tổng hợp
+    return [...recentUserMessages, currentQuestion]
+        .filter(Boolean)
+        .join(" | ");
+};
+
+// =============================================
+// Gemini Multi-turn Reply + Function Calling
+// =============================================
+
+const generateGeminiReply = async (prompt, conversationHistory, userId, statusCallback) => {
+    const model = getGeminiModel();
+    if (!model) {
+        return {
+            text: "Hiện tại hệ thống chưa được cấu hình AI. Bạn có thể mô tả rõ hơn nhu cầu để mình tư vấn tốt hơn không?",
+            wasFunctionCalled: false,
+            sideEffects: {},
+        };
+    }
+
+    // Context để thu thập side effects từ function calls
+    const sideEffects = {};
+
     try {
-        const result = await model.generateContent({
-            contents: [
-                {
-                    role: "user",
-                    parts: [{ text: prompt }],
-                },
-            ],
+        // Khởi tạo multi-turn chat với conversation history + function calling tools
+        const chat = model.startChat({
+            history: conversationHistory,
+            tools: [{ functionDeclarations }],
             generationConfig: {
                 temperature: 0.4,
                 topK: 40,
@@ -169,17 +740,72 @@ const generateGeminiReply = async (prompt) => {
                 {
                     category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
                     threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH,
-                }
-            ]
+                },
+            ],
         });
 
-        const text = result?.response?.text ? result.response.text().trim() : "";
-        return text || "Mình chưa thể trả lời câu hỏi của bạn. Bạn có thể mô tả rõ hơn nhu cầu để mình tư vấn tốt hơn không?";
+        // Gửi message hiện tại
+        let result = await chat.sendMessage(prompt);
+        let response = result.response;
+
+        // Function Calling loop — xử lý khi Gemini yêu cầu gọi function
+        const MAX_FUNCTION_CALLS = 6;
+        let functionCallCount = 0;
+        let wasFunctionCalled = false;
+
+        while (functionCallCount < MAX_FUNCTION_CALLS) {
+            const functionCalls = response.functionCalls?.() || [];
+            if (functionCalls.length === 0) break;
+
+            functionCallCount++;
+            wasFunctionCalled = true;
+            const functionResponses = [];
+
+            for (const fc of functionCalls) {
+                // Gửi status update cho frontend
+                if (statusCallback) {
+                    const statusMessages = {
+                        lookup_user_orders: "Đang tra cứu đơn hàng của bạn...",
+                        check_product_stock: "Đang kiểm tra tồn kho sản phẩm...",
+                        add_to_cart: "Đang thêm sản phẩm vào giỏ hàng...",
+                        view_cart: "Đang kiểm tra giỏ hàng...",
+                        remove_from_cart: "Đang cập nhật giỏ hàng...",
+                        get_user_address: "Đang lấy thông tin giao hàng...",
+                        find_applicable_vouchers: "Đang tìm mã giảm giá phù hợp...",
+                        create_cod_order: "Đang tạo đơn hàng...",
+                    };
+                    statusCallback(statusMessages[fc.name] || "Đang xử lý...");
+                }
+
+                const fcResult = await executeFunctionCall(fc, userId, { sideEffects });
+                functionResponses.push({
+                    functionResponse: {
+                        name: fc.name,
+                        response: { result: fcResult },
+                    },
+                });
+            }
+
+            // Gửi kết quả function call lại cho Gemini để tạo câu trả lời
+            result = await chat.sendMessage(functionResponses);
+            response = result.response;
+        }
+
+        const text = response?.text ? response.text().trim() : "";
+        return {
+            text: text || "Mình chưa thể trả lời câu hỏi của bạn. Bạn có thể mô tả rõ hơn nhu cầu để mình tư vấn tốt hơn không?",
+            wasFunctionCalled,
+            sideEffects,
+        };
     } catch (error) {
         console.warn("Gemini generation failed:", error?.message || error);
         throw error; // Ném lỗi ra để hàm generateBotMessage bắt và xử lý Human Handoff
     }
 };
+
+// =============================================
+// Product Search (RAG)
+// =============================================
 
 const searchProductsByQuestion = async (question, limit) => {
     const normalized = normalizeText(question);
@@ -202,26 +828,171 @@ const searchProductsByQuestion = async (question, limit) => {
     };
 };
 
-const generateBotMessage = async (question) => {
-    const { products, categoryMap } = await searchProductsByQuestion(question, CHAT_VECTOR_LIMIT);
+const escapeRegExp = (string) => {
+    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+};
+
+// Extract các chuỗi in đậm (**...**) từ Markdown response của bot
+const extractBoldTexts = (text) => {
+    const boldPattern = /\*\*([^*]+)\*\*/g;
+    const results = [];
+    let match;
+    while ((match = boldPattern.exec(text)) !== null) {
+        const boldText = match[1].trim();
+        if (boldText.length >= 3) {
+            results.push(boldText);
+        }
+    }
+    return results;
+};
+
+// So khớp một chuỗi bold với tên sản phẩm trong DB
+// Hỗ trợ: khớp chính xác, bold là sub-string của tên DB, hoặc tên DB là sub-string của bold
+const boldMatchesProduct = (boldText, productName) => {
+    if (!boldText || !productName) return false;
+
+    const normalB = boldText.trim().toLowerCase();
+    const normalP = productName.trim().toLowerCase();
+
+    // 1. Khớp chính xác (sau khi normalize, bỏ khoảng trắng thừa)
+    if (normalP === normalB) return true;
+
+    // 2. Tên DB chứa toàn bộ nội dung bold — bold là sub-chuỗi đặc trưng của tên DB
+    //    Yêu cầu bold phải đủ dài (>= 6 ký tự) để tránh khớp sai với từ ngắn chung chung
+    if (normalP.includes(normalB) && normalB.length >= 6) return true;
+
+    // 3. Bold chứa toàn bộ tên DB — bot đã thêm thông tin vào sau tên
+    if (normalB.includes(normalP) && normalP.length >= 6) return true;
+
+    return false;
+};
+
+const extractProductsFromText = async (text) => {
+    if (!text) return [];
+    try {
+        // Bước 1: Lấy các chuỗi in đậm từ response của bot
+        const boldTexts = extractBoldTexts(text);
+        if (boldTexts.length === 0) return [];
+
+        // Bước 2: Load tất cả sản phẩm từ DB
+        const allProducts = await Product.find({})
+            .select("name price discount images")
+            .lean();
+
+        const matchedProducts = [];
+        const seenIds = new Set();
+
+        // Bước 3: Với mỗi chuỗi bold, tìm sản phẩm khớp trong DB
+        for (const boldText of boldTexts) {
+            for (const product of allProducts) {
+                if (!product.name || seenIds.has(String(product._id))) continue;
+
+                if (boldMatchesProduct(boldText, product.name)) {
+                    matchedProducts.push(product);
+                    seenIds.add(String(product._id));
+                    break; // Mỗi bold text chỉ khớp tối đa 1 sản phẩm
+                }
+            }
+        }
+
+        return matchedProducts;
+    } catch (error) {
+        console.warn("Error extracting products from text:", error?.message || error);
+        return [];
+    }
+};
+
+
+
+// =============================================
+// Main Bot Message Generator (Context-Aware RAG + Multi-turn + Function Calling)
+// =============================================
+
+const generateBotMessage = async (question, conversationId, userId, statusCallback) => {
+    // 1. Lấy conversation history từ DB cho multi-turn context
+    const conversationHistory = conversationId
+        ? await fetchConversationHistory(conversationId)
+        : [];
+
+    // 2. Context-aware RAG: tổng hợp ngữ cảnh từ history để vector search chính xác hơn
+    if (statusCallback) statusCallback("Đang tìm sản phẩm phù hợp...");
+
+    const contextQuery = buildContextQuery(question, conversationHistory);
+    const { products, categoryMap } = await searchProductsByQuestion(
+        contextQuery,
+        CHAT_VECTOR_LIMIT
+    );
+
+    // 3. Build prompt với sản phẩm từ RAG
     const prompt = buildPrompt(question, products, categoryMap);
 
+    // 4. Gọi Gemini với multi-turn history + function calling
+    if (statusCallback) statusCallback("Đang tạo câu trả lời...");
+
     let text = "";
+    let wasFunctionCalled = false;
+    let sideEffects = {};
     try {
-        text = await generateGeminiReply(prompt);
+        const replyResult = await generateGeminiReply(prompt, conversationHistory, userId, statusCallback);
+        text = replyResult.text;
+        wasFunctionCalled = replyResult.wasFunctionCalled;
+        sideEffects = replyResult.sideEffects || {};
     } catch (error) {
         console.warn("Gemini call failed or overloaded:", error?.message || error);
         // Fallback khi AI lỗi 503 hoặc các lỗi khác
         text = "Hiện tại chuyên viên AI của FITNFOOD đang hỗ trợ nhiều khách hàng cùng lúc nên phản hồi hơi chậm. Bạn vui lòng đợi một chút hoặc nhấn nút 'Gặp Nhân Viên' để kết nối trực tiếp với chuyên gia dinh dưỡng nhé!";
     }
 
-    const productSnapshots = products.map(buildProductSnapshot).filter((item) => item?._id);
+    // 5. Kiểm tra nếu cần ẩn danh sách sản phẩm gợi ý (khi thực hiện function call hoặc chưa đủ ngữ cảnh)
+    let hideProducts = wasFunctionCalled;
+    if (text.includes("[NEEDS_INFO]")) {
+        hideProducts = true;
+        // Xóa cờ [NEEDS_INFO] khỏi câu trả lời của bot trước khi gửi đi
+        text = text.replace(/\[NEEDS_INFO\]/gi, "").trim();
+    }
+
+    // 6. Xử lý [CHECKOUT_CONFIRM] — tạo action buttons cho checkout
+    let actions = [];
+    if (text.includes("[CHECKOUT_CONFIRM]")) {
+        text = text.replace(/\[CHECKOUT_CONFIRM\]/gi, "").trim();
+        actions = [
+            { type: "confirm_order", label: "✅ Xác nhận đặt hàng", payload: {} },
+            { type: "change_address", label: "📍 Đổi địa chỉ giao hàng", payload: {} },
+        ];
+    }
+
+    // 7. Tạo cartUpdate metadata nếu giỏ hàng thay đổi
+    let cartUpdate = null;
+    if (sideEffects.cartUpdated) {
+        const cartItems = sideEffects.cartItems || [];
+        cartUpdate = {
+            items: cartItems,
+            totalItems: cartItems.reduce((sum, item) => sum + (item.amount || 0), 0),
+        };
+    }
+
+    // 8. Tạo orderCreated metadata nếu đơn hàng được tạo
+    let orderCreated = null;
+    if (sideEffects.orderCreated) {
+        orderCreated = {
+            orderId: sideEffects.orderId,
+            totalPrice: sideEffects.orderTotalPrice,
+        };
+    }
+
+    // Gợi ý chính xác các sản phẩm được đề cập trong text (nếu không bị ẩn)
+    const matchedProducts = hideProducts ? [] : await extractProductsFromText(text);
+    const productSnapshots = matchedProducts.map(buildProductSnapshot).filter((item) => item?._id);
     const productIds = productSnapshots.map((item) => item._id).filter(Boolean);
 
     return {
         text,
         productIds,
         products: productSnapshots,
+        actions,
+        cartUpdate,
+        orderCreated,
+        sideEffects,
     };
 };
 
