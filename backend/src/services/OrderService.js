@@ -499,5 +499,240 @@ module.exports = {
     getOrderById,
     deleteOrder,
     getAllOrders,
-    updateOrder
+    updateOrder,
+    createPendingOrder,
+    cancelExpiredOrder,
 };
+
+// =============================================
+// PayOS: Tạo đơn hàng chờ thanh toán (isPaid=false)
+// =============================================
+
+/**
+ * Tạo đơn hàng với trạng thái chờ thanh toán PayOS.
+ * Trừ kho ngay, nhưng isPaid=false. Nếu hết hạn sẽ gọi cancelExpiredOrder.
+ */
+async function createPendingOrder(newOrder) {
+    const {
+        orderItems, paymentMethod, itemsPrice, shippingPrice, totalPrice,
+        fullName, address, city, phone, user, email,
+        payosOrderCode, paymentLinkId,
+    } = newOrder;
+
+    const deliveryStatus = "pending";
+    let session = null;
+
+    try {
+        const userData = await User.findById(user).select('email').lean();
+        if (!userData) {
+            return { status: 'ERR', message: 'User not found!' };
+        }
+
+        session = await require('mongoose').startSession();
+        session.startTransaction();
+
+        const updatedProducts = [];
+        const normalizedOrderItems = [];
+        const failedItems = [];
+
+        for (const order of orderItems) {
+            const productData = await Product.findOneAndUpdate(
+                { _id: order.product, countInStock: { $gte: Number(order.amount || 0) } },
+                {
+                    $inc: { countInStock: -Number(order.amount || 0), sold: +Number(order.amount || 0) },
+                    $set: { lastStockMovementAt: new Date() },
+                },
+                { new: true, session }
+            );
+
+            if (!productData) {
+                failedItems.push(order.product);
+                break;
+            }
+
+            updatedProducts.push({ productId: order.product, amount: Number(order.amount || 0) });
+
+            const primaryImage = Array.isArray(order.images) && order.images.length > 0
+                ? order.images[0]
+                : (order.image || (Array.isArray(productData?.images) && productData.images.length > 0 ? productData.images[0] : ""));
+
+            normalizedOrderItems.push({
+                ...order,
+                product: order.product,
+                name: order.name || productData?.name || "",
+                amount: Number(order.amount || 0),
+                price: Number(order.price ?? productData?.price ?? 0),
+                discount: Number(order.discount || 0),
+                countInStock: Number(productData?.countInStock || 0),
+                image: primaryImage,
+            });
+        }
+
+        if (failedItems.length > 0) {
+            await session.abortTransaction();
+            session.endSession();
+            return { status: 'ERR', message: `Số lượng tồn kho không đủ!` };
+        }
+
+        const createdOrder = await Order.create([{
+            orderItems: normalizedOrderItems,
+            shippingAddress: { fullName, address, city, phone },
+            paymentMethod: paymentMethod || 'payos',
+            itemsPrice,
+            shippingPrice,
+            totalPrice,
+            user,
+            isPaid: false,
+            isDelivered: deliveryStatus,
+            payosOrderCode: payosOrderCode || null,
+            paymentLinkId: paymentLinkId || null,
+        }], { session });
+
+        const createdOrderDoc = Array.isArray(createdOrder) ? createdOrder[0] : createdOrder;
+
+        // Tạo phiếu xuất kho
+        const voucherCode = `PXK-PAYOS-${createdOrderDoc._id.toString().slice(-6).toUpperCase()}`;
+        const voucherItems = normalizedOrderItems.map((item) => ({
+            product: item.product,
+            quantity: Number(item.amount || 0),
+            unitPrice: Number(item.price || 0),
+            amount: Number(item.amount || 0) * Number(item.price || 0),
+        }));
+
+        const saleVoucher = await InventoryVoucher.create([{
+            voucherCode,
+            transactionType: "EXPORT",
+            exportReason: "SALE",
+            performedBy: user,
+            linkedOrder: createdOrderDoc._id,
+            voucherDate: new Date(),
+            status: "confirmed",
+            items: voucherItems,
+            totalAmount: voucherItems.reduce((sum, item) => sum + item.amount, 0),
+            note: `Xuat kho PayOS don hang ${createdOrderDoc._id}`,
+            confirmedAt: new Date(),
+            confirmedBy: user,
+        }], { session });
+
+        const saleVoucherDoc = Array.isArray(saleVoucher) ? saleVoucher[0] : saleVoucher;
+
+        const stockCardsToCreate = normalizedOrderItems.map((item) => ({
+            product: item.product,
+            date: new Date(),
+            transactionType: "EXPORT",
+            voucherCode,
+            voucherRef: saleVoucherDoc._id,
+            description: "Xuat kho - PAYOS SALE",
+            quantityIn: 0,
+            quantityOut: Number(item.amount || 0),
+            balanceAfter: Number(item.countInStock || 0),
+            performedBy: user,
+            note: `Lien ket don hang PayOS ${createdOrderDoc._id}`,
+        }));
+
+        await StockCard.insertMany(stockCardsToCreate, { session });
+
+        await session.commitTransaction();
+        session.endSession();
+        session = null;
+
+        const orderResponse = createdOrderDoc.toObject();
+        if (orderResponse && Array.isArray(orderResponse.orderItems)) {
+            orderResponse.orderItems.forEach(item => { delete item.image; });
+        }
+
+        return { status: 'OK', message: 'Pending order created!', data: orderResponse };
+
+    } catch (e) {
+        try { if (session) { await session.abortTransaction(); } } catch (abortErr) { console.error(abortErr); }
+        finally { if (session) { session.endSession(); } }
+        throw e;
+    }
+}
+
+// =============================================
+// PayOS: Hủy đơn hàng hết hạn + hoàn kho
+// =============================================
+
+/**
+ * Hủy đơn hàng PayOS hết hạn thanh toán: hoàn kho, tạo phiếu nhập, xóa đơn.
+ * Gọi khi nhận webhook PayOS code='01' (cancelled) hoặc frontend timeout.
+ */
+async function cancelExpiredOrder(orderId) {
+    try {
+        const order = await Order.findById(orderId);
+        if (!order) {
+            return { status: 'ERR', message: 'Order not found!' };
+        }
+
+        // Chỉ hủy đơn PayOS chưa thanh toán
+        if (order.isPaid) {
+            return { status: 'ERR', message: 'Cannot cancel a paid order!' };
+        }
+
+        // Hoàn lại hàng tồn kho
+        if (order.isDelivered === 'pending' || order.isDelivered === 'processing') {
+            const orderOwner = await User.findById(order.user);
+            const ownerFullName = order?.shippingAddress?.fullName || orderOwner?.name || 'Khach hang';
+            const ownerPhone = order?.shippingAddress?.phone || orderOwner?.phone || '--';
+            const ownerEmail = orderOwner?.email || '--';
+            const ownerContactInfo = `${ownerFullName} - ${ownerPhone} - ${ownerEmail}`;
+            const voucherItems = [];
+
+            for (const item of order.orderItems) {
+                const quantity = Number(item.amount || 0);
+                const unitPrice = Number(item.price || 0);
+                const amount = quantity * unitPrice;
+
+                await Product.findByIdAndUpdate(item.product, {
+                    $inc: { countInStock: +quantity, sold: -quantity },
+                    $set: { lastStockMovementAt: new Date() },
+                });
+
+                voucherItems.push({ product: item.product, quantity, unitPrice, amount });
+            }
+
+            const voucherCode = `PNK-PAYOS-CANCEL-${order._id.toString().slice(-6).toUpperCase()}-${Date.now().toString().slice(-4)}`;
+
+            const importVoucher = await InventoryVoucher.create({
+                voucherCode,
+                transactionType: 'IMPORT',
+                sourceType: 'RETURN',
+                performedBy: order.user,
+                linkedOrder: order._id,
+                supplierName: ownerFullName,
+                supplierContact: ownerContactInfo,
+                voucherDate: new Date(),
+                status: 'confirmed',
+                items: voucherItems,
+                totalAmount: voucherItems.reduce((sum, entry) => sum + Number(entry.amount || 0), 0),
+                note: `Nhap kho do PayOS het han don hang ${order._id}`,
+                confirmedAt: new Date(),
+                confirmedBy: order.user,
+            });
+
+            for (const item of voucherItems) {
+                const productData = await Product.findById(item.product);
+                await StockCard.create({
+                    product: item.product,
+                    date: new Date(),
+                    transactionType: 'IMPORT',
+                    voucherCode,
+                    voucherRef: importVoucher._id,
+                    description: 'Nhap kho - PAYOS RETURN',
+                    quantityIn: item.quantity,
+                    quantityOut: 0,
+                    balanceAfter: productData?.countInStock || 0,
+                    performedBy: order.user,
+                    note: `Hoan kho PayOS het han don hang ${order._id}`,
+                });
+            }
+        }
+
+        await Order.findByIdAndDelete(orderId);
+        return { status: 'OK', message: 'Expired order cancelled and stock restored!' };
+
+    } catch (error) {
+        throw error;
+    }
+}

@@ -236,6 +236,25 @@ const ChatWidget = () => {
           }
         });
 
+        // Lắng nghe PayOS payment link từ chatbot
+        socket.on("chat:payos_link", (payload) => {
+          if (payload?.checkoutUrl) {
+            // Thêm tin nhắn ảo vào danh sách để hiển thị nút link
+            const payosMessage = {
+              _id: `payos-${Date.now()}`,
+              sender: "bot",
+              content: `📱 Link thanh toán PayOS đã sẵn sàng! Nhấn nút bên dưới để mở trang thanh toán và quét mã QR. Link sẽ hết hạn sau 15 phút.`,
+              createdAt: new Date().toISOString(),
+              metadata: {
+                payosLink: payload.checkoutUrl,
+                orderId: payload.orderId,
+                totalPrice: payload.totalPrice,
+              },
+            };
+            setMessages((prev) => [...prev, payosMessage]);
+          }
+        });
+
         socket.on("disconnect", () => {
           setIsBotTyping(false);
           setBotStatusText("");
@@ -519,6 +538,30 @@ const ChatWidget = () => {
                     <MessageLabel $isUser={isUser}>{senderLabel}</MessageLabel>
                     <MessageBubble $isUser={isUser}>{message.content}</MessageBubble>
                     {timestamp && <MessageMeta>{timestamp}</MessageMeta>}
+
+                    {/* PayOS payment link */}
+                    {message?.metadata?.payosLink && (
+                      <CartNotification style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '8px' }}>
+                        <div>💳 Link thanh toán PayOS</div>
+                        <a
+                          href={message.metadata.payosLink}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{
+                            display: 'inline-block',
+                            background: 'linear-gradient(135deg, #0ea5e9, #6366f1)',
+                            color: '#fff',
+                            padding: '6px 16px',
+                            borderRadius: '8px',
+                            fontWeight: 600,
+                            fontSize: '13px',
+                            textDecoration: 'none',
+                          }}
+                        >
+                          🔗 Mở trang thanh toán
+                        </a>
+                      </CartNotification>
+                    )}
 
                     {/* Cart update notification */}
                     {cartUpdate && cartUpdate.totalItems >= 0 && (

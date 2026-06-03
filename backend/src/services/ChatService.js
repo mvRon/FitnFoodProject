@@ -149,9 +149,9 @@ const getGeminiModel = () => {
 --- LUỒNG MUA HÀNG QUA CHAT ---
 10. KHI KHÁCH MUỐN MUA / THÊM GIỎ HÀNG: Khi khách nói muốn mua, đặt hàng, thêm giỏ hàng, lấy sản phẩm nào đó → gọi function add_to_cart. Nếu khách nói rõ tên sản phẩm và số lượng thì thêm luôn. Nếu thiếu thông tin (tên sản phẩm không rõ, chưa nói số lượng) thì hỏi lại trước.
 11. SAU KHI THÊM GIỎ HÀNG THÀNH CÔNG: Luôn gợi ý sản phẩm bổ sung liên quan (upsell/cross-sell). Ví dụ: nếu khách mua Whey Protein → gợi ý bình lắc, creatine, hoặc BCAA. Nếu khách mua vitamin → gợi ý thêm sản phẩm bổ sung khác.
-12. KHI KHÁCH MUỐN THANH TOÁN / CHECKOUT: Khi khách nói muốn thanh toán, đặt hàng luôn, checkout → thực hiện theo thứ tự: (a) Gọi view_cart để xem giỏ hàng hiện tại, (b) Liệt kê ngắn gọn các sản phẩm trong giỏ và tổng tiền, (c) Gọi get_user_address để lấy địa chỉ mặc định, (d) Gọi find_applicable_vouchers để quét voucher phù hợp, (e) Trình bày thông tin tổng hợp cho khách và đợi xác nhận. QUAN TRỌNG: Thêm tag "[CHECKOUT_CONFIRM]" vào cuối response khi đang chờ khách xác nhận đặt hàng.
-13. KHI KHÁCH XÁC NHẬN ĐẶT HÀNG: Khi khách nói "đúng rồi", "xác nhận", "OK", "đặt hàng đi" hoặc bấm nút xác nhận → gọi function create_cod_order để tạo đơn hàng COD. Sau khi tạo thành công, thông báo mã đơn hàng.
-14. THANH TOÁN CHUYỂN KHOẢN: Nếu khách hỏi về thanh toán chuyển khoản, banking, hoặc chuyển tiền → phản hồi: "Tính năng thanh toán chuyển khoản đang được phát triển. Hiện tại bạn có thể thanh toán khi nhận hàng (COD). Xin lỗi vì sự bất tiện!"
+12. KHI KHÁCH MUỐN THANH TOÁN / CHECKOUT: Khi khách nói muốn thanh toán, đặt hàng luôn, checkout → thực hiện theo thứ tự: (a) Gọi view_cart để xem giỏ hàng hiện tại, (b) Liệt kê ngắn gọn các sản phẩm trong giỏ và tổng tiền, (c) Gọi get_user_address để lấy địa chỉ mặc định, (d) Gọi find_applicable_vouchers để quét voucher phù hợp, (e) Trình bày thông tin tổng hợp cho khách và hỏi khách muốn thanh toán theo phương thức nào: COD (thanh toán khi nhận hàng) hoặc QR PayOS (chuyển khoản qua app ngân hàng). QUAN TRỌNG: Thêm tag "[CHECKOUT_CONFIRM]" vào cuối response khi đang chờ khách xác nhận đặt hàng.
+13. KHI KHÁCH XÁC NHẬN ĐẶT HÀNG COD: Khi khách chọn COD hoặc nói "thanh toán khi nhận hàng" → gọi function create_cod_order. Sau khi tạo thành công, thông báo mã đơn hàng.
+14. KHI KHÁCH CHỌN PAYOS QR: Khi khách chọn QR, PayOS, chuyển khoản, quét mã QR → gọi function create_payos_order. Hệ thống sẽ tự động gửi link thanh toán cho khách trong chat. Khách click link và quét QR bằng app ngân hàng.
 15. KHI KHÁCH MUỐN XEM GIỎ HÀNG: Gọi function view_cart.
 16. KHI KHÁCH MUỐN XÓA SẢN PHẨM KHỎI GIỎ: Gọi function remove_from_cart.`
     });
@@ -253,7 +253,7 @@ const functionDeclarations = [
     },
     {
         name: "create_cod_order",
-        description: "Tạo đơn hàng COD (thanh toán khi nhận hàng) từ giỏ hàng hiện tại. Chỉ gọi khi khách đã xác nhận muốn đặt hàng.",
+        description: "Tạo đơn hàng COD (thanh toán khi nhận hàng) từ giỏ hàng hiện tại. Chỉ gọi khi khách đã xác nhận muốn đặt hàng COD.",
         parameters: {
             type: "object",
             properties: {
@@ -265,6 +265,19 @@ const functionDeclarations = [
                     type: "string",
                     description: "Phương thức thanh toán: cod hoặc bank_transfer",
                     enum: ["cod", "bank_transfer"],
+                },
+            },
+        },
+    },
+    {
+        name: "create_payos_order",
+        description: "Tạo đơn hàng PayOS (thanh toán QR code) từ giỏ hàng hiện tại. Chỉ gọi khi khách đã xác nhận muốn thanh toán bằng QR / chuyển khoản. Hệ thống sẽ gửi link thanh toán cho khách.",
+        parameters: {
+            type: "object",
+            properties: {
+                voucherCode: {
+                    type: "string",
+                    description: "Mã voucher giảm giá nếu có (tùy chọn)",
                 },
             },
         },
@@ -630,8 +643,123 @@ const executeFunctionCall = async (functionCall, userId, context = {}) => {
         }
     }
 
+    // =============================================
+    // PayOS: Tạo đơn hàng PayOS từ chatbot
+    // =============================================
+    if (name === "create_payos_order") {
+        if (!userId) return { error: "Bạn cần đăng nhập để đặt hàng." };
+
+        // Lấy giỏ hàng
+        const cart = await Cart.findOne({ userId }).lean();
+        if (!cart || !cart.items || cart.items.length === 0) {
+            return { error: "Giỏ hàng đang trống. Vui lòng thêm sản phẩm trước khi đặt hàng." };
+        }
+
+        // Lấy thông tin user
+        const user = await User.findById(userId).select("name phone address city email").lean();
+        if (!user) return { error: "Không tìm thấy thông tin người dùng." };
+        if (!user.name || !user.phone || !user.address || !user.city) {
+            return { error: "Thông tin giao hàng chưa đầy đủ. Vui lòng cập nhật tên, số điện thoại, địa chỉ và tỉnh/thành phố." };
+        }
+
+        // Tính tổng tiền
+        const itemsPrice = cart.items.reduce((sum, item) => sum + (item.price * item.amount), 0);
+        const itemDiscount = cart.items.reduce((sum, item) => sum + ((item.discount || 0) * item.price * item.amount / 100), 0);
+
+        let shippingPrice = 0;
+        if (itemsPrice < 200000 && cart.items.length > 0) shippingPrice = 20000;
+        else if (itemsPrice >= 200000 && itemsPrice < 500000) shippingPrice = 10000;
+
+        const totalPrice = Math.max(itemsPrice - itemDiscount + shippingPrice, 0);
+
+        // Chuẩn bị orderItems
+        const orderItems = cart.items.map(item => ({
+            name: item.name,
+            amount: item.amount,
+            image: item.image || "",
+            price: item.price,
+            discount: item.discount || 0,
+            product: item.product,
+            countInStock: item.countInStock,
+        }));
+
+        try {
+            const PayOSService = require("./PayOSService");
+
+            // Tạo đơn hàng pending
+            const orderResult = await OrderService.createPendingOrder({
+                orderItems,
+                paymentMethod: "payos",
+                itemsPrice,
+                shippingPrice,
+                totalPrice,
+                fullName: user.name,
+                address: user.address,
+                city: user.city,
+                phone: user.phone,
+                user: userId,
+                email: user.email,
+            });
+
+            if (orderResult.status === "ERR") {
+                return { error: orderResult.message || "Không thể tạo đơn hàng." };
+            }
+
+            const order = orderResult.data;
+            const payosOrderCode = PayOSService.generateOrderCode(order._id);
+            const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
+
+            // Tạo PayOS payment link
+            const paymentLinkData = await PayOSService.createPaymentLink({
+                orderCode: payosOrderCode,
+                amount: Math.round(totalPrice),
+                description: `FitnFood #${String(order._id).slice(-6).toUpperCase()}`,
+                items: orderItems.map(item => ({
+                    name: String(item.name || "").slice(0, 50),
+                    quantity: Number(item.amount || 1),
+                    price: Math.round(Number(item.price || 0)),
+                })),
+                returnUrl: `${frontendUrl}/orderSuccess`,
+                cancelUrl: `${frontendUrl}/payment`,
+                buyerName: user.name,
+                buyerPhone: user.phone,
+            });
+
+            // Cập nhật payosOrderCode vào đơn hàng
+            const Order = require("../models/OrderModel");
+            await Order.findByIdAndUpdate(order._id, {
+                payosOrderCode,
+                paymentLinkId: paymentLinkData.paymentLinkId,
+            });
+
+            // Xóa giỏ hàng
+            await Cart.findOneAndDelete({ userId });
+
+            // Đánh dấu side effects để chatSocket emit chat:payos_link
+            if (sideEffects) {
+                sideEffects.cartUpdated = true;
+                sideEffects.cartItems = [];
+                sideEffects.payosLink = paymentLinkData.checkoutUrl;
+                sideEffects.orderId = order._id;
+                sideEffects.orderTotalPrice = totalPrice;
+            }
+
+            return {
+                message: "Đã tạo link thanh toán PayOS thành công! Link thanh toán đã được gửi vào chat. Vui lòng mở link và quét mã QR bằng app ngân hàng để hoàn tất thanh toán.",
+                orderId: order._id,
+                totalPrice,
+                paymentMethod: "PayOS QR Code",
+                note: "Link thanh toán sẽ hết hạn sau 15 phút.",
+            };
+        } catch (payosError) {
+            console.error("Create PayOS order failed:", payosError?.message || payosError);
+            return { error: "Có lỗi xảy ra khi tạo thanh toán PayOS. Vui lòng thử lại hoặc chọn COD." };
+        }
+    }
+
     return { error: "Chức năng không hỗ trợ." };
 };
+
 
 // =============================================
 // Multi-turn Conversation History
