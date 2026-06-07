@@ -20,31 +20,52 @@ import {
     EmptyState, LoadingShimmer,
 } from "./Style";
 
-// ─────────────────────────────────────────
-// Filter Presets
-// ─────────────────────────────────────────
+const VN_OFFSET = 7 * 60 * 60 * 1000; // GMT+7 (Việt Nam)
+
+const getVnTime = () => {
+    return new Date(Date.now() + VN_OFFSET);
+};
+
+const getStartOfDayUTC = (vnDate) => {
+    const msAtMidnightVN = Date.UTC(
+        vnDate.getUTCFullYear(),
+        vnDate.getUTCMonth(),
+        vnDate.getUTCDate(),
+        0, 0, 0, 0
+    );
+    return new Date(msAtMidnightVN - VN_OFFSET).toISOString();
+};
+
+const getEndOfDayUTC = (vnDate) => {
+    const msAtEndOfDayVN = Date.UTC(
+        vnDate.getUTCFullYear(),
+        vnDate.getUTCMonth(),
+        vnDate.getUTCDate(),
+        23, 59, 59, 999
+    );
+    return new Date(msAtEndOfDayVN - VN_OFFSET).toISOString();
+};
+
 const getPresetRange = (preset) => {
-    const now = new Date();
-    const today = now.toISOString().split("T")[0];
+    const nowVn = getVnTime();
     switch (preset) {
         case "today":
-            return { from: today, to: today };
+            return { from: getStartOfDayUTC(nowVn), to: getEndOfDayUTC(nowVn) };
         case "yesterday": {
-            const d = new Date(now); d.setDate(d.getDate() - 1);
-            const s = d.toISOString().split("T")[0];
-            return { from: s, to: s };
+            const d = new Date(nowVn.getTime() - 24 * 3600 * 1000);
+            return { from: getStartOfDayUTC(d), to: getEndOfDayUTC(d) };
         }
         case "7d": {
-            const d = new Date(now); d.setDate(d.getDate() - 6);
-            return { from: d.toISOString().split("T")[0], to: today };
+            const d = new Date(nowVn.getTime() - 6 * 24 * 3600 * 1000);
+            return { from: getStartOfDayUTC(d), to: getEndOfDayUTC(nowVn) };
         }
         case "month": {
-            const d = new Date(now.getFullYear(), now.getMonth(), 1);
-            return { from: d.toISOString().split("T")[0], to: today };
+            const d = new Date(Date.UTC(nowVn.getUTCFullYear(), nowVn.getUTCMonth(), 1));
+            return { from: getStartOfDayUTC(d), to: getEndOfDayUTC(nowVn) };
         }
         case "year": {
-            const d = new Date(now.getFullYear(), 0, 1);
-            return { from: d.toISOString().split("T")[0], to: today };
+            const d = new Date(Date.UTC(nowVn.getUTCFullYear(), 0, 1));
+            return { from: getStartOfDayUTC(d), to: getEndOfDayUTC(nowVn) };
         }
         default:
             return { from: null, to: null };
@@ -101,7 +122,21 @@ const AdminRevenueDashboard = () => {
     const [customTo, setCustomTo] = useState("");
 
     const dateRange = useMemo(() => {
-        if (preset === "custom") return { from: customFrom || null, to: customTo || null };
+        if (preset === "custom") {
+            let fromIso = null;
+            let toIso = null;
+            if (customFrom) {
+                const parts = customFrom.split("-");
+                const d = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2], 0, 0, 0, 0));
+                fromIso = getStartOfDayUTC(d);
+            }
+            if (customTo) {
+                const parts = customTo.split("-");
+                const d = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2], 0, 0, 0, 0));
+                toIso = getEndOfDayUTC(d);
+            }
+            return { from: fromIso, to: toIso };
+        }
         return getPresetRange(preset);
     }, [preset, customFrom, customTo]);
 

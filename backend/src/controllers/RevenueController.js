@@ -13,11 +13,7 @@ const getRevenueStats = async (req, res) => {
         if (from || to) {
             dateFilter.createdAt = {};
             if (from) dateFilter.createdAt.$gte = new Date(from);
-            if (to) {
-                const toDate = new Date(to);
-                toDate.setHours(23, 59, 59, 999);
-                dateFilter.createdAt.$lte = toDate;
-            }
+            if (to) dateFilter.createdAt.$lte = new Date(to);
         }
 
         const response = await RevenueService.getRevenueStats(dateFilter);
