@@ -229,9 +229,20 @@ const AdminRevenueDashboard = () => {
                         <KpiIcon>💰</KpiIcon>
                         {isLoading ? renderLoading("40px") : (
                             <>
-                                <KpiValue $color={COLORS.success}>{convertPrice(stats?.actualRevenue || 0)}</KpiValue>
-                                <KpiLabel>Doanh thu thực tế</KpiLabel>
-                                <KpiSub>SP: {convertPrice(stats?.netProductRevenue || 0)} | Ship: {convertPrice(stats?.shippingRevenue || 0)}</KpiSub>
+                                <KpiValue $color={COLORS.success}>{convertPrice(stats?.netProductRevenue || 0)}</KpiValue>
+                                <KpiLabel>Doanh thu Sản phẩm</KpiLabel>
+                                <KpiSub>Thực nhận sau khi trừ Phí Ship & Voucher</KpiSub>
+                            </>
+                        )}
+                    </KpiCard>
+
+                    <KpiCard $accent={COLORS.secondary}>
+                        <KpiIcon>🚚</KpiIcon>
+                        {isLoading ? renderLoading("40px") : (
+                            <>
+                                <KpiValue $color={COLORS.secondary}>{convertPrice(stats?.shippingRevenue || 0)}</KpiValue>
+                                <KpiLabel>Doanh thu Vận chuyển</KpiLabel>
+                                <KpiSub>Tổng phí vận chuyển đã thu</KpiSub>
                             </>
                         )}
                     </KpiCard>
@@ -242,7 +253,7 @@ const AdminRevenueDashboard = () => {
                             <>
                                 <KpiValue $color={COLORS.primary}>{convertPrice(stats?.expectedRevenue || 0)}</KpiValue>
                                 <KpiLabel>Doanh thu dự kiến</KpiLabel>
-                                <KpiSub>Tất cả đơn đã đặt (kể cả pending)</KpiSub>
+                                <KpiSub>Tất cả đơn đã đặt (bao gồm Ship)</KpiSub>
                             </>
                         )}
                     </KpiCard>

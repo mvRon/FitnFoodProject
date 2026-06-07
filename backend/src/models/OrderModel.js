@@ -47,5 +47,9 @@ const orderSchema = new mongoose.Schema(
     }
 );
 
+// Thêm các index để tối ưu hóa truy vấn thống kê doanh thu
+orderSchema.index({ createdAt: -1, isPaid: 1 });
+orderSchema.index({ isPaid: 1 });
+
 const Order = mongoose.model("Order", orderSchema);
 module.exports = Order;
