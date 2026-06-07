@@ -31,7 +31,10 @@ const orderSchema = new mongoose.Schema(
         user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', require: true },
         isPaid: { type: Boolean, default: false },
         paidAt: { type: Date },
-        isDelivered: { type: String, default: "pending" }
+        isDelivered: { type: String, default: "pending" },
+        // PayOS fields
+        payosOrderCode: { type: Number, default: null },   // Mã số PayOS (số nguyên)
+        paymentLinkId: { type: String, default: null },    // ID payment link từ PayOS
     },
     {
         timestamps: true,

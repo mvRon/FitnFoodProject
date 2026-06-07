@@ -50,6 +50,18 @@ const registerChatSocket = (io) => {
             socket.emit("chat:status", buildStatusPayload(conversation));
         });
 
+        // Tham gia phòng theo dõi thanh toán PayOS (dùng cho real-time webhook)
+        socket.on("payment:join", ({ orderId }) => {
+            if (!orderId) return;
+            socket.join(`payment:${orderId}`);
+        });
+
+        // Rời phòng theo dõi thanh toán
+        socket.on("payment:leave", ({ orderId }) => {
+            if (!orderId) return;
+            socket.leave(`payment:${orderId}`);
+        });
+
         socket.on("chat:send", async ({ conversationId, content }) => {
             const messageText = String(content || "").trim();
             if (!messageText) return;
@@ -128,10 +140,19 @@ const registerChatSocket = (io) => {
                     });
                 }
 
-                // Emit order created event nếu đơn hàng được tạo
+                // Emit order created event nếu đặt hàng COD thành công
                 if (botResult.sideEffects?.orderCreated) {
                     io.to(conversationId).emit("chat:order_created", {
                         orderId: botResult.sideEffects.orderId,
+                        totalPrice: botResult.sideEffects.orderTotalPrice,
+                    });
+                }
+
+                // Emit PayOS payment link nếu bot tạo đơn PayOS
+                if (botResult.sideEffects?.payosLink) {
+                    io.to(conversationId).emit("chat:payos_link", {
+                        orderId: botResult.sideEffects.orderId,
+                        checkoutUrl: botResult.sideEffects.payosLink,
                         totalPrice: botResult.sideEffects.orderTotalPrice,
                     });
                 }
@@ -208,6 +229,15 @@ const registerChatSocket = (io) => {
                 if (botResult.sideEffects?.orderCreated) {
                     io.to(conversationId).emit("chat:order_created", {
                         orderId: botResult.sideEffects.orderId,
+                        totalPrice: botResult.sideEffects.orderTotalPrice,
+                    });
+                }
+
+                // Emit PayOS payment link nếu bot tạo đơn PayOS (qua chat:action)
+                if (botResult.sideEffects?.payosLink) {
+                    io.to(conversationId).emit("chat:payos_link", {
+                        orderId: botResult.sideEffects.orderId,
+                        checkoutUrl: botResult.sideEffects.payosLink,
                         totalPrice: botResult.sideEffects.orderTotalPrice,
                     });
                 }

@@ -67,3 +67,38 @@ export const updateOrder = async (id, token, updateData) => {
     return res.data;
 }
 
+// =============================================
+// PayOS Payment Functions
+// =============================================
+
+/**
+ * Tạo payment link PayOS — trả về { qrCode, checkoutUrl, orderId, payosOrderCode }
+ */
+export const createPaymentLink = async (access_token, data) => {
+    const res = await axiosJWT.post(
+        `${process.env.REACT_APP_API_URL_BACKEND}/payment/create-payment-link`,
+        data,
+        {
+            headers: {
+                token: `Bearer ${access_token}`,
+            },
+        }
+    );
+    return res.data;
+};
+
+/**
+ * Hủy payment link (frontend gọi khi countdown hết hoặc user chủ động hủy)
+ */
+export const cancelPayment = async (access_token, orderId) => {
+    const res = await axiosJWT.post(
+        `${process.env.REACT_APP_API_URL_BACKEND}/payment/cancel`,
+        { orderId },
+        {
+            headers: {
+                token: `Bearer ${access_token}`,
+            },
+        }
+    );
+    return res.data;
+};

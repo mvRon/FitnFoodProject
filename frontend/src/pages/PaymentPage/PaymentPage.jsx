@@ -1,5 +1,5 @@
 import { Form, Input, message, Radio } from "antd";
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Lable,
   PaymentAccentText,
@@ -35,6 +35,7 @@ import { removeAllOrder } from "../../redux/slice/orderSlice";
 import { convertPrice } from "../../utils";
 import ModalComponent from "../../components/ModalComponent/ModalComponent";
 import LoadingComponent from "../../components/LoadingComponent/LoadingComponent";
+import PaymentQRModal from "../../components/PaymentQRModal/PaymentQRModal";
 import { useMutationHook } from "../../hooks/useMutationHook";
 import * as UserService from "../../services/UserService";
 import { updateUser } from "../../redux/slice/userSlice";
@@ -43,6 +44,7 @@ import * as CartService from "../../services/CartService";
 import * as DiscountService from "../../services/DiscountService";
 import { useLocation, useNavigate } from "react-router-dom";
 import { jwtDecode } from "jwt-decode";
+import { io } from "socket.io-client";
 
 const resolveToken = (accessToken) => {
   if (!accessToken) return null;
@@ -65,11 +67,43 @@ const PaymentPage = () => {
 
   const [isOpenModalUpdateInfo, setIsOpenModalUpdateInfo] = useState(false);
   const [delivery, setDelivery] = useState("fast");
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("cash"); // "cash" | "payos"
+  const [isCreatingPayOS, setIsCreatingPayOS] = useState(false);
+  const [payosModal, setPayosModal] = useState({
+    isOpen: false,
+    qrCode: "",
+    checkoutUrl: "",
+    orderId: "",
+    bin: "",
+    accountNumber: "",
+    accountName: "",
+    description: "",
+  });
 
   const successHandledRef = useRef(false);
+  const socketRef = useRef(null);
 
   const storageToken = useMemo(() => {
     return resolveToken(localStorage.getItem("access_token"));
+  }, []);
+
+  // Khởi tạo Socket.IO để lắng nghe payment:success / payment:cancelled
+  useEffect(() => {
+    const apiBase = process.env.REACT_APP_API_URL_BACKEND || "";
+    const socketUrl = apiBase.replace(/\/api\/?$/, "");
+    if (!socketUrl) return;
+
+    const token = resolveToken(localStorage.getItem("access_token"));
+    const socket = io(socketUrl, {
+      auth: token ? { token } : {},
+      transports: ["websocket"],
+    });
+    socketRef.current = socket;
+
+    return () => {
+      socket.disconnect();
+      socketRef.current = null;
+    };
   }, []);
 
   const orderState = useMemo(() => location.state || {}, [location.state]);
@@ -166,7 +200,7 @@ const PaymentPage = () => {
 
   const { isPending: isPendingAddOrder, data: dataAddOrder, isSuccess, isError } = mutationAddOrder;
 
-  const handleAddOrder = () => {
+  const handleAddOrder = async () => {
     if (!storageToken) {
       message.error("Vui lòng đăng nhập để đặt hàng");
       return;
@@ -192,6 +226,50 @@ const PaymentPage = () => {
       return;
     }
 
+    // Luồng PayOS
+    if (selectedPaymentMethod === "payos") {
+      setIsCreatingPayOS(true);
+      try {
+        const res = await OrderService.createPaymentLink(storageToken, {
+          orderItems: order?.orderItemSelected,
+          fullName: user?.name,
+          address: user?.address,
+          phone: user?.phone,
+          city: user?.city,
+          itemsPrice: priceMemo,
+          shippingPrice: deliveryMemo,
+          totalPrice: totalPriceMemo,
+          email: user?.email,
+        });
+
+        if (res?.status !== "OK") {
+          message.error(res?.message || "Không thể tạo link thanh toán");
+          return;
+        }
+
+        // Mở modal QR
+        setPayosModal({
+          isOpen: true,
+          qrCode: res.data?.qrCode || "",
+          checkoutUrl: res.data?.checkoutUrl || "",
+          orderId: String(res.data?.orderId || ""),
+          bin: res.data?.bin || "",
+          accountNumber: res.data?.accountNumber || "",
+          accountName: res.data?.accountName || "",
+          description: res.data?.description || "",
+        });
+
+        // Dọn giỏ hàng trên Redux (sẽ xóa thật sau khi thanh toán thành công)
+      } catch (err) {
+        console.error("PayOS error:", err);
+        message.error("Có lỗi xảy ra khi tạo thanh toán PayOS");
+      } finally {
+        setIsCreatingPayOS(false);
+      }
+      return;
+    }
+
+    // Luồng COD (giữ nguyên)
     successHandledRef.current = false;
 
     mutationAddOrder.mutate({
@@ -209,6 +287,55 @@ const PaymentPage = () => {
       email: user?.email,
     });
   };
+
+  // Thanh toán PayOS thành công
+  const handlePayOSSuccess = useCallback(async (payload) => {
+    setPayosModal({ isOpen: false, qrCode: "", checkoutUrl: "", orderId: "", bin: "", accountNumber: "", accountName: "", description: "" });
+
+    // Dọn giỏ hàng
+    const orderArray = (order?.orderItemSelected || []).map((e) => e?.product).filter(Boolean);
+    if (orderArray.length) {
+      dispatch(removeAllOrder({ listChecked: orderArray }));
+    }
+    try {
+      let userId = user?.id;
+      if (!userId && storageToken) {
+        const decoded = jwtDecode(storageToken);
+        userId = decoded?.id;
+      }
+      if (userId) await CartService.deleteCart(userId, storageToken);
+    } catch (e) { console.error(e); }
+
+    if (appliedDiscountPayload) {
+      try { await DiscountService.applyDiscountUsage(appliedDiscountPayload, storageToken); }
+      catch (e) { console.error(e); }
+    }
+
+    navigate("/orderSuccess", {
+      replace: true,
+      state: {
+        delivery,
+        paymentMethod: "payos",
+        orders: order?.orderItemSelected,
+        totalPriceMemo,
+      },
+    });
+  }, [order, dispatch, storageToken, user, appliedDiscountPayload, delivery, totalPriceMemo, navigate]);
+
+  // Thanh toán PayOS hết hạn — đơn đã bị hủy tự động (bởi webhook)
+  const handlePayOSExpire = useCallback(() => {
+    setPayosModal({ isOpen: false, qrCode: "", checkoutUrl: "", orderId: "", bin: "", accountNumber: "", accountName: "", description: "" });
+  }, []);
+
+  // User chủ động hủy
+  const handlePayOSCancel = useCallback(async () => {
+    const { orderId } = payosModal;
+    setPayosModal({ isOpen: false, qrCode: "", checkoutUrl: "", orderId: "", bin: "", accountNumber: "", accountName: "", description: "" });
+    if (orderId) {
+      try { await OrderService.cancelPayment(storageToken, orderId); }
+      catch (e) { console.error(e); }
+    }
+  }, [payosModal, storageToken]);
 
   useEffect(() => {
     if (isSuccess && !successHandledRef.current) {
@@ -345,7 +472,9 @@ const PaymentPage = () => {
             <PaymentHeroTitle>Thanh toán đơn hàng</PaymentHeroTitle>
             <PaymentHeroDescription>Hoàn tất thông tin giao nhận để hệ thống xử lý đơn hàng nhanh hơn.</PaymentHeroDescription>
             <PaymentHeroBadges>
-              <PaymentHeroBadge $variant="success">Phương thức thanh toán: COD</PaymentHeroBadge>
+              <PaymentHeroBadge $variant={selectedPaymentMethod === 'cash' ? 'success' : 'info'}>
+                {selectedPaymentMethod === 'cash' ? '💵 COD - Thanh toán khi nhận' : '📱 PayOS - Quét QR'}
+              </PaymentHeroBadge>
               <PaymentHeroBadge $variant="info">Tạm tính: {convertPrice(priceMemo)}</PaymentHeroBadge>
             </PaymentHeroBadges>
           </PaymentHeroSection>
@@ -368,7 +497,18 @@ const PaymentPage = () => {
 
               <WrapperInfo>
                 <Lable>2. Phương thức thanh toán</Lable>
-                <PaymentMethodText>{paymentMethodLabel}</PaymentMethodText>
+                <WrapperRadio
+                  onChange={(e) => setSelectedPaymentMethod(e.target.value)}
+                  value={selectedPaymentMethod}
+                  defaultValue="cash"
+                >
+                  <Radio value="cash">
+                    <PaymentAccentText $color="#16a34a">💵 COD</PaymentAccentText> - Thanh toán khi nhận hàng
+                  </Radio>
+                  <Radio value="payos">
+                    <PaymentAccentText $color="#0ea5e9">📱 PayOS QR</PaymentAccentText> - Chuyển khoản qua app ngân hàng
+                  </Radio>
+                </WrapperRadio>
               </WrapperInfo>
             </PaymentContentColumn>
 
@@ -422,7 +562,18 @@ const PaymentPage = () => {
                 </PaymentTotalValueBlock>
               </WrapperTotal>
 
-              <PaymentOrderButton onClick={handleAddOrder}>Xác nhận đặt hàng</PaymentOrderButton>
+              <PaymentOrderButton
+                onClick={handleAddOrder}
+                disabled={isCreatingPayOS || isPendingAddOrder}
+                style={isCreatingPayOS ? { opacity: 0.7 } : {}}
+              >
+                {isCreatingPayOS
+                  ? "Đang tạo link thanh toán..."
+                  : selectedPaymentMethod === "payos"
+                    ? "Thanh toán bằng QR"
+                    : "Xác nhận đặt hàng"
+                }
+              </PaymentOrderButton>
             </PaymentSummaryColumn>
           </PaymentMainWrapper>
         </PaymentPageContainer>
@@ -460,6 +611,23 @@ const PaymentPage = () => {
             </Form>
           </LoadingComponent>
         </ModalComponent>
+
+        {/* Modal QR PayOS */}
+        <PaymentQRModal
+          isOpen={payosModal.isOpen}
+          qrCode={payosModal.qrCode}
+          checkoutUrl={payosModal.checkoutUrl}
+          amount={totalPriceMemo}
+          orderId={payosModal.orderId}
+          socketRef={socketRef}
+          onSuccess={handlePayOSSuccess}
+          onCancel={handlePayOSCancel}
+          onExpire={handlePayOSExpire}
+          bin={payosModal.bin}
+          accountNumber={payosModal.accountNumber}
+          accountName={payosModal.accountName}
+          description={payosModal.description}
+        />
       </LoadingComponent>
     </PaymentPageShell>
   );
