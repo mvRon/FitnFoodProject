@@ -1,4 +1,4 @@
-import { AppstoreAddOutlined, ProductOutlined, UserOutlined, ShoppingCartOutlined, ShopOutlined, GiftOutlined, SettingOutlined, MessageOutlined } from '@ant-design/icons';
+import { AppstoreAddOutlined, ProductOutlined, UserOutlined, ShoppingCartOutlined, ShopOutlined, GiftOutlined, SettingOutlined, MessageOutlined, BarChartOutlined } from '@ant-design/icons';
 import { Menu } from 'antd'
 import React, { useState } from 'react'
 import { getLevelKeys } from '../../utils';
@@ -15,6 +15,7 @@ import AdminDiscountComponent from '../../components/AdminDiscountComponent/Admi
 import AdminInventoryComponent from '../../components/AdminInventoryComponent/AdminInventoryComponent.jsx';
 import AdminUserComponent from '../../components/AdminUserComponent/AdminUserComponent';
 import AdminChatComponent from '../../components/AdminChatComponent/AdminChatComponent';
+import AdminRevenueDashboard from '../../components/AdminRevenueDashboard/AdminRevenueDashboard';
 
 
 const AdminPage = () => {
@@ -48,6 +49,10 @@ const AdminPage = () => {
             case 'Chat':
                 return (
                     <AdminChatComponent />
+                )
+            case 'Revenue':
+                return (
+                    <AdminRevenueDashboard />
                 )
 
             default:
@@ -122,6 +127,11 @@ const AdminPage = () => {
             key: 'Chat',
             icon: <MessageOutlined />,
             label: 'Chat hỗ trợ',
+        },
+        {
+            key: 'Revenue',
+            icon: <BarChartOutlined />,
+            label: 'Doanh thu & AI',
         }
     ];
 

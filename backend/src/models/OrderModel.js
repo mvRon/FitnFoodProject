@@ -15,6 +15,12 @@ const orderSchema = new mongoose.Schema(
                     ref: "Product",
                     require: true,
                 },
+                // Nguồn gốc đơn hàng: theo dõi AI impact per-item
+                orderSource: {
+                    type: String,
+                    enum: ["organic", "chatbot", "rag_recommendation"],
+                    default: "organic",
+                },
             },
         ],
 

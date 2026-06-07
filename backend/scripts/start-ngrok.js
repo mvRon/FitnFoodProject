@@ -71,11 +71,12 @@ async function main() {
         // Cập nhật NGROK_URL vào .env
         await updateEnvFile('NGROK_URL', url);
 
-        // Khởi động backend server
-        console.log('🚀 Đang khởi động backend server...\n');
-        const server = spawn('node', ['src/index.js'], {
+        // Khởi động backend server với nodemon (auto-reload khi file thay đổi)
+        console.log('🚀 Đang khởi động backend server với nodemon...\n');
+        const server = spawn('npx', ['nodemon', 'src/index.js'], {
             cwd: path.join(__dirname, '..'),
             stdio: 'inherit',
+            shell: true,
             env: { ...process.env, NGROK_URL: url },
         });
 
