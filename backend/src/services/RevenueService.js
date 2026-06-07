@@ -157,14 +157,14 @@ const getRevenueStats = async (dateFilter) => {
         ]);
 
         // ─────────────────────────────────────────
-        // Xử lý dữ liệu sau khi query xong
+        // Xử lý dữ liệu sau khi query xong và làm tròn số thập phân (VNĐ không có số lẻ)
         // ─────────────────────────────────────────
         const orderStats = orderStatsArr[0] || null;
         const totalOrders = orderStats?.totalOrders || 0;
-        const actualRevenue = orderStats?.actualRevenue || 0;
-        const shippingRevenue = orderStats?.shippingRevenue || 0;
-        const netProductRevenue = Math.max(0, actualRevenue - shippingRevenue);
-        const expectedRevenue = orderStats?.expectedRevenue || 0;
+        const actualRevenue = Math.round(orderStats?.actualRevenue || 0);
+        const shippingRevenue = Math.round(orderStats?.shippingRevenue || 0);
+        const netProductRevenue = Math.round(Math.max(0, actualRevenue - shippingRevenue));
+        const expectedRevenue = Math.round(orderStats?.expectedRevenue || 0);
         const paidOrders = orderStats?.paidOrders || 0;
         const unpaidRate = totalOrders > 0
             ? Number(((orderStats?.unpaidOrders || 0) / totalOrders * 100).toFixed(1))
@@ -180,9 +180,9 @@ const getRevenueStats = async (dateFilter) => {
             };
         });
 
-        const organicRevenue = aiGroups.organic?.itemRevenue || 0;
-        const chatbotRevenue = aiGroups.chatbot?.itemRevenue || 0;
-        const ragRevenue = aiGroups.rag_recommendation?.itemRevenue || 0;
+        const organicRevenue = Math.round(aiGroups.organic?.itemRevenue || 0);
+        const chatbotRevenue = Math.round(aiGroups.chatbot?.itemRevenue || 0);
+        const ragRevenue = Math.round(aiGroups.rag_recommendation?.itemRevenue || 0);
         const aiRevenue = chatbotRevenue + ragRevenue;
         const aiRevenuePercent = netProductRevenue > 0
             ? Number((aiRevenue / netProductRevenue * 100).toFixed(1))
@@ -205,6 +205,11 @@ const getRevenueStats = async (dateFilter) => {
             }))
             .sort((a, b) => a.countInStock - b.countInStock);
 
+        const topProductsByRevenueRounded = topProductsByRevenue.map(p => ({
+            ...p,
+            totalRevenue: Math.round(p.totalRevenue || 0)
+        }));
+
         const resultData = {
             actualRevenue,
             shippingRevenue,
@@ -225,7 +230,7 @@ const getRevenueStats = async (dateFilter) => {
             ragOrderCount,
 
             topProductsByQty,
-            topProductsByRevenue,
+            topProductsByRevenue: topProductsByRevenueRounded,
             lowStockWarnings,
         };
 
