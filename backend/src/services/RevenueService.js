@@ -100,12 +100,6 @@ const getRevenueStats = async (dateFilter) => {
                     totalQty: 1,
                     totalRevenue: 1,
                     countInStock: { $arrayElemAt: ["$productDoc.countInStock", 0] },
-                    image: {
-                        $let: {
-                            vars: { doc: { $arrayElemAt: ["$productDoc", 0] } },
-                            in: { $arrayElemAt: ["$$doc.images", 0] }
-                        }
-                    },
                 }
             }
         ];
@@ -159,7 +153,7 @@ const getRevenueStats = async (dateFilter) => {
             Order.aggregate(buildTopProductsPipeline("totalRevenue")),
 
             // 5. Cảnh báo tồn kho
-            InventoryThreshold.find({}).populate("product", "name countInStock images sold").lean()
+            InventoryThreshold.find({}).populate("product", "name countInStock sold").lean()
         ]);
 
         // ─────────────────────────────────────────
@@ -207,7 +201,6 @@ const getRevenueStats = async (dateFilter) => {
                 countInStock: t.product.countInStock || 0,
                 safeStockLevel: t.safeStockLevel,
                 sold: t.product.sold || 0,
-                image: (t.product.images || [])[0] || "",
                 severity: (t.product.countInStock || 0) === 0 ? "critical" : "warning",
             }))
             .sort((a, b) => a.countInStock - b.countInStock);

@@ -250,14 +250,7 @@ export const ProductRow = styled.div`
     &:last-child { border-bottom: none; }
 `;
 
-export const ProductImg = styled.img`
-    width: 40px;
-    height: 40px;
-    border-radius: 8px;
-    object-fit: contain;
-    background: ${COLORS.surfaceLight};
-    flex-shrink: 0;
-`;
+// Removed ProductImg as it's no longer used
 
 export const ProductInfo = styled.div`
     flex: 1;
@@ -271,6 +264,12 @@ export const ProductName = styled.div`
     overflow: hidden;
     text-overflow: ellipsis;
     color: ${COLORS.text};
+    cursor: pointer;
+    transition: color 0.2s ease;
+    &:hover {
+        color: ${COLORS.primary};
+        text-decoration: underline;
+    }
 `;
 
 export const ProductMeta = styled.div`

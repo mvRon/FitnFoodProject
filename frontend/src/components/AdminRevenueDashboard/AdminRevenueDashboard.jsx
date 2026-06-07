@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -15,7 +16,7 @@ import {
     KpiGrid, KpiCard, KpiIcon, KpiValue, KpiLabel, KpiSub,
     SectionGrid, Card, CardTitle,
     AiImpactRow, SourceBadge,
-    ProductRow, ProductImg, ProductInfo, ProductName, ProductMeta, Rank, ValueTag,
+    ProductRow, ProductInfo, ProductName, ProductMeta, Rank, ValueTag,
     AlertRow, AlertDot, StockBar, StockFill,
     EmptyState, LoadingShimmer,
 } from "./Style";
@@ -110,6 +111,7 @@ const CustomTooltip = ({ active, payload, label }) => {
 // Main Component
 // ─────────────────────────────────────────
 const AdminRevenueDashboard = () => {
+    const navigate = useNavigate();
     const user = useSelector((state) => state.user);
     const accessToken = useMemo(() => {
         const raw = localStorage.getItem("access_token");
@@ -395,9 +397,13 @@ const AdminRevenueDashboard = () => {
                                 : (stats.topProductsByQty || []).map((p, i) => (
                                     <ProductRow key={p.productId || i}>
                                         <Rank $color={RANK_COLORS[i]}>#{i + 1}</Rank>
-                                        <ProductImg src={p.image || ""} alt={p.productName} onError={e => { e.target.src = ""; }} />
                                         <ProductInfo>
-                                            <ProductName>{p.productName}</ProductName>
+                                            <ProductName 
+                                                title="Nhấn để xem chi tiết" 
+                                                onClick={() => navigate(`/productDetail/${p.productId}`)}
+                                            >
+                                                {p.productName}
+                                            </ProductName>
                                             <ProductMeta>
                                                 Tồn kho:{" "}
                                                 <span style={{ color: (p.countInStock || 0) <= 5 ? COLORS.danger : COLORS.success }}>
@@ -419,9 +425,13 @@ const AdminRevenueDashboard = () => {
                                 : (stats.topProductsByRevenue || []).map((p, i) => (
                                     <ProductRow key={p.productId || i}>
                                         <Rank $color={RANK_COLORS[i]}>#{i + 1}</Rank>
-                                        <ProductImg src={p.image || ""} alt={p.productName} onError={e => { e.target.src = ""; }} />
                                         <ProductInfo>
-                                            <ProductName>{p.productName}</ProductName>
+                                            <ProductName 
+                                                title="Nhấn để xem chi tiết" 
+                                                onClick={() => navigate(`/productDetail/${p.productId}`)}
+                                            >
+                                                {p.productName}
+                                            </ProductName>
                                             <ProductMeta>{p.totalQty} sản phẩm</ProductMeta>
                                         </ProductInfo>
                                         <ValueTag $color={COLORS.success}>{convertPrice(p.totalRevenue || 0)}</ValueTag>
@@ -446,9 +456,14 @@ const AdminRevenueDashboard = () => {
                                     return (
                                         <AlertRow key={w.productId || i} $severity={w.severity}>
                                             <AlertDot $severity={w.severity} />
-                                            <ProductImg src={w.image || ""} alt={w.productName} onError={e => { e.target.src = ""; }} />
                                             <ProductInfo>
-                                                <ProductName style={{ fontSize: 13 }}>{w.productName}</ProductName>
+                                                <ProductName 
+                                                    title="Nhấn để xem chi tiết" 
+                                                    style={{ fontSize: 13 }}
+                                                    onClick={() => navigate(`/productDetail/${w.productId}`)}
+                                                >
+                                                    {w.productName}
+                                                </ProductName>
                                                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
                                                     <StockBar>
                                                         <StockFill $pct={pct} $severity={w.severity} />
