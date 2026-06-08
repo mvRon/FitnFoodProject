@@ -398,8 +398,8 @@ const AdminRevenueDashboard = () => {
                                     <ProductRow key={p.productId || i}>
                                         <Rank $color={RANK_COLORS[i]}>#{i + 1}</Rank>
                                         <ProductInfo>
-                                            <ProductName 
-                                                title="Nhấn để xem chi tiết" 
+                                            <ProductName
+                                                title="Nhấn để xem chi tiết"
                                                 onClick={() => navigate(`/productDetail/${p.productId}`)}
                                             >
                                                 {p.productName}
@@ -426,8 +426,8 @@ const AdminRevenueDashboard = () => {
                                     <ProductRow key={p.productId || i}>
                                         <Rank $color={RANK_COLORS[i]}>#{i + 1}</Rank>
                                         <ProductInfo>
-                                            <ProductName 
-                                                title="Nhấn để xem chi tiết" 
+                                            <ProductName
+                                                title="Nhấn để xem chi tiết"
                                                 onClick={() => navigate(`/productDetail/${p.productId}`)}
                                             >
                                                 {p.productName}
@@ -457,8 +457,8 @@ const AdminRevenueDashboard = () => {
                                         <AlertRow key={w.productId || i} $severity={w.severity}>
                                             <AlertDot $severity={w.severity} />
                                             <ProductInfo>
-                                                <ProductName 
-                                                    title="Nhấn để xem chi tiết" 
+                                                <ProductName
+                                                    title="Nhấn để xem chi tiết"
                                                     style={{ fontSize: 13 }}
                                                     onClick={() => navigate(`/productDetail/${w.productId}`)}
                                                 >
