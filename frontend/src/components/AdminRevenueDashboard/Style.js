@@ -43,6 +43,9 @@ export const Shell = styled.div`
     background: ${COLORS.bg};
     color: ${COLORS.text};
     min-height: 100%;
+    width: 100%;
+    box-sizing: border-box;
+    overflow-x: hidden;
     padding: 24px;
     border-radius: 16px;
 `;
@@ -200,6 +203,9 @@ export const Card = styled.div`
     border: 1px solid ${COLORS.border};
     border-radius: 14px;
     padding: 20px;
+    min-width: 0; /* Prevents grid blowout from Recharts */
+    box-sizing: border-box;
+    overflow: hidden;
 `;
 
 export const CardTitle = styled.div`
