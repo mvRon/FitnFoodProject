@@ -74,6 +74,9 @@ const createOrder = (newOrder) => {
                     discount: Number(order.discount || 0),
                     countInStock: Number(productData?.countInStock || 0),
                     image: primaryImage,
+                    orderSource: ["organic", "chatbot", "rag_recommendation"].includes(order.orderSource)
+                        ? order.orderSource
+                        : "organic",
                 });
             }
 
@@ -565,6 +568,9 @@ async function createPendingOrder(newOrder) {
                 discount: Number(order.discount || 0),
                 countInStock: Number(productData?.countInStock || 0),
                 image: primaryImage,
+                orderSource: ["organic", "chatbot", "rag_recommendation"].includes(order.orderSource)
+                    ? order.orderSource
+                    : "organic",
             });
         }
 

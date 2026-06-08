@@ -57,6 +57,29 @@ const resolveToken = (accessToken) => {
   }
 };
 
+// Enrich mỗi item trong giỏ hàng với orderSource dựa trên rag_clicks dictionary
+const RAG_TTL_MS = 30 * 60 * 1000; // 30 phút
+
+const enrichItemsWithSource = (items) => {
+  let ragClicks = {};
+  try {
+    ragClicks = JSON.parse(localStorage.getItem("rag_clicks") || "{}");
+  } catch (e) { /* ignore */ }
+
+  const now = Date.now();
+  return (items || []).map((item) => ({
+    ...item,
+    orderSource:
+      ragClicks[String(item.product)] && (now - ragClicks[String(item.product)] < RAG_TTL_MS)
+        ? "rag_recommendation"
+        : "organic",
+  }));
+};
+
+const clearRagClicks = () => {
+  try { localStorage.removeItem("rag_clicks"); } catch (e) { /* ignore */ }
+};
+
 const PaymentPage = () => {
   const [form] = Form.useForm();
   const order = useSelector((state) => state.order);
@@ -230,8 +253,9 @@ const PaymentPage = () => {
     if (selectedPaymentMethod === "payos") {
       setIsCreatingPayOS(true);
       try {
+        const enrichedItems = enrichItemsWithSource(order?.orderItemSelected);
         const res = await OrderService.createPaymentLink(storageToken, {
-          orderItems: order?.orderItemSelected,
+          orderItems: enrichedItems,
           fullName: user?.name,
           address: user?.address,
           phone: user?.phone,
@@ -272,9 +296,10 @@ const PaymentPage = () => {
     // Luồng COD (giữ nguyên)
     successHandledRef.current = false;
 
+    const enrichedItems = enrichItemsWithSource(order?.orderItemSelected);
     mutationAddOrder.mutate({
       token: storageToken,
-      orderItems: order?.orderItemSelected,
+      orderItems: enrichedItems,
       fullName: user?.name,
       address: user?.address,
       phone: user?.phone,
@@ -305,6 +330,9 @@ const PaymentPage = () => {
       }
       if (userId) await CartService.deleteCart(userId, storageToken);
     } catch (e) { console.error(e); }
+
+    // Xóa RAG tracking sau khi đặt hàng thành công
+    clearRagClicks();
 
     if (appliedDiscountPayload) {
       try { await DiscountService.applyDiscountUsage(appliedDiscountPayload, storageToken); }
@@ -364,6 +392,9 @@ const PaymentPage = () => {
             console.error(e);
           }
         }
+
+        // Xóa RAG tracking sau khi đặt hàng thành công (COD)
+        clearRagClicks();
 
         if (appliedDiscountPayload) {
           try {

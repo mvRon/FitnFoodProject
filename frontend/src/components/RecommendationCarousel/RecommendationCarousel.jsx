@@ -133,9 +133,21 @@ const RecommendationCarousel = ({
 
   const items = recommendationsData || [];
 
+  // Ghi nhận click từ RAG vào localStorage dưới dạng dictionary {productId: timestamp}
+  const trackRagClick = (productId) => {
+    if (!productId) return;
+    try {
+      const ragClicks = JSON.parse(localStorage.getItem("rag_clicks") || "{}");
+      ragClicks[String(productId)] = Date.now();
+      localStorage.setItem("rag_clicks", JSON.stringify(ragClicks));
+    } catch (e) {
+      // không block UI nếu localStorage lỗi
+    }
+  };
+
   const handleQuickAdd = async (item) => {
     if (!accessToken) {
-      message.warning("Vui lòng đăng nhập để thêm vào giỏ hàng!");
+      message.warning("Đăng nhập để thêm vào giỏ hàng!");
       navigate("/login", { state: { from: location.pathname } });
       return;
     }
@@ -153,6 +165,9 @@ const RecommendationCarousel = ({
       message.warning("Số lượng trong giỏ đã đạt mức tồn kho cho phép.");
       return;
     }
+
+    // Ghi nhận RAG click khi user nhấn "Thêm nhanh" từ carousel
+    trackRagClick(item?._id);
 
     const orderItem = {
       name: item?.name,
@@ -184,6 +199,8 @@ const RecommendationCarousel = ({
   };
 
   const handleNavigate = (id) => {
+    // Ghi nhận RAG click khi user click vào card sản phẩm từ carousel
+    trackRagClick(id);
     navigate(`/productDetail/${id}`);
   };
 

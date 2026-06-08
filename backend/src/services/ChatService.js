@@ -587,7 +587,7 @@ const executeFunctionCall = async (functionCall, userId, context = {}) => {
         const totalBeforeVoucher = itemsPrice - itemDiscount + shippingPrice;
         const totalPrice = Math.max(totalBeforeVoucher - voucherDiscount, 0);
 
-        // Chuẩn bị orderItems
+        // Chuẩn bị orderItems — gán nguồn gốc chatbot cho từng item
         const orderItems = cart.items.map(item => ({
             name: item.name,
             amount: item.amount,
@@ -596,6 +596,7 @@ const executeFunctionCall = async (functionCall, userId, context = {}) => {
             discount: item.discount || 0,
             product: item.product,
             countInStock: item.countInStock,
+            orderSource: "chatbot",
         }));
 
         // Tạo đơn hàng qua OrderService (tái sử dụng logic transaction, trừ kho, phiếu xuất)
@@ -709,7 +710,7 @@ const executeFunctionCall = async (functionCall, userId, context = {}) => {
         const totalBeforeVoucher = itemsPrice - itemDiscount + shippingPrice;
         const totalPrice = Math.max(totalBeforeVoucher - voucherDiscount, 0);
 
-        // Chuẩn bị orderItems
+        // Chuẩn bị orderItems — gán nguồn gốc chatbot cho từng item
         const orderItems = cart.items.map(item => ({
             name: item.name,
             amount: item.amount,
@@ -718,6 +719,7 @@ const executeFunctionCall = async (functionCall, userId, context = {}) => {
             discount: item.discount || 0,
             product: item.product,
             countInStock: item.countInStock,
+            orderSource: "chatbot",
         }));
 
         try {

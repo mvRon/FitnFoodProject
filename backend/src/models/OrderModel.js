@@ -15,6 +15,12 @@ const orderSchema = new mongoose.Schema(
                     ref: "Product",
                     require: true,
                 },
+                // Nguồn gốc đơn hàng: theo dõi AI impact per-item
+                orderSource: {
+                    type: String,
+                    enum: ["organic", "chatbot", "rag_recommendation"],
+                    default: "organic",
+                },
             },
         ],
 
@@ -40,6 +46,10 @@ const orderSchema = new mongoose.Schema(
         timestamps: true,
     }
 );
+
+// Thêm các index để tối ưu hóa truy vấn thống kê doanh thu
+orderSchema.index({ createdAt: -1, isPaid: 1 });
+orderSchema.index({ isPaid: 1 });
 
 const Order = mongoose.model("Order", orderSchema);
 module.exports = Order;
