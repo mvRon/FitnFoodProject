@@ -190,20 +190,20 @@ const resetPassword = async (token, newPassword) => {
             const resetToken = await PasswordResetToken.findOne({ token });
 
             if (!resetToken) {
-                return { success: false, message: 'Invalid Token!' };
+                return resolve({ success: false, message: 'Invalid Token!' });
             }
 
             if (resetToken.used) {
-                return { success: false, message: 'Token has already been used!' };
+                return resolve({ success: false, message: 'Token has already been used!' });
             }
 
             if (resetToken.expiresAt < Date.now()) {
-                return { success: false, message: 'Token has expired!' };
+                return resolve({ success: false, message: 'Token has expired!' });
             }
 
             const user = await User.findById(resetToken.userId);
             if (!user) {
-                return { success: false, message: 'User not found' };
+                return resolve({ success: false, message: 'User not found' });
             }
 
             // Update password
@@ -218,6 +218,40 @@ const resetPassword = async (token, newPassword) => {
             resolve({
                 status: "OK",
                 message: "Password reset successfully!",
+                success: true
+            });
+        } catch (e) {
+            reject(e);
+        }
+    });
+};
+
+const changePassword = (userId, oldPassword, newPassword) => {
+    return new Promise(async (resolve, reject) => {
+        try {
+            const user = await User.findById(userId);
+            if (!user) {
+                return resolve({
+                    status: "ERR",
+                    message: "User not found!"
+                });
+            }
+
+            const isPasswordValid = await bcrypt.compare(oldPassword, user.password);
+            if (!isPasswordValid) {
+                return resolve({
+                    status: "ERR",
+                    message: "Mật khẩu cũ không chính xác!"
+                });
+            }
+
+            const hashedNewPassword = await bcrypt.hash(newPassword, 12);
+            user.password = hashedNewPassword;
+            await user.save();
+
+            resolve({
+                status: "OK",
+                message: "Password changed successfully!",
                 success: true
             });
         } catch (e) {
@@ -328,6 +362,7 @@ module.exports = {
     verifyAccount,
     forgotPassword,
     resetPassword,
+    changePassword,
     updateUser,
     deleteUser,
     getAllUsers,

@@ -32,6 +32,24 @@ export const getDetailUser = async (access_token) => {
     return res.data;
 };
 
+export const forgotPassword = async (data) => {
+    const res = await axios.post(`${process.env.REACT_APP_API_URL_BACKEND}/user/forgot-password`, data);
+    return res.data;
+};
+
+export const resetPassword = async (data) => {
+    const res = await axios.post(`${process.env.REACT_APP_API_URL_BACKEND}/user/reset-password`, data);
+    return res.data;
+};
+
+export const changePassword = async (data, access_token) => {
+    const res = await axiosJWT.post(`${process.env.REACT_APP_API_URL_BACKEND}/user/change-password`, data, {
+        headers: {
+            token: `Bearer ${access_token}`,
+        }
+    });
+    return res.data;
+};
 
 //byRon
 export const refreshToken = async (refresh_token) => {

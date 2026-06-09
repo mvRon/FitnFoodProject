@@ -29,6 +29,7 @@ import * as UserService from '../../services/UserService';
 
 import { updateUser } from '../../redux/slice/userSlice'
 import { compressImage } from '../../utils'
+import { useMutationHook } from '../../hooks/useMutationHook';
 
 const ProfileUserPage = () => {
     const [form] = Form.useForm();
@@ -41,6 +42,11 @@ const ProfileUserPage = () => {
     const [isEditing, setIsEditing] = useState(false);
     const [formValues, setFormValues] = useState({});
     const dispatch = useDispatch()
+    
+    const [isChangingPassword, setIsChangingPassword] = useState(false);
+    const [passwordForm] = Form.useForm();
+    const mutationForgotPassword = useMutationHook(data => UserService.forgotPassword(data));
+    const mutationChangePassword = useMutationHook(data => UserService.changePassword(data, access_token));
 
 
     const fetchUserInfo = useCallback(async () => {
@@ -126,6 +132,49 @@ const ProfileUserPage = () => {
     const handleCancelEdit = () => {
         setIsEditing(false);
         setFormValues({});
+    };
+
+    const handleForgotPasswordFromProfile = () => {
+        if (!userData?.email) {
+            message.error('Không tìm thấy email của tài khoản.');
+            return;
+        }
+        mutationForgotPassword.mutate({ email: userData.email }, {
+            onSuccess: (res) => {
+                if (res.status === 'OK') {
+                    message.success('Email khôi phục đã được gửi. Vui lòng kiểm tra hộp thư.');
+                } else {
+                    message.error(res.message || 'Có lỗi xảy ra');
+                }
+            },
+            onError: () => {
+                message.error('Có lỗi xảy ra khi gửi yêu cầu');
+            }
+        });
+    };
+
+    const handleFinishChangePassword = (values) => {
+        if (values.newPassword !== values.confirmNewPassword) {
+            message.error('Mật khẩu xác nhận không khớp!');
+            return;
+        }
+        mutationChangePassword.mutate({
+            oldPassword: values.oldPassword,
+            newPassword: values.newPassword
+        }, {
+            onSuccess: (res) => {
+                if (res.status === 'OK') {
+                    message.success('Đổi mật khẩu thành công!');
+                    setIsChangingPassword(false);
+                    passwordForm.resetFields();
+                } else {
+                    message.error(res.message || 'Mật khẩu cũ không chính xác hoặc có lỗi xảy ra.');
+                }
+            },
+            onError: () => {
+                message.error('Đổi mật khẩu thất bại.');
+            }
+        });
     };
 
     if (loading) {
@@ -285,6 +334,81 @@ const ProfileUserPage = () => {
                             </PrimaryButton>
                         </FormActions>
                     </>
+                )}
+            </ProfileCard>
+
+            <ProfileCard style={{ marginTop: '20px' }}>
+                <CardTitle>Bảo mật tài khoản</CardTitle>
+                <div style={{ marginBottom: '20px' }}>
+                    <p style={{ color: 'var(--muted)', marginBottom: '10px' }}>
+                        Nhận liên kết đặt lại mật khẩu qua email nếu bạn đã quên mật khẩu.
+                    </p>
+                    <SecondaryButton 
+                        onClick={handleForgotPasswordFromProfile}
+                        loading={mutationForgotPassword.isPending}
+                    >
+                        Quên mật khẩu
+                    </SecondaryButton>
+                </div>
+
+                <hr style={{ border: 'none', borderTop: '1px solid #e2e8f0', margin: '20px 0' }} />
+
+                {isChangingPassword ? (
+                    <ProfileForm
+                        form={passwordForm}
+                        layout="vertical"
+                        onFinish={handleFinishChangePassword}
+                    >
+                        <Form.Item 
+                            label="Mật khẩu cũ" 
+                            name="oldPassword" 
+                            rules={[{ required: true, message: 'Vui lòng nhập mật khẩu cũ' }]}
+                        >
+                            <Input.Password placeholder="Nhập mật khẩu hiện tại" />
+                        </Form.Item>
+                        <Form.Item 
+                            label="Mật khẩu mới" 
+                            name="newPassword" 
+                            rules={[
+                                { required: true, message: 'Vui lòng nhập mật khẩu mới' },
+                                { min: 6, message: 'Mật khẩu phải có ít nhất 6 ký tự' }
+                            ]}
+                        >
+                            <Input.Password placeholder="Nhập mật khẩu mới" />
+                        </Form.Item>
+                        <Form.Item 
+                            label="Xác nhận mật khẩu mới" 
+                            name="confirmNewPassword" 
+                            rules={[{ required: true, message: 'Vui lòng xác nhận mật khẩu mới' }]}
+                        >
+                            <Input.Password placeholder="Xác nhận mật khẩu mới" />
+                        </Form.Item>
+
+                        <FormActions>
+                            <PrimaryButton 
+                                htmlType="submit" 
+                                type="primary"
+                                loading={mutationChangePassword.isPending}
+                            >
+                                Lưu mật khẩu
+                            </PrimaryButton>
+                            <SecondaryButton onClick={() => {
+                                setIsChangingPassword(false);
+                                passwordForm.resetFields();
+                            }}>
+                                Hủy
+                            </SecondaryButton>
+                        </FormActions>
+                    </ProfileForm>
+                ) : (
+                    <div>
+                        <p style={{ color: 'var(--muted)', marginBottom: '10px' }}>
+                            Thay đổi mật khẩu định kỳ để bảo vệ tài khoản của bạn.
+                        </p>
+                        <PrimaryButton onClick={() => setIsChangingPassword(true)}>
+                            Đổi mật khẩu
+                        </PrimaryButton>
+                    </div>
                 )}
             </ProfileCard>
         </Container>

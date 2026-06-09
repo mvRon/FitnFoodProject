@@ -10,6 +10,8 @@ import TypeProductPage from "../pages/TypeProductPage/TypeProductPage";
 import OrderSuccessPage from "../pages/OrderSuccessPage/OrderSuccessPage";
 import OrderListPage from "../pages/OrderListPage/OrderListPage";
 import OrderDetailPage from "../pages/OrderDetailPage/OrderDetailPage";
+import ForgotPasswordPage from "../pages/ForgotPasswordPage/ForgotPasswordPage";
+import ResetPasswordPage from "../pages/ResetPasswordPage/ResetPasswordPage";
 
 
 
@@ -62,7 +64,7 @@ export const routes = [
         isPrivate: false,
         isShowHeader: true
     },
-     {
+    {
         path: '/payment',
         page: PaymentPage,
         isPrivate: false,
@@ -86,4 +88,16 @@ export const routes = [
         isPrivate: false,
         isShowHeader: true
     },
+    {
+        path: '/forgot-password',
+        page: ForgotPasswordPage,
+        isPrivate: false,
+        isShowHeader: true
+    },
+    {
+        path: '/reset-password',
+        page: ResetPasswordPage,
+        isPrivate: false,
+        isShowHeader: true
+    }
 ]

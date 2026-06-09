@@ -185,6 +185,33 @@ const resetPassword = async (req, res) => {
     }
 }
 
+const changePassword = async (req, res) => {
+    try {
+        const userId = req.user?.id || req.params.id; // Lấy từ authUserMiddleWare
+        const { oldPassword, newPassword } = req.body;
+        
+        if (!userId) {
+            return res.status(200).json({
+                status: "ERR",
+                message: "User ID required!"
+            });
+        }
+        if (!oldPassword || !newPassword) {
+             return res.status(200).json({
+                status: "ERR",
+                message: "All fields are required!"
+            });
+        }
+        
+        const response = await UserService.changePassword(userId, oldPassword, newPassword);
+        return res.status(200).json(response);
+    } catch (e) {
+        return res.status(404).json({
+            message: e
+        });
+    }
+}
+
 const updateUser = async (req, res) => {
     try {
         const userId = req.params.id;
@@ -253,6 +280,7 @@ module.exports = {
     refreshToken,
     forgotPassword,
     resetPassword,
+    changePassword,
     updateUser,
     deleteUser,
     getAllUsers,
