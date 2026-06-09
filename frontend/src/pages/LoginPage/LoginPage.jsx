@@ -60,7 +60,7 @@ function LoginPage() {
   useEffect(() => {
     if (isSuccess) {
       if (data?.status === 'OK') {
-        message.success(data?.message);
+        message.success("Đăng nhập thành công!");
         // console.log('accessToken', data?.access_token)
 
         if (data?.access_token) {
