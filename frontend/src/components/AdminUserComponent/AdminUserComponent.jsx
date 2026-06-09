@@ -329,7 +329,7 @@ const AdminUserComponent = () => {
       <Drawer
         title="Thông tin chi tiết người dùng"
         placement="right"
-        width={420}
+        size="default"
         onClose={() => setIsDetailOpen(false)}
         open={isDetailOpen}
         className="admin-user-detail-drawer"
