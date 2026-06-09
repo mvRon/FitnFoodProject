@@ -1,6 +1,6 @@
 
 import { DeleteOutlined, MinusOutlined, PlusOutlined } from "@ant-design/icons";
-import { Button, Card, Checkbox, Form, Input, List, message, Modal } from "antd";
+import { Button, Card, Checkbox, Form, Input, message, Modal } from "antd";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { decreaseAmount, increaseAmount, removeAllOrder, removeOrder, selectedOrder, syncCart } from "../../redux/slice/orderSlice";
@@ -725,10 +725,8 @@ const OrderPage = () => {
               </Button>
             </div>
           )}
-          <List
-            style={{ maxHeight: "420px", overflowY: "auto" }}
-            dataSource={discounts}
-            renderItem={(discount) => {
+          <div style={{ maxHeight: "420px", overflowY: "auto", display: "flex", flexDirection: "column" }}>
+            {discounts.map((discount) => {
               const now = new Date();
               const userHasUsedDiscount = discount.usersUsed?.some(
                 (id) => id?.toString() === user?.id?.toString()
@@ -742,7 +740,8 @@ const OrderPage = () => {
               const isApplied = selectedDiscount?.code === discount.code;
 
               return (
-                <List.Item
+                <div
+                  key={discount.code || discount._id}
                   style={{
                     padding: "12px 16px",
                     borderBottom: "1px solid #f0f0f0",
@@ -796,10 +795,10 @@ const OrderPage = () => {
                       </Button>
                     )}
                   </div>
-                </List.Item>
+                </div>
               );
-            }}
-          />
+            })}
+          </div>
         </Card>
       </Modal>
     </div>
