@@ -173,7 +173,7 @@ const AdminUserComponent = () => {
       dataIndex: 'name',
       key: 'name',
       render: (_, record) => (
-        <Space direction="vertical" size={0}>
+        <Space orientation="vertical" size={0}>
           <Text strong>{record?.name || 'Chưa cập nhật'}</Text>
           <Text type="secondary">{record?.email || '---'}</Text>
         </Space>

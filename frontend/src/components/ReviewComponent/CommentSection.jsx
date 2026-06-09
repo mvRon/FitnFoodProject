@@ -140,7 +140,7 @@ const CommentSection = ({ productId, refreshTrigger }) => {
 
             <CommentInputCard>
                 {access_token && access_token !== '' ? (
-                    <Space direction="vertical" style={{ width: '100%' }}>
+                    <Space orientation="vertical" style={{ width: '100%' }}>
                         <StyledTextArea
                             rows={4}
                             value={content}

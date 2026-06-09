@@ -148,7 +148,7 @@ const VoucherDetailModal = ({
 
         <Card size="small" className="inventory-voucher-modal-note-card" title="Ghi chú xử lý">
           {canUpdate ? (
-            <Space direction="vertical" style={{ width: '100%' }} size={8}>
+            <Space orientation="vertical" style={{ width: '100%' }} size={8}>
               <Input.TextArea
                 rows={4}
                 value={editableNote}
