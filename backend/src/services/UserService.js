@@ -331,14 +331,14 @@ const getAllUsers = () => {
             });
         } catch (e) {
             reject(e);
-        }   
+        }
     });
 }
 
 const getUserDetails = (id) => {
     return new Promise(async (resolve, reject) => {
         try {
-            const user = await User.findById(id);
+            const user = await User.findById(id).select('-password');
             if (!user) {
                 return resolve({
                     status: "ERR",
