@@ -194,7 +194,7 @@ const checkRatingPermission = async (req, res) => {
     const { productId } = req.params;
     const user = req.user.id;
     const result = await ProducService.checkRatingPermission(user, productId);
-    res.status(result.status === 'OK' ? 200 : 400).json(result);
+    res.status(200).json(result);
 };
 
 const getAllTypeProducts = async (req, res) => {
