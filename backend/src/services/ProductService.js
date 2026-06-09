@@ -512,21 +512,25 @@ const getAllTypeProducts = () => {
 
 const addComment = async (productId, { user, comment }) => {
     try {
-        const product = await Product.findById(productId);
-        if (!product) {
-            return { status: 'ERROR', message: 'Không tìm thấy sản phẩm!', data: null };
-        }
-
-        // Thêm comment mới, chỉ lưu comment
         const review = {
             user,
             comment,
             createdAt: new Date()
         };
-        product.reviews.push(review);
-        product.numReviews = product.reviews.length;
-        await product.save();
-        return { status: 'OK', message: 'Bình luận thành công!', data: product };
+        const product = await Product.findByIdAndUpdate(
+            productId,
+            { 
+                $push: { reviews: review },
+                $inc: { numReviews: 1 } 
+            },
+            { new: true, select: '_id' }
+        );
+
+        if (!product) {
+            return { status: 'ERROR', message: 'Không tìm thấy sản phẩm!', data: null };
+        }
+
+        return { status: 'OK', message: 'Bình luận thành công!', data: null };
     } catch (error) {
         return { status: 'ERROR', message: error.message, data: null };
     }
@@ -535,15 +539,21 @@ const addComment = async (productId, { user, comment }) => {
 
 const updateComment = async (productId, commentId, { user, comment }) => {
     try {
-        const product = await Product.findById(productId);
-        if (!product) return { status: 'ERROR', message: 'Không tìm thấy sản phẩm!', data: null };
-        const review = product.reviews.id(commentId);
-        if (!review) return { status: 'ERROR', message: 'Không tìm thấy bình luận!', data: null };
-        if (String(review.user) !== String(user)) return { status: 'ERROR', message: 'Không có quyền sửa bình luận này!', data: null };
-        review.comment = comment;
-        review.createdAt = new Date();
-        await product.save();
-        return { status: 'OK', message: 'Cập nhật bình luận thành công!', data: review };
+        const result = await Product.updateOne(
+            { _id: productId, "reviews._id": commentId, "reviews.user": user },
+            { 
+                $set: { 
+                    "reviews.$.comment": comment,
+                    "reviews.$.createdAt": new Date()
+                } 
+            }
+        );
+        
+        if (result.matchedCount === 0) {
+            return { status: 'ERROR', message: 'Không tìm thấy bình luận hoặc không có quyền sửa!', data: null };
+        }
+        
+        return { status: 'OK', message: 'Cập nhật bình luận thành công!', data: null };
     } catch (error) {
         return { status: 'ERROR', message: error.message, data: null };
     }
@@ -554,7 +564,7 @@ const updateComment = async (productId, commentId, { user, comment }) => {
 
 const addRating = async (productId, { user, rating, comment }) => {
     try {
-        const product = await Product.findById(productId);
+        const product = await Product.findById(productId).select('-embedding');
         if (!product) {
             return { status: 'ERROR', message: 'Không tìm thấy sản phẩm!', data: null };
         }
@@ -564,12 +574,6 @@ const addRating = async (productId, { user, rating, comment }) => {
         if (permissionCheck.status === 'ERROR') {
             return permissionCheck;
         }
-
-        // Kiểm tra xem user đã đánh giá sản phẩm này chưa
-        // const existingReview = product.reviews.find(review => String(review.user) === String(user));
-        // if (existingReview) {
-        //     return { status: 'ERROR', message: 'Bạn đã đánh giá sản phẩm này rồi!', data: null };
-        // }
 
         const existingRating = product.reviews.find(
             review => String(review.user) === String(user) && typeof review.rating === 'number' && !isNaN(review.rating)
@@ -595,7 +599,7 @@ const addRating = async (productId, { user, rating, comment }) => {
             product.averageRating = 0;
         }
         await product.save();
-        return { status: 'OK', message: 'Đánh giá thành công!', data: product };
+        return { status: 'OK', message: 'Đánh giá thành công!', data: null };
     } catch (error) {
         return { status: 'ERROR', message: error.message, data: null };
     }
@@ -605,6 +609,7 @@ const getReviews = async (productId) => {
     try {
         // Populates name, avatar, and isAdmin from User for reviews and replies
         const product = await Product.findById(productId)
+            .select('reviews')
             .populate('reviews.user', 'name avatar isAdmin')
             .populate('reviews.replies.user', 'name avatar isAdmin');
         if (!product) {
@@ -619,20 +624,17 @@ const getReviews = async (productId) => {
 // Thêm phản hồi cho review
 const addReplyToReview = async (productId, reviewId, { user, comment }) => {
     try {
-        const product = await Product.findById(productId);
+        const reply = { user, comment, createdAt: new Date() };
+        const result = await Product.updateOne(
+            { _id: productId, "reviews._id": reviewId },
+            { $push: { "reviews.$.replies": reply } }
+        );
 
-        if (!product) return { status: 'ERROR', message: 'Không tìm thấy sản phẩm!', data: null };
-        const review = product.reviews.id(reviewId);
-        if (!review) return { status: 'ERROR', message: 'Không tìm thấy bình luận!', data: null };
-        review.replies.push({ user, comment });
-        await product.save();
+        if (result.matchedCount === 0) {
+            return { status: 'ERROR', message: 'Không tìm thấy sản phẩm hoặc bình luận!', data: null };
+        }
 
-        // Populate user info for the newly added reply
-        const updatedProduct = await Product.findById(productId)
-            .populate('reviews.user', 'name avatar isAdmin')
-            .populate('reviews.replies.user', 'name avatar isAdmin');
-        const updatedReview = updatedProduct.reviews.id(reviewId);
-        return { status: 'OK', message: 'Thêm phản hồi thành công!', data: updatedReview.replies };
+        return { status: 'OK', message: 'Thêm phản hồi thành công!', data: null };
     } catch (error) {
         return { status: 'ERROR', message: error.message, data: null };
     }
@@ -641,24 +643,30 @@ const addReplyToReview = async (productId, reviewId, { user, comment }) => {
 // Sửa phản hồi cho review
 const updateReplyOfReview = async (productId, reviewId, replyId, { user, comment }) => {
     try {
-        const product = await Product.findById(productId);
-        if (!product) return { status: 'ERROR', message: 'Không tìm thấy sản phẩm!', data: null };
-        const review = product.reviews.id(reviewId);
-        if (!review) return { status: 'ERROR', message: 'Không tìm thấy bình luận!', data: null };
-        const reply = review.replies.id(replyId);
-        if (!reply) return { status: 'ERROR', message: 'Không tìm thấy phản hồi!', data: null };
-        if (String(reply.user) !== String(user)) return { status: 'ERROR', message: 'Không có quyền sửa phản hồi này!', data: null };
-        reply.comment = comment;
-        reply.createdAt = new Date();
-        await product.save();
+        const result = await Product.updateOne(
+            { _id: productId },
+            {
+                $set: {
+                    "reviews.$[review].replies.$[reply].comment": comment,
+                    "reviews.$[review].replies.$[reply].createdAt": new Date()
+                }
+            },
+            {
+                arrayFilters: [
+                    { "review._id": reviewId },
+                    { "reply._id": replyId, "reply.user": user }
+                ]
+            }
+        );
+        
+        if (result.matchedCount === 0) {
+            return { status: 'ERROR', message: 'Không tìm thấy sản phẩm!', data: null };
+        }
+        if (result.modifiedCount === 0) {
+            return { status: 'ERROR', message: 'Không tìm thấy phản hồi hoặc không có quyền sửa!', data: null };
+        }
 
-        // Populate user info for the updated reply
-        const updatedProduct = await Product.findById(productId)
-            .populate('reviews.user', 'name avatar isAdmin')
-            .populate('reviews.replies.user', 'name avatar isAdmin');
-        const updatedReview = updatedProduct.reviews.id(reviewId);
-        const updatedReply = updatedReview.replies.id(replyId);
-        return { status: 'OK', message: 'Cập nhật phản hồi thành công!', data: updatedReply };
+        return { status: 'OK', message: 'Cập nhật phản hồi thành công!', data: null };
     } catch (error) {
         return { status: 'ERROR', message: error.message, data: null };
     }
@@ -667,16 +675,18 @@ const updateReplyOfReview = async (productId, reviewId, replyId, { user, comment
 // Xóa phản hồi cho review
 const deleteReplyOfReview = async (productId, reviewId, replyId, user) => {
     try {
-        const product = await Product.findById(productId);
-        if (!product) return { status: 'ERROR', message: 'Không tìm thấy sản phẩm!', data: null };
-        const review = product.reviews.id(reviewId);
-        if (!review) return { status: 'ERROR', message: 'Không tìm thấy bình luận!', data: null };
-        const reply = review.replies.id(replyId);
-        if (!reply) return { status: 'ERROR', message: 'Không tìm thấy phản hồi!', data: null };
-        if (String(reply.user) !== String(user)) return { status: 'ERROR', message: 'Không có quyền xóa phản hồi này!', data: null };
-        // Xóa reply bằng filter
-        review.replies = review.replies.filter(r => String(r._id) !== String(replyId));
-        await product.save();
+        const result = await Product.updateOne(
+            { _id: productId, "reviews._id": reviewId },
+            { $pull: { "reviews.$.replies": { _id: replyId, user: user } } }
+        );
+        
+        if (result.matchedCount === 0) {
+            return { status: 'ERROR', message: 'Không tìm thấy sản phẩm hoặc bình luận!', data: null };
+        }
+        if (result.modifiedCount === 0) {
+            return { status: 'ERROR', message: 'Không tìm thấy phản hồi hoặc không có quyền xóa!', data: null };
+        }
+
         return { status: 'OK', message: 'Xóa phản hồi thành công!', data: null };
     } catch (error) {
         return { status: 'ERROR', message: error.message, data: null };
@@ -686,7 +696,7 @@ const deleteReplyOfReview = async (productId, reviewId, replyId, user) => {
 // Thêm thêm vào xóa cmt của bản thân
 const deleteReview = async (productId, reviewId, user) => {
     try {
-        const product = await Product.findById(productId);
+        const product = await Product.findById(productId).select('-embedding');
         if (!product) return { status: 'ERROR', message: 'Không tìm thấy sản phẩm!', data: null };
         const review = product.reviews.id(reviewId);
         if (!review) return { status: 'ERROR', message: 'Không tìm thấy bình luận!', data: null };
