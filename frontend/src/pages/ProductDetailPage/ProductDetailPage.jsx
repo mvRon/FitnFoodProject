@@ -226,18 +226,14 @@ const ProductDetailPage = () => {
       </Breadcrumb> */}
 
             <BreadcrumbWrap>
-                <Breadcrumb>
-                    <Breadcrumb.Item onClick={handleNavigateHome}>Trang chủ</Breadcrumb.Item>
-                    {categoryPath.map((cat) => (
-                        <Breadcrumb.Item
-                            key={cat._id}
-                            onClick={() => handleNavigateCategory(cat)}
-                        >
-                            {cat.name}
-                        </Breadcrumb.Item>
-                    ))}
-                    <Breadcrumb.Item>{product?.name}</Breadcrumb.Item>
-                </Breadcrumb>
+                <Breadcrumb items={[
+                    { title: <span onClick={handleNavigateHome} style={{cursor: 'pointer'}}>Trang chủ</span> },
+                    ...categoryPath.map((cat) => ({
+                        title: <span onClick={() => handleNavigateCategory(cat)} style={{cursor: 'pointer'}}>{cat.name}</span>,
+                        key: cat._id
+                    })),
+                    { title: product?.name }
+                ]} />
             </BreadcrumbWrap>
 
             <Row gutter={[32, 32]} justify="center">
