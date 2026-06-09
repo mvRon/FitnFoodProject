@@ -32,7 +32,7 @@ const registerAccount = async (newAccount) => {
                 verificationCode: verificationCode
             });
             if (user) {
-                await EmailService.verifyAccount({ email: user.email, verificationCode });
+                EmailService.verifyAccount({ email: user.email, verificationCode }).catch(console.error);
                 return resolve({
                     status: "OK",
                     message: "Registration successful!",
@@ -69,7 +69,7 @@ const loginAccount = async (loginData) => {
                 const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
                 user.verificationCode = verificationCode;
                 await user.save();
-                await EmailService.verifyAccount({ email: user.email, verificationCode });
+                EmailService.verifyAccount({ email: user.email, verificationCode }).catch(console.error);
                 return resolve({
                     status: "ERR",
                     message: "Account not verified! A new verification code has been sent to your email."
@@ -166,7 +166,7 @@ const forgotPassword = (userInfo) => {
             })
 
 
-            await EmailService.recoveryPassword({ email, token })
+            EmailService.recoveryPassword({ email, token }).catch(console.error);
 
 
             resolve({
