@@ -693,7 +693,7 @@ const ChatWidget = () => {
         onOk={handleAddressSubmit}
         okText="Cập nhật"
         cancelText="Hủy"
-        destroyOnClose
+        destroyOnHidden
       >
         <Form
           form={addressForm}

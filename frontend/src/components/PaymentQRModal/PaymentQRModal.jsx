@@ -297,7 +297,7 @@ const PaymentQRModal = ({
             width={380}
             centered
             maskClosable={false}
-            destroyOnClose
+            destroyOnHidden
         >
             <ModalBody>
                 {/* Số tiền */}
