@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { List, Avatar, Space, message, Dropdown, Button } from 'antd';
+import { Avatar, Space, message, Dropdown, Button } from 'antd';
 import { UserOutlined, MoreOutlined } from '@ant-design/icons';
 import moment from 'moment';
 import * as ProductService from '../../services/ProductService';
@@ -91,91 +91,72 @@ const ReplyComponent = ({ productId, reviewId, replies, access_token, userId, fe
     return (
         <div>
             {replies?.length > 0 && (
-                <List
-                    dataSource={replies}
-                    renderItem={(reply) => {
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {replies.map((reply) => {
                         const userInfo = getUserInfo(reply);
                         return (
-                            <ReplyContainer>
-                                <List.Item.Meta
-                                    avatar={
+                            <ReplyContainer key={reply._id}>
+                                <div style={{ display: 'flex', width: '100%', gap: '12px' }}>
+                                    <div style={{ flexShrink: 0 }}>
                                         <Avatar
                                             src={userInfo.avatar}
                                             icon={!userInfo.avatar ? <UserOutlined /> : undefined}
                                             size="small"
                                             alt={userInfo.name}
                                         />
-                                    }
-                                    title={
-                                        <CommentMetaWrapper>
-                                            <Space>
-                                                {userInfo.isAdmin ? <AdminBadge>Admin</AdminBadge> : <UserBadge>User</UserBadge>}
-                                                <CommentUserName>
-                                                    {userInfo.name}
-                                                </CommentUserName>
-                                            </Space>
-                                            <CommentDate type="secondary">
-                                                {moment(reply.createdAt).format('DD/MM/YYYY HH:mm:ss')}
-                                            </CommentDate>
-                                        </CommentMetaWrapper>
-                                    }
-
-                                    description={<ReplyText>{reply.comment} {userInfo.userId === userId && (
-                                        <Dropdown
-                                            menu={{
-                                                items: [
-                                                    {
-                                                        key: '1',
-                                                        label: 'Sửa',
-                                                        onClick: () => handleEdit(reply._id, reply.comment)
-                                                    },
-                                                    {
-                                                        key: '2',
-                                                        label: 'Xóa',
-                                                        danger: true,
-                                                        onClick: () => handleDelete(reply._id)
-                                                    },
-                                                ],
-                                            }}
-                                            trigger={['click']}
-                                            placement="bottomRight"
-                                        >
-                                            <Button
-                                                icon={<MoreOutlined />}
-                                                type="text"
-                                                size="small"
-                                                style={{ color: '#0284C7', borderRadius: 8 }}
-                                            />
-                                        </Dropdown>
-                                    )}</ReplyText>}
-                                />
-                                {/* {userInfo.userId === userId && (
-                  <Dropdown
-                    menu={{
-                      items: [
-                        {
-                          key: '1',
-                          label: 'Sửa',
-                          onClick: () => handleEdit(reply._id, reply.comment)
-                        },
-                        {
-                          key: '2',
-                          label: 'Xóa',
-                          danger: true,
-                          onClick: () => handleDelete(reply._id)
-                        },
-                      ],
-                    }}
-                    trigger={['click']}
-                    placement="bottomRight"
-                  >
-                    <MoreOutlined style={{ fontSize: '16px', cursor: 'pointer', color: '#666' }} />
-                  </Dropdown>
-                )} */}
+                                    </div>
+                                    <div style={{ flex: 1 }}>
+                                        <div style={{ marginBottom: 4 }}>
+                                            <CommentMetaWrapper>
+                                                <Space>
+                                                    {userInfo.isAdmin ? <AdminBadge>Admin</AdminBadge> : <UserBadge>User</UserBadge>}
+                                                    <CommentUserName>
+                                                        {userInfo.name}
+                                                    </CommentUserName>
+                                                </Space>
+                                                <CommentDate type="secondary">
+                                                    {moment(reply.createdAt).format('DD/MM/YYYY HH:mm:ss')}
+                                                </CommentDate>
+                                            </CommentMetaWrapper>
+                                        </div>
+                                        <div>
+                                            <ReplyText>
+                                                {reply.comment} {userInfo.userId === userId && (
+                                                    <Dropdown
+                                                        menu={{
+                                                            items: [
+                                                                {
+                                                                    key: '1',
+                                                                    label: 'Sửa',
+                                                                    onClick: () => handleEdit(reply._id, reply.comment)
+                                                                },
+                                                                {
+                                                                    key: '2',
+                                                                    label: 'Xóa',
+                                                                    danger: true,
+                                                                    onClick: () => handleDelete(reply._id)
+                                                                },
+                                                            ],
+                                                        }}
+                                                        trigger={['click']}
+                                                        placement="bottomRight"
+                                                    >
+                                                        <Button
+                                                            icon={<MoreOutlined />}
+                                                            type="text"
+                                                            size="small"
+                                                            style={{ color: '#0284C7', borderRadius: 8 }}
+                                                        />
+                                                    </Dropdown>
+                                                )}
+                                            </ReplyText>
+                                        </div>
+                                    </div>
+                                </div>
                             </ReplyContainer>
                         );
-                    }}
-                />
+                    })}
+                </div>
             )}
 
             {access_token && (

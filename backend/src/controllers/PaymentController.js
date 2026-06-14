@@ -1,5 +1,6 @@
 const OrderService = require("../services/OrderService");
 const PayOSService = require("../services/PayOSService");
+const EmailService = require("../services/EmailService");
 const Order = require("../models/OrderModel");
 
 // Sẽ được gán bởi index.js sau khi khởi tạo Socket.IO
@@ -138,7 +139,7 @@ const handleWebhook = async (req, res) => {
         }
 
         // Tìm đơn hàng theo payosOrderCode
-        const order = await Order.findOne({ payosOrderCode: Number(orderCode) });
+        const order = await Order.findOne({ payosOrderCode: Number(orderCode) }).populate('user', 'email');
         if (!order) {
             console.warn(`[PayOS Webhook] Order not found for orderCode: ${orderCode}`);
             return res.status(200).json({ error: "0" });
@@ -154,6 +155,19 @@ const handleWebhook = async (req, res) => {
             });
 
             console.log(`[PayOS] Order ${orderId} marked as PAID`);
+
+            // Gửi email xác nhận đơn hàng
+            if (order.user && order.user.email) {
+                setImmediate(() => {
+                    EmailService.sendEmailOrder({ 
+                        email: order.user.email, 
+                        orderItems: order.orderItems, 
+                        totalPrice: order.totalPrice 
+                    }).catch((err) => {
+                        console.error("[PayOS] Failed to send order confirmation email:", err);
+                    });
+                });
+            }
 
             // Emit Socket.IO real-time xuống frontend
             if (_io) {

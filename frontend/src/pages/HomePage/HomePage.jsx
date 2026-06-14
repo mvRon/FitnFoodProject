@@ -109,9 +109,9 @@ const HomePage = () => {
     <div>
       <LoadingComponent isPending={false}>
         <BreadcrumbWrap>
-          <Breadcrumb>
-            <Breadcrumb.Item>Trang chủ</Breadcrumb.Item>
-          </Breadcrumb>
+          <Breadcrumb items={[
+            { title: 'Trang chủ' }
+          ]} />
         </BreadcrumbWrap>
         <div className="body" style={{ background: 'linear-gradient(180deg, rgba(16,185,129,0.08), rgba(2,132,199,0.06) 35%, rgba(248,250,252,0.9) 100%)', width: '100%' }}>
           <div id="container" style={{ maxWidth: '1270px', width: '100%', margin: '0 auto', padding: '0 16px' }}>

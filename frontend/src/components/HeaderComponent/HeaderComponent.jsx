@@ -266,7 +266,7 @@ const HeaderComponent = ({ isHiddenSearch = false, isHiddenCart = false }) => {
             {user?.avatar ? (
               <Popover content={content} trigger="click">
                 <img
-                  src={userAvatart}
+                  src={userAvatart || user?.avatar || null}
                   alt="avatar"
                   style={{ height: 26, width: 26, borderRadius: '50%', objectFit: 'cover', cursor: 'pointer' }}
                 />

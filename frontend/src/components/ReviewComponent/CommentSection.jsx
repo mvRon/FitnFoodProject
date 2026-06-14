@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState, useCallback } from 'react';
-import { List, Avatar, Space, message, Typography, Rate, Dropdown, Button } from 'antd';
+import { Spin, Avatar, Space, message, Typography, Rate, Dropdown, Button } from 'antd';
 import { UserOutlined, MoreOutlined } from '@ant-design/icons';
 import { useSelector, useDispatch } from 'react-redux';
 import * as ProductService from '../../services/ProductService';
@@ -140,7 +140,7 @@ const CommentSection = ({ productId, refreshTrigger }) => {
 
             <CommentInputCard>
                 {access_token && access_token !== '' ? (
-                    <Space direction="vertical" style={{ width: '100%' }}>
+                    <Space orientation="vertical" style={{ width: '100%' }}>
                         <StyledTextArea
                             rows={4}
                             value={content}
@@ -163,79 +163,79 @@ const CommentSection = ({ productId, refreshTrigger }) => {
             </CommentInputCard>
 
             <CommentListContainer>
-                <List
-                    loading={loadingComments}
-                    itemLayout="horizontal"
-                    dataSource={visibleComments}
-                    locale={{ emptyText: 'Chưa có bình luận nào.' }}
-                    renderItem={item => (
-                        <CommentListItem>
-                            <List.Item.Meta
-                                avatar={
-                                    <Avatar
-                                        src={item.user?.avatar}
-                                        icon={!item.user?.avatar ? <UserOutlined /> : undefined}
-                                        alt={item.user?.name || 'Người dùng'}
-                                    />
-                                }
-                                title={
-                                    <CommentMetaWrapper>
-                                        <CommentUserName>{item.user?.name || 'Người dùng'}</CommentUserName>
-                                        {item.createdAt && (
-                                            <CommentDate type="secondary">
-                                                {moment(item.createdAt).format('DD/MM/YYYY HH:mm:ss')}
-                                            </CommentDate>
-                                        )}
-                                    </CommentMetaWrapper>
-                                }
-                                description={
-                                    <div>
-                                        {item.rating > 0 && (
-                                            <div style={{ marginBottom: 6 }}>
-                                                <Rate disabled value={Number(item.rating)} style={{ fontSize: 16, color: '#F59E0B' }} />
-                                            </div>
-                                        )}
-                                        <CommentContentText>{item.comment}</CommentContentText>
-
-                                        <Space style={{ justifyContent: 'space-between', marginTop: 10, width: '100%', padding: '8px 10px', borderRadius: 10, background: 'linear-gradient(90deg, rgba(2,132,199,0.06), rgba(16,185,129,0.06))', border: '1px solid rgba(2,132,199,0.14)' }}>
-                                            <ReplyComponent
-                                                productId={productId}
-                                                reviewId={item._id}
-                                                replies={item.replies || []}
-                                                access_token={localStorage.getItem('access_token')}
-                                                userId={userId}
-                                                fetchComments={fetchComments}
-                                            />
-                                            {item.user?._id === userId && (
-                                                <Dropdown
-                                                    trigger={['click']}
-                                                    placement="bottomRight"
-                                                    menu={{
-                                                        items: [
-                                                            {
-                                                                key: 'edit',
-                                                                label: 'Sửa',
-                                                                onClick: () => handleEditComment(item._id, item.comment),
-                                                            },
-                                                            {
-                                                                key: 'delete',
-                                                                label: 'Xóa',
-                                                                danger: true,
-                                                                onClick: () => handleDeleteComment(item._id),
-                                                            },
-                                                        ],
-                                                    }}
-                                                >
-                                                    <Button icon={<MoreOutlined />} type="text" size="small" style={{ color: '#0284C7', borderRadius: 8 }} />
-                                                </Dropdown>
-                                            )}
-                                        </Space>
+                <Spin spinning={loadingComments}>
+                    {visibleComments.length === 0 ? (
+                        <div style={{ textAlign: 'center', padding: '20px', color: '#999' }}>Chưa có bình luận nào.</div>
+                    ) : (
+                        visibleComments.map((item) => (
+                            <CommentListItem key={item._id}>
+                                <div style={{ display: 'flex', width: '100%', gap: '16px' }}>
+                                    <div className="ant-list-item-meta-avatar">
+                                        <Avatar
+                                            src={item.user?.avatar}
+                                            icon={!item.user?.avatar ? <UserOutlined /> : undefined}
+                                            alt={item.user?.name || 'Người dùng'}
+                                        />
                                     </div>
-                                }
-                            />
-                        </CommentListItem>
+                                    <div className="ant-list-item-meta-content" style={{ flex: 1 }}>
+                                        <h4 className="ant-list-item-meta-title" style={{ marginBottom: 4 }}>
+                                            <CommentMetaWrapper>
+                                                <CommentUserName>{item.user?.name || 'Người dùng'}</CommentUserName>
+                                                {item.createdAt && (
+                                                    <CommentDate type="secondary">
+                                                        {moment(item.createdAt).format('DD/MM/YYYY HH:mm:ss')}
+                                                    </CommentDate>
+                                                )}
+                                            </CommentMetaWrapper>
+                                        </h4>
+                                        <div className="ant-list-item-meta-description">
+                                            {item.rating > 0 && (
+                                                <div style={{ marginBottom: 6 }}>
+                                                    <Rate disabled value={Number(item.rating)} style={{ fontSize: 16, color: '#F59E0B' }} />
+                                                </div>
+                                            )}
+                                            <CommentContentText>{item.comment}</CommentContentText>
+
+                                            <Space style={{ justifyContent: 'space-between', marginTop: 10, width: '100%', padding: '8px 10px', borderRadius: 10, background: 'linear-gradient(90deg, rgba(2,132,199,0.06), rgba(16,185,129,0.06))', border: '1px solid rgba(2,132,199,0.14)' }}>
+                                                <ReplyComponent
+                                                    productId={productId}
+                                                    reviewId={item._id}
+                                                    replies={item.replies || []}
+                                                    access_token={localStorage.getItem('access_token')}
+                                                    userId={userId}
+                                                    fetchComments={fetchComments}
+                                                />
+                                                {item.user?._id === userId && (
+                                                    <Dropdown
+                                                        trigger={['click']}
+                                                        placement="bottomRight"
+                                                        menu={{
+                                                            items: [
+                                                                {
+                                                                    key: 'edit',
+                                                                    label: 'Sửa',
+                                                                    onClick: () => handleEditComment(item._id, item.comment),
+                                                                },
+                                                                {
+                                                                    key: 'delete',
+                                                                    label: 'Xóa',
+                                                                    danger: true,
+                                                                    onClick: () => handleDeleteComment(item._id),
+                                                                },
+                                                            ],
+                                                        }}
+                                                    >
+                                                        <Button icon={<MoreOutlined />} type="text" size="small" style={{ color: '#0284C7', borderRadius: 8 }} />
+                                                    </Dropdown>
+                                                )}
+                                            </Space>
+                                        </div>
+                                    </div>
+                                </div>
+                            </CommentListItem>
+                        ))
                     )}
-                />
+                </Spin>
 
                 {!showAllComments && comments.length > 2 && (
                     <div style={{ textAlign: 'center', marginTop: '1rem' }}>

@@ -173,7 +173,7 @@ const AdminUserComponent = () => {
       dataIndex: 'name',
       key: 'name',
       render: (_, record) => (
-        <Space direction="vertical" size={0}>
+        <Space orientation="vertical" size={0}>
           <Text strong>{record?.name || 'Chưa cập nhật'}</Text>
           <Text type="secondary">{record?.email || '---'}</Text>
         </Space>
@@ -329,7 +329,7 @@ const AdminUserComponent = () => {
       <Drawer
         title="Thông tin chi tiết người dùng"
         placement="right"
-        width={420}
+        size="default"
         onClose={() => setIsDetailOpen(false)}
         open={isDetailOpen}
         className="admin-user-detail-drawer"
