@@ -4,8 +4,6 @@ import { BreadcrumbWrap, WrapperButtonMore, WrapperProducts, WrapperTypeProduct 
 
 import TypeProduct from '../../components/TypeProduct/TypeProduct.jsx'
 // import { Button } from 'antd';
-import { useDebounce } from "../../hooks/useDebounce";
-import { useSelector } from "react-redux";
 import * as ProductService from '../../services/ProductService.js'
 import * as CategoryService from '../../services/CategoryService.js'
 import RecommendationCarousel from '../../components/RecommendationCarousel/RecommendationCarousel.jsx';
@@ -23,25 +21,15 @@ const HomePage = () => {
 
   // const [typeProduct, setTypeProduct] = useState(['Máy giặt', 'Tivi', 'Tủ lạnh'])
 
-  const searchProduct = useSelector((state) => state?.product?.search)
   const accessToken = localStorage.getItem('access_token')
-  const searchDebounce = useDebounce(searchProduct, 500)
   const [page, setPage] = useState(1)
   const [displayProducts, setDisplayProducts] = useState([])
   const [typeProduct, setTypeProduct] = useState([])
 
   const SEARCH_LIMIT = 24
 
-  const fetchProductAll = async (search, currentPage) => {
-    if (search) {
-      const res = await ProductService.searchProducts(search, {
-        limit: SEARCH_LIMIT,
-        includeImages: true,
-        page: 1,
-      })
-      return res
-    }
-    const res = await ProductService.getAllProduct(search, currentPage, PAGE_SIZE, true)
+  const fetchProductAll = async (currentPage) => {
+    const res = await ProductService.getAllProduct('', currentPage, PAGE_SIZE, true)
     return res
   }
 
@@ -58,30 +46,20 @@ const HomePage = () => {
     fetchAllTypeProduct()
   }, [])
 
-  useEffect(() => {
-    setPage(1)
-    setDisplayProducts([])
-  }, [searchDebounce])
+
 
 
   const { data: products, isPending, isFetching } = useQuery({
-    queryKey: ['products', searchDebounce, page],
-    queryFn: () => fetchProductAll(searchDebounce, page),
+    queryKey: ['products', page],
+    queryFn: () => fetchProductAll(page),
     retry: 3,
     retryDelay: 1000,
   });
 
   const isLoadingMore = isFetching && page > 1
 
-  const isSearching = Boolean(searchDebounce)
-
   useEffect(() => {
     if (!products?.data) return
-
-    if (isSearching) {
-      setDisplayProducts(products.data)
-      return
-    }
 
     if (page === 1) {
       setDisplayProducts(products.data)
@@ -95,7 +73,7 @@ const HomePage = () => {
       })
       return Array.from(productMap.values())
     })
-  }, [products, page, isSearching])
+  }, [products, page])
 
   // console.log('products', products)
   //Chỉ lọc ra những Category cha
@@ -174,7 +152,7 @@ const HomePage = () => {
             </WrapperProducts>
             <div style={{ width: '100%', display: 'flex', marginTop: '10px', justifyContent: 'center' }}>
               <WrapperButtonMore
-                disabled={isSearching || !products?.total || displayProducts.length >= products.total || isFetching}
+                disabled={!products?.total || displayProducts.length >= products.total || isFetching}
                 onClick={() => setPage((prev) => prev + 1)}>
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
                   {isLoadingMore && <Spin size="small" />}

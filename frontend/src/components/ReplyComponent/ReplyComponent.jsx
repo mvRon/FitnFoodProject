@@ -18,7 +18,7 @@ import {
     UserBadge,
 } from './Style';
 
-const ReplyComponent = ({ productId, reviewId, replies, access_token, userId, fetchComments }) => {
+const ReplyComponent = ({ productId, reviewId, replies, access_token, userId, refreshAll }) => {
     const [replyContent, setReplyContent] = useState('');
     const [editingReplyId, setEditingReplyId] = useState(null);
     const [submittingReply, setSubmittingReply] = useState(false);
@@ -36,7 +36,7 @@ const ReplyComponent = ({ productId, reviewId, replies, access_token, userId, fe
                 : await ProductService.addReplyToReview(productId, reviewId, JSON.parse(access_token), { comment: content });
 
             if (res.status === 'OK') {
-                await fetchComments();
+                if (typeof refreshAll === 'function') refreshAll();
                 setReplyContent('');
                 setEditingReplyId(null);
                 setShowReplyBox(false);
@@ -64,7 +64,7 @@ const ReplyComponent = ({ productId, reviewId, replies, access_token, userId, fe
         try {
             const res = await ProductService.deleteReplyOfReview(productId, reviewId, id, JSON.parse(access_token));
             if (res.status === 'OK') {
-                await fetchComments();
+                if (typeof refreshAll === 'function') refreshAll();
                 message.success('Xóa phản hồi thành công!');
             } else {
                 message.error(res.message || 'Không thể xóa phản hồi.');

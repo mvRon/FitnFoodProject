@@ -103,10 +103,14 @@ const buildKeywordScore = (query, product) => {
     return Math.min(1, normalized);
 };
 
-const buildHybridScore = (vectorScore, keywordScore) => {
+const buildHybridScore = (vectorScore, keywordScore, isNameMatch) => {
     const vectorWeight = 0.75;
     const keywordWeight = 0.25;
-    return (Number(vectorScore) || 0) * vectorWeight + (Number(keywordScore) || 0) * keywordWeight;
+    let baseScore = (Number(vectorScore) || 0) * vectorWeight + (Number(keywordScore) || 0) * keywordWeight;
+    if (isNameMatch) {
+        baseScore += 10;
+    }
+    return baseScore;
 };
 
 
@@ -289,10 +293,9 @@ const getDetailsProduct = (productId) => {
     return new Promise(async (resolve, reject) => {
         try {
             const productDetails = await Product.findById(productId)
-                .select("-embedding")
+                .select("-embedding -reviews -restockSubscribers")
                 .populate('type')
-                .populate('reviews.user')
-                .populate('reviews.replies.user');
+                .lean();
             if (productDetails) {
                 resolve({
                     status: "OK",
@@ -388,18 +391,25 @@ const getAllProducts = (limit, page, sort, filter, includeImages = false) => {
                 .skip(skip)
                 .sort(sortObject);
 
-            productQuery = productQuery.select("-embedding");
-            if (!includeImages) {
-                productQuery = productQuery.select("-images");
-            } else {
-                productQuery = productQuery.slice("images", 1);
-            }
+            productQuery = productQuery.select("-embedding -reviews -restockSubscribers -description");
 
             if (populateType) {
                 productQuery = productQuery.populate("type");
             }
 
-            const allProduct = await productQuery;
+            const allProduct = await productQuery.lean();
+
+            // Lọc bớt hình ảnh ở cấp độ JavaScript vì MongoDB không cho phép kết hợp select exclusion và slice
+            if (allProduct && Array.isArray(allProduct)) {
+                allProduct.forEach(product => {
+                    if (!includeImages) {
+                        delete product.images;
+                    } else if (product.images && product.images.length > 0) {
+                        product.images = [product.images[0]];
+                    }
+                });
+            }
+
             resolve({
                 status: "OK",
                 message: "Get all products successfully!",
@@ -434,10 +444,33 @@ const searchProducts = (query, options = {}) => {
                 });
             }
 
+            // 1. Vector Search Hits
             const queryVector = await embedText(normalized);
             const vectorLimit = Math.max(limit + skip, limit);
-            let hits = await vectorSearchProductHits({ queryVector, limit: vectorLimit });
-            let hydrated = await hydrateSearchResults(hits, includeImages);
+            let vectorHits = await vectorSearchProductHits({ queryVector, limit: vectorLimit });
+
+            // 2. Regex Exact Match Hits
+            const escaped = escapeRegex(normalized);
+            const regex = new RegExp(escaped, "i");
+            const fallbackFilter = { name: regex };
+            if (categoryFilter) {
+                Object.assign(fallbackFilter, categoryFilter);
+            }
+            let regexHits = await Product.find(fallbackFilter).limit(limit * 2).select("_id").lean();
+
+            // 3. Combine unique IDs
+            const combinedHitsMap = new Map();
+            vectorHits.forEach(hit => combinedHitsMap.set(String(hit._id), hit.score));
+            regexHits.forEach(hit => {
+                if (!combinedHitsMap.has(String(hit._id))) {
+                    combinedHitsMap.set(String(hit._id), 0);
+                }
+            });
+
+            const combinedHitsArray = Array.from(combinedHitsMap.entries()).map(([id, score]) => ({ _id: id, score }));
+
+            // 4. Hydrate & Filter
+            let hydrated = await hydrateSearchResults(combinedHitsArray, includeImages);
 
             if (categoryFilter && hydrated.length) {
                 hydrated = hydrated.filter((item) => {
@@ -446,56 +479,24 @@ const searchProducts = (query, options = {}) => {
                 });
             }
 
-            if (hydrated.length) {
-                const enriched = hydrated
-                    .map((item) => {
-                        const keywordScore = buildKeywordScore(normalized, item);
-                        const hybridScore = buildHybridScore(item.score, keywordScore);
-                        return { ...item, keywordScore, hybridScore };
-                    })
-                    .sort((a, b) => b.hybridScore - a.hybridScore);
+            // 5. Score & Sort
+            const enriched = hydrated
+                .map((item) => {
+                    const keywordScore = buildKeywordScore(normalized, item);
+                    const isNameMatch = item.name && String(item.name).toLowerCase().includes(String(normalized).toLowerCase());
+                    const hybridScore = buildHybridScore(item.score, keywordScore, isNameMatch);
+                    return { ...item, keywordScore, hybridScore, isSemanticOnly: !isNameMatch };
+                })
+                .sort((a, b) => b.hybridScore - a.hybridScore);
 
-                const pageResults = enriched.slice(skip, skip + limit);
-                const total = enriched.length;
+            const pageResults = enriched.slice(skip, skip + limit);
+            const total = enriched.length;
 
-                return resolve({
-                    status: "OK",
-                    message: "Search products successfully!",
-                    total,
-                    data: pageResults,
-                    currentPage: page,
-                    totalPage: Math.ceil(total / limit) || 1,
-                });
-            }
-
-            const escaped = escapeRegex(normalized);
-            const regex = new RegExp(escaped, "i");
-            const fallbackFilter = { name: regex };
-            if (categoryFilter) {
-                fallbackFilter.type = categoryFilter.type;
-            }
-
-            const total = await Product.countDocuments(fallbackFilter);
-            let fallbackQuery = Product.find(fallbackFilter)
-                .sort({ sold: -1, averageRating: -1, createdAt: -1 })
-                .skip(skip)
-                .limit(limit)
-                .populate("type")
-                .lean();
-
-            fallbackQuery = fallbackQuery.select("-embedding");
-            if (!includeImages) {
-                fallbackQuery = fallbackQuery.select("-images");
-            } else {
-                fallbackQuery = fallbackQuery.slice("images", 1);
-            }
-
-            const results = await fallbackQuery;
-            resolve({
+            return resolve({
                 status: "OK",
                 message: "Search products successfully!",
                 total,
-                data: results,
+                data: pageResults,
                 currentPage: page,
                 totalPage: Math.ceil(total / limit) || 1,
             });
@@ -624,7 +625,8 @@ const getReviews = async (productId) => {
         const product = await Product.findById(productId)
             .select('reviews')
             .populate('reviews.user', 'name avatar isAdmin')
-            .populate('reviews.replies.user', 'name avatar isAdmin');
+            .populate('reviews.replies.user', 'name avatar isAdmin')
+            .lean();
         if (!product) {
             return { status: 'ERROR', message: 'Không tìm thấy sản phẩm!', data: null };
         }
@@ -734,25 +736,19 @@ const deleteReview = async (productId, reviewId, user) => {
 // Kiểm tra quyền đánh giá sản phẩm
 const checkRatingPermission = async (userId, productId) => {
     try {
-        // Chỉ cho phép đánh giá khi đơn hàng đã giao và đã thanh toán.
-        // Hỗ trợ cả dữ liệu cũ (isDelivered: true) và dữ liệu mới (isDelivered: 'delivered').
-        const deliveredAndPaidOrders = await Order.find({
+        // Kiểm tra xem có đơn hàng nào đã giao, đã thanh toán và chứa sản phẩm cần đánh giá không
+        const orderExists = await Order.exists({
             user: userId,
             isPaid: true,
             $or: [
                 { isDelivered: true },
                 { isDelivered: 'delivered' }
-            ]
+            ],
+            'orderItems.product': productId
         });
 
-        // Kiểm tra xem có đơn hàng nào chứa sản phẩm cần đánh giá không
-        for (const order of deliveredAndPaidOrders) {
-            const hasProduct = order.orderItems.some(item =>
-                String(item.product) === String(productId)
-            );
-            if (hasProduct) {
-                return { status: 'OK', message: 'Có quyền đánh giá!', data: true };
-            }
+        if (orderExists) {
+            return { status: 'OK', message: 'Có quyền đánh giá!', data: true };
         }
 
         return { status: 'ERROR', message: 'Bạn cần có đơn hàng đã giao và đã thanh toán cho sản phẩm này để đánh giá!', data: false };
