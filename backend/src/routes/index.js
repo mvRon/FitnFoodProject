@@ -8,6 +8,7 @@ const InventoryRouter = require('./InventoryRouter');
 const ChatRouter = require('./ChatRouter');
 const PaymentRouter = require('./PaymentRouter');
 const RevenueRouter = require('./RevenueRouter');
+const NotificationRouter = require('./NotificationRouter');
 
 
 
@@ -22,6 +23,7 @@ const routes = (app) => {
     app.use('/api/chat', ChatRouter);
     app.use('/api/payment', PaymentRouter);
     app.use('/api/revenue', RevenueRouter);
+    app.use('/api/notification', NotificationRouter);
 
 
 

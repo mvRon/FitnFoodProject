@@ -4,6 +4,9 @@ const EmailService = require('./EmailService')
 const User = require("../models/UserModel");
 const InventoryVoucher = require("../models/InventoryVoucherModel");
 const StockCard = require("../models/StockCardModel");
+const InventoryThreshold = require("../models/InventoryThresholdModel");
+const NotificationService = require('./NotificationService');
+const { emitToAdmin, emitToUser } = require('../socket/notificationSocket');
 
 
 const createOrder = (newOrder) => {
@@ -166,6 +169,16 @@ const createOrder = (newOrder) => {
                     totalPrice 
                 }).catch((err) => {
                     console.error("Failed to send order confirmation email:", err);
+                });
+
+                // Thông báo đơn hàng mới cho Admin
+                _triggerNewOrderNotification(createdOrderDoc).catch((err) => {
+                    console.error("[Notification] NEW_ORDER trigger failed:", err);
+                });
+
+                // Kiểm tra và cảnh báo tồn kho thấp
+                _triggerLowStockNotifications(normalizedOrderItems).catch((err) => {
+                    console.error("[Notification] LOW_STOCK trigger failed:", err);
                 });
             });
 
@@ -350,7 +363,7 @@ const deleteOrder = (orderId, userId) => {
                     const unitPrice = Number(item.price || 0);
                     const amount = quantity * unitPrice;
 
-                    await Product.findByIdAndUpdate(item.product, {
+                    const updatedProduct = await Product.findByIdAndUpdate(item.product, {
                         $inc: {
                             countInStock: +quantity,
                             sold: -quantity,
@@ -358,7 +371,14 @@ const deleteOrder = (orderId, userId) => {
                         $set: {
                             lastStockMovementAt: new Date(),
                         },
-                    });
+                    }, { new: true });
+
+                    if (updatedProduct) {
+                        const oldStock = updatedProduct.countInStock - quantity;
+                        require("./ProductService").triggerRestockNotifications(updatedProduct, oldStock).catch(err => {
+                            console.error("Restock notification error:", err);
+                        });
+                    }
 
                     voucherItems.push({
                         product: item.product,
@@ -457,7 +477,6 @@ const getAllOrders = (options = {}) => {
 const updateOrder = (orderId, updateData, userId) => {
     return new Promise(async (resolve, reject) => {
         try {
-
             //Chỉ người dùng admin mới được quyền cập nhật trạng thái đơn hàng hoặc là người dùng chủ sở hữu đơn hàng
             const userData = await User.findById(userId);
             if (!userData) {
@@ -467,7 +486,16 @@ const updateOrder = (orderId, updateData, userId) => {
                 });
             }
 
+            const oldOrder = await Order.findById(orderId);
+            if (!oldOrder) {
+                return resolve({
+                    status: 'ERR',
+                    message: 'Order not found!'
+                });
+            }
+
             const order = await Order.findByIdAndUpdate(orderId, updateData, { new: true });
+
             if (!userData.isAdmin && order.user.toString() !== userId.toString()) {
                 return resolve({
                     status: 'ERR',
@@ -475,14 +503,14 @@ const updateOrder = (orderId, updateData, userId) => {
                 });
             }
 
-
-            if (!order) {
-                return resolve({
-                    status: 'ERR',
-                    message: 'Order not found!'
+            // Nếu admin cập nhật trạng thái giao hàng và trạng thái có thay đổi → thông báo cho user
+            if (userData.isAdmin && updateData.isDelivered && updateData.isDelivered !== oldOrder.isDelivered) {
+                setImmediate(() => {
+                    _triggerOrderStatusNotification(order, updateData.isDelivered).catch((err) => {
+                        console.error("[Notification] ORDER_STATUS trigger failed:", err);
+                    });
                 });
             }
-
 
             return resolve({
                 status: 'OK',
@@ -506,6 +534,105 @@ module.exports = {
     createPendingOrder,
     cancelExpiredOrder,
 };
+
+// =============================================
+// Notification helper functions (private)
+// =============================================
+
+/**
+ * Trigger NEW_ORDER notification đến Admin
+ */
+async function _triggerNewOrderNotification(order) {
+    try {
+        const notification = await NotificationService.createNotification({
+            recipientType: 'admin',
+            type: 'NEW_ORDER',
+            title: 'Đơn hàng mới!',
+            message: `Đơn hàng #${String(order._id).slice(-6).toUpperCase()} vừa được đặt.`,
+            metadata: {
+                orderId: String(order._id),
+                totalPrice: order.totalPrice,
+                paymentMethod: order.paymentMethod,
+            },
+        });
+        emitToAdmin(notification);
+    } catch (err) {
+        console.error('[Notification] _triggerNewOrderNotification error:', err);
+    }
+}
+
+/**
+ * Kiểm tra từng sản phẩm trong đơn hàng sau khi tạo:
+ * Nếu countInStock < safeStockLevel và chưa có LOW_STOCK unread → emit 1 lần
+ */
+async function _triggerLowStockNotifications(orderItems) {
+    try {
+        for (const item of orderItems) {
+            const productId = item.product;
+
+            // Lấy countInStock mới nhất từ DB (sau khi đã trừ)
+            const product = await Product.findById(productId).select('name countInStock').lean();
+            if (!product) continue;
+
+            const threshold = await InventoryThreshold.findOne({ product: productId }).lean();
+            if (!threshold || threshold.safeStockLevel <= 0) continue;
+
+            if (product.countInStock < threshold.safeStockLevel) {
+                // Anti-spam: chỉ tạo nếu chưa có LOW_STOCK unread cho sản phẩm này
+                const alreadyNotified = await NotificationService.hasUnreadLowStockNotification(productId);
+                if (alreadyNotified) continue;
+
+                const notification = await NotificationService.createNotification({
+                    recipientType: 'admin',
+                    type: 'LOW_STOCK',
+                    title: 'Cảnh báo tồn kho thấp!',
+                    message: `"${product.name}" còn ${product.countInStock} sản phẩm (ngưỡng an toàn: ${threshold.safeStockLevel}).`,
+                    metadata: {
+                        productId: String(productId),
+                        productName: product.name,
+                        currentStock: product.countInStock,
+                        safeStockLevel: threshold.safeStockLevel,
+                    },
+                });
+                emitToAdmin(notification);
+            }
+        }
+    } catch (err) {
+        console.error('[Notification] _triggerLowStockNotifications error:', err);
+    }
+}
+
+/**
+ * Trigger ORDER_STATUS notification đến User khi admin cập nhật trạng thái đơn
+ */
+async function _triggerOrderStatusNotification(order, newStatus) {
+    try {
+        const statusLabels = {
+            pending:    'Chờ xác nhận',
+            processing: 'Đang đóng gói',
+            shipping:   'Đang giao hàng',
+            delivered:  'Đã giao thành công',
+        };
+        const statusLabel = statusLabels[newStatus] || newStatus;
+        const userId = String(order.user);
+
+        const notification = await NotificationService.createNotification({
+            recipient: userId,
+            recipientType: 'user',
+            type: 'ORDER_STATUS',
+            title: 'Cập nhật đơn hàng',
+            message: `Đơn hàng #${String(order._id).slice(-6).toUpperCase()} đã chuyển sang: ${statusLabel}.`,
+            metadata: {
+                orderId: String(order._id),
+                newStatus,
+                statusLabel,
+            },
+        });
+        emitToUser(userId, notification);
+    } catch (err) {
+        console.error('[Notification] _triggerOrderStatusNotification error:', err);
+    }
+}
 
 // =============================================
 // PayOS: Tạo đơn hàng chờ thanh toán (isPaid=false)
@@ -690,10 +817,17 @@ async function cancelExpiredOrder(orderId) {
                 const unitPrice = Number(item.price || 0);
                 const amount = quantity * unitPrice;
 
-                await Product.findByIdAndUpdate(item.product, {
+                const updatedProduct = await Product.findByIdAndUpdate(item.product, {
                     $inc: { countInStock: +quantity, sold: -quantity },
                     $set: { lastStockMovementAt: new Date() },
-                });
+                }, { new: true });
+
+                if (updatedProduct) {
+                    const oldStock = updatedProduct.countInStock - quantity;
+                    require("./ProductService").triggerRestockNotifications(updatedProduct, oldStock).catch(err => {
+                        console.error("Restock notification error:", err);
+                    });
+                }
 
                 voucherItems.push({ product: item.product, quantity, unitPrice, amount });
             }

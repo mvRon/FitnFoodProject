@@ -2,6 +2,8 @@ const OrderService = require("../services/OrderService");
 const PayOSService = require("../services/PayOSService");
 const EmailService = require("../services/EmailService");
 const Order = require("../models/OrderModel");
+const NotificationService = require("../services/NotificationService");
+const { emitToAdmin } = require("../socket/notificationSocket");
 
 // Sẽ được gán bởi index.js sau khi khởi tạo Socket.IO
 let _io = null;
@@ -194,6 +196,26 @@ const handleWebhook = async (req, res) => {
                     reason: desc || "Payment cancelled",
                 });
             }
+
+            // Thông báo lỗi thanh toán cho Admin
+            setImmediate(async () => {
+                try {
+                    const notification = await NotificationService.createNotification({
+                        recipientType: 'admin',
+                        type: 'PAYMENT_FAILED',
+                        title: 'Thanh toán thất bại!',
+                        message: `Đơn hàng #${orderId.slice(-6).toUpperCase()} bị hủy hoặc lỗi thanh toán (mã: ${code}).`,
+                        metadata: {
+                            orderId,
+                            code,
+                            reason: desc || 'Payment failed/cancelled',
+                        },
+                    });
+                    emitToAdmin(notification);
+                } catch (notifErr) {
+                    console.error('[Notification] PAYMENT_FAILED trigger failed:', notifErr);
+                }
+            });
         }
 
         // PayOS yêu cầu trả về { error: "0" } để xác nhận đã nhận webhook

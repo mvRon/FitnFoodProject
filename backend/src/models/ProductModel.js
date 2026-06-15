@@ -32,12 +32,23 @@ const productSchema = new mongoose.Schema(
             }
         ],
         numReviews: { type: Number, default: 0 },
-        averageRating: { type: Number, default: 0 }
+        averageRating: { type: Number, default: 0 },
+        // Danh sách userId đăng ký nhận thông báo khi hàng về
+        restockSubscribers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }]
     },
     {
         timestamps: true,
     }
 );
+
+productSchema.post('findOneAndUpdate', function (doc) {
+    if (doc && doc.countInStock !== undefined) {
+        const { emitProductStockUpdate } = require('../socket/notificationSocket');
+        if (typeof emitProductStockUpdate === 'function') {
+            emitProductStockUpdate(doc._id, doc.countInStock);
+        }
+    }
+});
 
 const Product = mongoose.model("Product", productSchema);
 module.exports = Product;

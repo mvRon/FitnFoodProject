@@ -1,8 +1,10 @@
-import { AppstoreAddOutlined, ProductOutlined, UserOutlined, ShoppingCartOutlined, ShopOutlined, GiftOutlined, SettingOutlined, MessageOutlined, BarChartOutlined } from '@ant-design/icons';
-import { Menu } from 'antd'
-import React, { useState } from 'react'
+import { AppstoreAddOutlined, ProductOutlined, UserOutlined, ShoppingCartOutlined, ShopOutlined, GiftOutlined, SettingOutlined, MessageOutlined, BarChartOutlined, BellOutlined } from '@ant-design/icons';
+import { Button, Form, Input, Menu, message as toast } from 'antd'
+import React, { useEffect, useState } from 'react'
 import { getLevelKeys } from '../../utils';
+import { useSelector } from 'react-redux';
 import HeaderComponent from '../../components/HeaderComponent/HeaderComponent';
+import { useLocation } from 'react-router-dom';
 // import { useNavigate } from 'react-router-dom';
 // import ProfilePage from '../ProfilePage/ProfilePage';
 // import { retry } from '@reduxjs/toolkit/query';
@@ -16,7 +18,8 @@ import AdminInventoryComponent from '../../components/AdminInventoryComponent/Ad
 import AdminUserComponent from '../../components/AdminUserComponent/AdminUserComponent';
 import AdminChatComponent from '../../components/AdminChatComponent/AdminChatComponent';
 import AdminRevenueDashboard from '../../components/AdminRevenueDashboard/AdminRevenueDashboard';
-
+import AdminNotificationComponent from '../../components/AdminNotificationComponent/AdminNotificationComponent';
+import * as NotificationService from '../../services/NotificationService';
 
 const AdminPage = () => {
     // const navigate = useNavigate()
@@ -54,11 +57,11 @@ const AdminPage = () => {
                 return (
                     <AdminRevenueDashboard />
                 )
-
+            case 'Notification':
+                return <AdminNotificationComponent />
             default:
                 return <></>
         }
-
     }
 
 
@@ -132,14 +135,32 @@ const AdminPage = () => {
             key: 'Revenue',
             icon: <BarChartOutlined />,
             label: 'Doanh thu & AI',
+        },
+        {
+            key: 'Notification',
+            icon: <BellOutlined />,
+            label: 'Gửi thông báo',
         }
     ];
 
 
     const levelKeys = getLevelKeys(items);
 
+    const location = useLocation();
+
     const [stateOpenKeys, setStateOpenKeys] = useState(['Users']);
-    const [keySelected, setKeySelected] = useState('User')
+    const [keySelected, setKeySelected] = useState('User');
+
+    useEffect(() => {
+        if (location.state?.openTab) {
+            setKeySelected(location.state.openTab);
+            if (location.state.openTab === 'Order') {
+                setStateOpenKeys(['Orders']);
+            } else if (location.state.openTab === 'Inventory') {
+                setStateOpenKeys(['System']);
+            }
+        }
+    }, [location.state?.openTab]);
 
     const onOpenChange = (openKeys) => {
         const currentOpenKey = openKeys.find((key) => stateOpenKeys.indexOf(key) === -1);
@@ -203,3 +224,5 @@ const AdminPage = () => {
 }
 
 export default AdminPage
+
+

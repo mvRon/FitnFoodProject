@@ -4,6 +4,8 @@ const Order = require("../models/OrderModel");
 const InventoryService = require("./InventoryService");
 const RecommendationService = require("./RecommendationService");
 const { embedText, normalizeText } = require("./EmbeddingService");
+const NotificationService = require('./NotificationService');
+const { emitToUser } = require('../socket/notificationSocket');
 
 const VECTOR_INDEX = process.env.MONGO_VECTOR_INDEX || "product_embedding_index";
 const EMBEDDING_DIM = Number(process.env.AI_EMBEDDING_DIM || 384);
@@ -157,6 +159,7 @@ const updateProduct = (productId, data, userId) => {
             );
             const hasCountInStockUpdate = Object.prototype.hasOwnProperty.call(updateData, "countInStock");
 
+            let stockDelta = 0;
             if (hasCountInStockUpdate) {
                 if (!userId) {
                     return resolve({
@@ -174,7 +177,7 @@ const updateProduct = (productId, data, userId) => {
                 }
 
                 const currentStock = Number(productData.countInStock || 0);
-                const stockDelta = nextStock - currentStock;
+                stockDelta = nextStock - currentStock;
 
                 if (stockDelta !== 0) {
                     const quantity = Math.abs(stockDelta);
@@ -233,6 +236,16 @@ const updateProduct = (productId, data, userId) => {
                 if (shouldUpdateEmbedding) {
                     await RecommendationService.ensureProductEmbedding(updatedProduct, { force: true });
                 }
+
+                // Trigger RESTOCK notification: nếu tăng stock và có subscriber
+                if (stockDelta > 0) {
+                    setImmediate(() => {
+                        _triggerRestockNotifications(updatedProduct, productData.countInStock).catch((err) => {
+                            console.error("[Notification] RESTOCK trigger failed:", err);
+                        });
+                    });
+                }
+
                 resolve({
                     status: "OK",
                     message: "Product updated successfully!",
@@ -765,5 +778,45 @@ module.exports = {
     deleteReplyOfReview,
     deleteReview,
     checkRatingPermission,
-    getAllTypeProducts
+    getAllTypeProducts,
+    triggerRestockNotifications: _triggerRestockNotifications
 }
+
+/**
+ * Gửi thông báo RESTOCK cho tất cả user đã đăng ký theo dõi sản phẩm hết hàng.
+ * Chỉ trigger khi sản phẩm trước đó countInStock === 0 và nay đã có hàng trở lại.
+ * @param {Object} updatedProduct - document sản phẩm sau khi cập nhật
+ * @param {number} oldStock - số lượng tồn kho trước khi cập nhật
+ */
+async function _triggerRestockNotifications(updatedProduct, oldStock) {
+    try {
+        // Chỉ trigger khi trước đó hết hàng và nay đã có hàng
+        if (oldStock > 0 || updatedProduct.countInStock <= 0) return;
+
+        const subscribers = updatedProduct.restockSubscribers || [];
+        if (subscribers.length === 0) return;
+
+        for (const userId of subscribers) {
+            const notification = await NotificationService.createNotification({
+                recipient: String(userId),
+                recipientType: 'user',
+                type: 'RESTOCK',
+                title: 'Sản phẩm đã có hàng trở lại!',
+                message: `"${updatedProduct.name}" đã có hàng. Đặt ngay trước khi hết!`,
+                metadata: {
+                    productId: String(updatedProduct._id),
+                    productName: updatedProduct.name,
+                    newStock: updatedProduct.countInStock,
+                },
+            });
+            emitToUser(String(userId), notification);
+        }
+
+        // Xóa danh sách đăng ký sau khi đã thông báo
+        await Product.findByIdAndUpdate(updatedProduct._id, { $set: { restockSubscribers: [] } });
+
+        console.log(`[Notification] RESTOCK: Notified ${subscribers.length} subscribers for "${updatedProduct.name}"`);
+    } catch (err) {
+        console.error('[Notification] _triggerRestockNotifications error:', err);
+    }
+}

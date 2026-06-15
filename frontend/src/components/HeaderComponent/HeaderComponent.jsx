@@ -3,6 +3,7 @@ import { Badge, Col, message, Popover } from 'antd';
 import { WrapperHeader, WrapperTextHeader, WrapperHeaderAccount, WrapperSpanHeader, WrapperContentPopup, WrapperEmailUser } from './Style'
 import { UserOutlined, CaretDownOutlined, ShoppingCartOutlined } from '@ant-design/icons';
 import SearchComponent from '../SearchComponent/SearchComponent';
+import NotificationBellComponent from '../NotificationBellComponent/NotificationBellComponent';
 
 import { useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
@@ -201,7 +202,6 @@ const HeaderComponent = ({ isHiddenSearch = false, isHiddenCart = false }) => {
           justifyContent: 'space-between',
           flexWrap: 'nowrap',
           minHeight: 56,
-          overflowX: 'auto',
         }}
       >
         {/* Logo */}
@@ -287,6 +287,10 @@ const HeaderComponent = ({ isHiddenSearch = false, isHiddenCart = false }) => {
               </div>
             )}
           </div>
+
+          {/* Notification Bell – chỉ hiện khi đã đăng nhập */}
+          {user?.access_token && <NotificationBellComponent />}
+
           {/* Cart */}
           {!isHiddenCart && (
             <div onClick={() => navigate('/order')} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 2 }}>

@@ -11,6 +11,7 @@ import "slick-carousel/slick/slick-theme.css";
 import { Provider } from 'react-redux'
 import { persistor, store } from './redux/store'
 import { PersistGate } from 'redux-persist/integration/react'
+import { NotificationProvider } from './context/NotificationContext'
 
 
 
@@ -22,7 +23,9 @@ root.render(
   <QueryClientProvider client={queryClient}>
     <Provider store={store}>
       <PersistGate loading={null} persistor={persistor}>
-        <App />
+          <NotificationProvider>
+            <App />
+          </NotificationProvider>
       </PersistGate>
     </Provider>
     <ReactQueryDevtools initialIsOpen={false} />
