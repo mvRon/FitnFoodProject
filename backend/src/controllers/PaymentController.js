@@ -180,6 +180,26 @@ const handleWebhook = async (req, res) => {
                 });
             }
 
+            // Thông báo đơn hàng mới (đã thanh toán) cho Admin
+            setImmediate(async () => {
+                try {
+                    const notification = await NotificationService.createNotification({
+                        recipientType: 'admin',
+                        type: 'NEW_ORDER',
+                        title: 'Đơn hàng mới!',
+                        message: `Đơn hàng #${orderId.slice(-6).toUpperCase()} vừa được đặt và thanh toán qua QR.`,
+                        metadata: {
+                            orderId,
+                            totalPrice: order.totalPrice,
+                            paymentMethod: order.paymentMethod || 'payos',
+                        },
+                    });
+                    emitToAdmin(notification);
+                } catch (notifErr) {
+                    console.error('[Notification] NEW_ORDER trigger failed:', notifErr);
+                }
+            });
+
         } else {
             // Thanh toán thất bại / hủy — hủy đơn + hoàn kho
             console.log(`[PayOS] Order ${orderId} cancelled (code=${code})`);
