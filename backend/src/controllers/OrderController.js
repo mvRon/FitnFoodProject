@@ -60,11 +60,15 @@ const getUserOrders = async (req, res) => {
         const page = req.query.page ? Number(req.query.page) : undefined;
         const limit = req.query.limit ? Number(req.query.limit) : undefined;
         const includeImage = req.query.includeImage === 'true';
+        const startDate = req.query.startDate;
+        const endDate = req.query.endDate;
 
         const response = await OrderService.getUserOrders(userId, {
             page,
             limit,
             includeImage,
+            startDate,
+            endDate,
         });
         
         return res.status(200).json(response);
@@ -123,7 +127,9 @@ const deleteOrder = async (req, res) => {
 const getAllOrders = async (req, res) => {
     try {
         const includeImage = req.query.includeImage === 'true';
-        const response = await OrderService.getAllOrders({ includeImage });
+        const startDate = req.query.startDate;
+        const endDate = req.query.endDate;
+        const response = await OrderService.getAllOrders({ includeImage, startDate, endDate });
         
         return res.status(200).json(response);
     } catch (e) {

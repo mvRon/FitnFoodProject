@@ -8,6 +8,69 @@ import { OrderListWrapper, StyledOrderListCard } from './Style.js';
 import { useSelector } from 'react-redux';
 import { useQuery } from '@tanstack/react-query';
 import { useMutationHook } from '../../hooks/useMutationHook.js';
+import { FilterBar, FilterBtn, RefreshBtn, DateInput } from './Style.js';
+
+const VN_OFFSET = 7 * 60 * 60 * 1000; // GMT+7 (Việt Nam)
+
+const getVnTime = () => {
+    return new Date(Date.now() + VN_OFFSET);
+};
+
+const getStartOfDayUTC = (vnDate) => {
+    const msAtMidnightVN = Date.UTC(
+        vnDate.getUTCFullYear(),
+        vnDate.getUTCMonth(),
+        vnDate.getUTCDate(),
+        0, 0, 0, 0
+    );
+    return new Date(msAtMidnightVN - VN_OFFSET).toISOString();
+};
+
+const getEndOfDayUTC = (vnDate) => {
+    const msAtEndOfDayVN = Date.UTC(
+        vnDate.getUTCFullYear(),
+        vnDate.getUTCMonth(),
+        vnDate.getUTCDate(),
+        23, 59, 59, 999
+    );
+    return new Date(msAtEndOfDayVN - VN_OFFSET).toISOString();
+};
+
+const getPresetRange = (preset) => {
+    const nowVn = getVnTime();
+    switch (preset) {
+        case "today":
+            return { from: getStartOfDayUTC(nowVn), to: getEndOfDayUTC(nowVn) };
+        case "yesterday": {
+            const d = new Date(nowVn.getTime() - 24 * 3600 * 1000);
+            return { from: getStartOfDayUTC(d), to: getEndOfDayUTC(d) };
+        }
+        case "7d": {
+            const d = new Date(nowVn.getTime() - 6 * 24 * 3600 * 1000);
+            return { from: getStartOfDayUTC(d), to: getEndOfDayUTC(nowVn) };
+        }
+        case "month": {
+            const d = new Date(Date.UTC(nowVn.getUTCFullYear(), nowVn.getUTCMonth(), 1));
+            return { from: getStartOfDayUTC(d), to: getEndOfDayUTC(nowVn) };
+        }
+        case "year": {
+            const d = new Date(Date.UTC(nowVn.getUTCFullYear(), 0, 1));
+            return { from: getStartOfDayUTC(d), to: getEndOfDayUTC(nowVn) };
+        }
+        default:
+            return { from: null, to: null };
+    }
+};
+
+const PRESETS = [
+    { key: "all", label: "Tất cả" },
+    { key: "today", label: "Hôm nay" },
+    { key: "yesterday", label: "Hôm qua" },
+    { key: "7d", label: "7 ngày" },
+    { key: "month", label: "Tháng này" },
+    { key: "year", label: "Năm nay" },
+    { key: "custom", label: "Tùy chọn" },
+];
 
 const { Title, Text } = Typography;
 
@@ -82,14 +145,36 @@ const OrderListPage = () => {
 
 //   console.log('state', state)
 
+  const [preset, setPreset] = useState("all");
+  const [customFrom, setCustomFrom] = useState("");
+  const [customTo, setCustomTo] = useState("");
+
+  const dateRange = React.useMemo(() => {
+      if (preset === "custom") {
+          let fromIso = null;
+          let toIso = null;
+          if (customFrom) {
+              const parts = customFrom.split("-");
+              const d = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2], 0, 0, 0, 0));
+              fromIso = getStartOfDayUTC(d);
+          }
+          if (customTo) {
+              const parts = customTo.split("-");
+              const d = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2], 0, 0, 0, 0));
+              toIso = getEndOfDayUTC(d);
+          }
+          return { from: fromIso, to: toIso };
+      }
+      return getPresetRange(preset);
+  }, [preset, customFrom, customTo]);
 
   const fetchMyOrder = async () => {
-    const res = await OrderService.getAllOrder(state?.token, state?.id)
+    const res = await OrderService.getAllOrder(state?.token, state?.id, dateRange)
     return res.data
   }
 
   const queryOrder = useQuery({
-    queryKey: ['orders'],
+    queryKey: ['orders', dateRange.from, dateRange.to],
     queryFn: fetchMyOrder,
     retry: 3,
     retryDelay: 1000,
@@ -213,6 +298,13 @@ const OrderListPage = () => {
       title: 'Trạng thái',
       dataIndex: 'status',
       key: 'status',
+      filters: [
+        { text: "Chờ xử lý", value: "Chờ xử lý" },
+        { text: "Đang xử lý", value: "Đang xử lý" },
+        { text: "Đang giao hàng", value: "Đang giao hàng" },
+        { text: "Đã giao hàng", value: "Đã giao hàng" },
+      ],
+      onFilter: (value, record) => record.status === value,
       render: (status) => (
         <Tag color={getStatusTagColor(status)}>
           {status.toUpperCase()}
@@ -223,6 +315,11 @@ const OrderListPage = () => {
       title: 'Phương thức thanh toán',
       dataIndex: 'paymentMethod',
       key: 'paymentMethod',
+      filters: [
+        { text: "Tiền mặt", value: "Tiền mặt" },
+        { text: "Chuyển khoản", value: "Chuyển khoản" },
+      ],
+      onFilter: (value, record) => record.paymentMethod === value,
     },
     {
       title: 'Hành động',
@@ -319,6 +416,39 @@ const OrderListPage = () => {
         <Text type="secondary" style={{ display: 'block', marginBottom: '24px' }}>
           Theo dõi trạng thái giao hàng, xem chi tiết sản phẩm và quản lý các đơn đã đặt.
         </Text>
+
+        <FilterBar>
+            {PRESETS.map((p) => (
+                <FilterBtn
+                    key={p.key}
+                    $active={preset === p.key}
+                    onClick={() => setPreset(p.key)}
+                >
+                    {p.label}
+                </FilterBtn>
+            ))}
+            {preset === "custom" && (
+                <>
+                    <DateInput
+                        type="date"
+                        value={customFrom}
+                        onChange={e => setCustomFrom(e.target.value)}
+                        title="Từ ngày"
+                    />
+                    <span style={{ color: "#64748B", fontSize: 12 }}>→</span>
+                    <DateInput
+                        type="date"
+                        value={customTo}
+                        onChange={e => setCustomTo(e.target.value)}
+                        title="Đến ngày"
+                    />
+                </>
+            )}
+            <RefreshBtn onClick={() => queryOrder.refetch()} disabled={queryOrder.isFetching}>
+                {queryOrder.isFetching ? "🔄 Đang tải..." : "🔄 Làm mới"}
+            </RefreshBtn>
+        </FilterBar>
+
         <Table
           columns={columns}
           dataSource={orders}

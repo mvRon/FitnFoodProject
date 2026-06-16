@@ -226,7 +226,15 @@ const getUserOrders = (userId, options = {}) => {
             const limit = Number(options.limit);
             const hasPagination = Number.isInteger(page) && page > 0 && Number.isInteger(limit) && limit > 0;
 
-            const query = Order.find({ user: userId }).sort({ createdAt: -1 });
+            const queryObj = { user: userId };
+            if (options.startDate && options.endDate) {
+                queryObj.createdAt = {
+                    $gte: new Date(options.startDate),
+                    $lte: new Date(options.endDate)
+                };
+            }
+
+            const query = Order.find(queryObj).sort({ createdAt: -1 });
 
             if (!includeImage) {
                 query.select("-orderItems.image");
@@ -445,7 +453,14 @@ const getAllOrders = (options = {}) => {
     return new Promise(async (resolve, reject) => {
         try {
             const includeImage = options.includeImage === true;
-            const query = Order.find();
+            const queryObj = {};
+            if (options.startDate && options.endDate) {
+                queryObj.createdAt = {
+                    $gte: new Date(options.startDate),
+                    $lte: new Date(options.endDate)
+                };
+            }
+            const query = Order.find(queryObj).sort({ createdAt: -1 });
 
             if (!includeImage) {
                 query.select("-orderItems.image");
