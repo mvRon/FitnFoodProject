@@ -23,24 +23,13 @@ import * as ProductService from '../../services/ProductService';
 
 const { Title } = Typography;
 
-const RatingSection = ({ productId, refreshAll }) => {
+const RatingSection = ({ productId, reviews, refreshAll }) => {
     const access_token = useSelector(state => state.user.access_token);
-    const [reviews, setReviews] = useState([]);
     const [userRating, setUserRating] = useState(0);
     const [showCommentBox, setShowCommentBox] = useState(false);
     const [commentContent, setCommentContent] = useState('');
     const [canRate, setCanRate] = useState(false);
     const [isCheckingPermission, setIsCheckingPermission] = useState(false);
-
-    const fetchReviews = useCallback(async () => {
-        try {
-            const res = await axios.get(`${process.env.REACT_APP_API_URL_BACKEND}/product/${productId}/reviews`);
-            setReviews(res?.data?.data || []);
-        } catch (err) {
-            console.error('Lỗi khi lấy đánh giá:', err);
-            setReviews([]);
-        }
-    }, [productId]);
 
     // Kiểm tra quyền đánh giá
     const checkRatingPermission = useCallback(async () => {
@@ -61,9 +50,6 @@ const RatingSection = ({ productId, refreshAll }) => {
         }
     }, [productId, access_token]);
 
-    useEffect(() => {
-        fetchReviews();
-    }, [fetchReviews]);
 
     useEffect(() => {
         checkRatingPermission();
@@ -107,7 +93,6 @@ const RatingSection = ({ productId, refreshAll }) => {
 
                 // Cập nhật danh sách đánh giá và quyền đánh giá
                 try {
-                    await fetchReviews();
                     if (typeof refreshAll === 'function') {
                         refreshAll();
                     }

@@ -137,17 +137,18 @@ const getGeminiModel = () => {
         model: GEMINI_MODEL,
         systemInstruction: `Bạn là chuyên gia tư vấn dinh dưỡng của FITNFOOD. Nhiệm vụ:
 1. Tư vấn thân thiện, ngắn gọn và dễ hiểu bằng tiếng Việt.
-2. Chỉ sử dụng thông tin sản phẩm được cung cấp, không tự bịa sản phẩm.
+2. Bạn có thể tư vấn hoặc thêm vào giỏ hàng bất kỳ sản phẩm nào có trong danh sách được cung cấp HOẶC đã từng được bạn đề cập trong lịch sử trò chuyện. Không tự bịa ra sản phẩm hoàn toàn mới. BẠN CÓ QUYỀN thực hiện các thao tác (như thêm giỏ hàng) đối với các sản phẩm trong lịch sử chat dù chúng không xuất hiện trong danh sách cung cấp ở lượt chat hiện tại.
 3. Nếu không có sản phẩm phù hợp, hãy xin lỗi và hỏi thêm thông tin từ khách.
 4. Khi khách hỏi về đơn hàng hoặc tồn kho, hãy sử dụng các function tool được cung cấp. Khi phản hồi về thông tin đơn hàng từ tool lookup_user_orders, chỉ cung cấp chi tiết đơn hàng thu được, KHÔNG cần nhận xét/báo cáo về việc các sản phẩm trong đơn hàng đó có thuộc danh mục của FITNFOOD hay gợi ý kiểm tra tồn kho của chúng trừ khi khách hỏi riêng biệt.
 5. Luôn duy trì ngữ cảnh hội thoại, nhớ những gì khách đã nói và những quyết định bạn đã đưa ra trước đó trong cuộc hội thoại.
 6. Khi cần thêm thông tin sức khỏe (cân nặng, chiều cao, mục tiêu...), hãy hỏi ngắn gọn và chỉ hỏi 1 câu tại 1 thời điểm.
 7. Nếu bạn chưa có đủ thông tin hoặc ngữ cảnh để tư vấn sản phẩm cụ thể và cần hỏi thêm thông tin từ khách (như chiều cao, cân nặng, mục tiêu...), hoặc khi bạn đang trong quá trình hỏi thăm để lấy thêm thông tin mà chưa đề xuất sản phẩm cụ thể, hãy thêm từ khóa "[NEEDS_INFO]" vào cuối câu trả lời.
 8. QUAN TRỌNG: Đọc kỹ lịch sử hội thoại trước khi hỏi thêm. Nếu khách đã trả lời câu hỏi của bạn hoặc bạn đã đề xuất sản phẩm cho yêu cầu đó rồi, KHÔNG hỏi lại câu hỏi đó nữa. Thay vào đó, hãy tiếp tục hội thoại tự nhiên dựa trên thông tin đã có và chỉ đặt câu hỏi mới nếu thực sự cần thêm thông tin khác.
-9. QUAN TRỌNG: Khi gợi ý sản phẩm, bạn phải in đậm (**) tên sản phẩm và dùng ĐÚNG tên gốc của sản phẩm như trong danh sách được cung cấp ở đầu prompt. Không viết tắt hoặc thay đổi tên. Ví dụ: nếu tên trong danh sách là "Viên uống bổ sung vitamin C, tăng cường sức đề kháng C 500mg Nature's Bounty " thì phải in đậm đúng tên đó, không viết tắt thành "C 500mg Nature's Bounty" hay "Nature's Bounty".
+9. QUAN TRỌNG: Khi gợi ý sản phẩm, bạn phải in đậm (**) tên sản phẩm và dùng ĐÚNG tên gốc của sản phẩm như trong danh sách được cung cấp ở đầu prompt. Không viết tắt hoặc thay đổi tên. TUYỆT ĐỐI KHÔNG in đậm (**) bất kỳ từ khóa, tiêu đề (như Lý do đề xuất), thành phần, hay nội dung nào khác ngoài tên sản phẩm.
 
 --- LUỒNG MUA HÀNG QUA CHAT ---
-10. KHI KHÁCH MUỐN MUA / THÊM GIỎ HÀNG: Khi khách nói muốn mua, đặt hàng, thêm giỏ hàng, lấy sản phẩm nào đó → gọi function add_to_cart. Nếu khách nói rõ tên sản phẩm và số lượng thì thêm luôn. Nếu thiếu thông tin (tên sản phẩm không rõ, chưa nói số lượng) thì hỏi lại trước.
+10. KHI KHÁCH MUỐN MUA / THÊM GIỎ HÀNG: Khi khách nói muốn mua, đặt hàng, thêm giỏ hàng, lấy sản phẩm nào đó → gọi function add_to_cart. 
+    QUAN TRỌNG: Khi gọi tool add_to_cart, bạn PHẢI truyền TÊN ĐẦY ĐỦ VÀ CHÍNH XÁC CỦA SẢN PHẨM vào tham số productName. TUYỆT ĐỐI KHÔNG truyền "sản phẩm 1", "số 2", "vitamin C" hoặc các từ khóa chung chung. Nếu khách nói "mua sản phẩm 1", bạn phải tự đối chiếu lịch sử chat để lấy tên đầy đủ của sản phẩm số 1 truyền vào tool.
 11. SAU KHI THÊM GIỎ HÀNG THÀNH CÔNG: Luôn gợi ý sản phẩm bổ sung liên quan (upsell/cross-sell). Ví dụ: nếu khách mua Whey Protein → gợi ý bình lắc, creatine, hoặc BCAA. Nếu khách mua vitamin → gợi ý thêm sản phẩm bổ sung khác.
 12. KHI KHÁCH MUỐN THANH TOÁN / CHECKOUT: Khi khách nói muốn thanh toán, đặt hàng luôn, checkout → thực hiện theo thứ tự: (a) Gọi view_cart để xem giỏ hàng hiện tại, (b) Liệt kê ngắn gọn các sản phẩm trong giỏ và tổng tiền, (c) Gọi get_user_address để lấy địa chỉ mặc định, (d) Gọi find_applicable_vouchers để quét voucher phù hợp, (e) Trình bày thông tin tổng hợp cho khách và hỏi khách muốn thanh toán theo phương thức nào: COD (thanh toán khi nhận hàng) hoặc QR PayOS (chuyển khoản qua app ngân hàng). QUAN TRỌNG: Thêm tag "[CHECKOUT_CONFIRM]" vào cuối response khi đang chờ khách xác nhận đặt hàng.
 13. KHI KHÁCH XÁC NHẬN ĐẶT HÀNG COD: Khi khách chọn COD hoặc nói "thanh toán khi nhận hàng" → gọi function create_cod_order. Sau khi tạo thành công, thông báo mã đơn hàng.
@@ -183,7 +184,7 @@ const functionDeclarations = [
             properties: {
                 productName: {
                     type: "string",
-                    description: "Tên sản phẩm cần kiểm tra tồn kho",
+                    description: "TÊN ĐẦY ĐỦ VÀ CHÍNH XÁC của sản phẩm cần kiểm tra tồn kho. TUYỆT ĐỐI KHÔNG dùng 'sản phẩm 1', 'số 2' hay viết tắt.",
                 },
             },
             required: ["productName"],
@@ -197,7 +198,7 @@ const functionDeclarations = [
             properties: {
                 productName: {
                     type: "string",
-                    description: "Tên sản phẩm cần thêm vào giỏ hàng (có thể bao gồm hương vị, size nếu có)",
+                    description: "TÊN ĐẦY ĐỦ VÀ CHÍNH XÁC của sản phẩm cần thêm vào giỏ. TUYỆT ĐỐI KHÔNG dùng 'sản phẩm 1', 'số 2' hay viết tắt.",
                 },
                 quantity: {
                     type: "number",
@@ -223,7 +224,7 @@ const functionDeclarations = [
             properties: {
                 productName: {
                     type: "string",
-                    description: "Tên sản phẩm cần xóa khỏi giỏ hàng",
+                    description: "TÊN ĐẦY ĐỦ VÀ CHÍNH XÁC của sản phẩm cần xóa. TUYỆT ĐỐI KHÔNG dùng 'sản phẩm 1', 'số 2' hay viết tắt.",
                 },
             },
             required: ["productName"],
@@ -319,6 +320,11 @@ const executeFunctionCall = async (functionCall, userId, context = {}) => {
 
     if (name === "check_product_stock") {
         const productName = args?.productName || "";
+        
+        if (productName.length < 5 || /^(sản phẩm|số|sp|mục|item)\s*\d*$/i.test(productName.trim())) {
+            return { message: `Lỗi hệ thống: Tham số productName "${productName}" quá chung chung. AI vui lòng kiểm tra lịch sử chat và truyền TÊN ĐẦY ĐỦ VÀ CHÍNH XÁC của sản phẩm.` };
+        }
+
         const product = await Product.findOne({
             name: { $regex: productName, $options: "i" },
         })
@@ -350,6 +356,10 @@ const executeFunctionCall = async (functionCall, userId, context = {}) => {
         if (!userId) return { error: "Bạn cần đăng nhập để thêm sản phẩm vào giỏ hàng." };
         const productName = args?.productName || "";
         const quantity = Math.max(Number(args?.quantity) || 1, 1);
+
+        if (productName.length < 5 || /^(sản phẩm|số|sp|mục|item)\s*\d*$/i.test(productName.trim())) {
+            return { message: `Lỗi hệ thống: Tham số productName "${productName}" không hợp lệ. AI vui lòng đối chiếu lịch sử để lấy TÊN ĐẦY ĐỦ VÀ CHÍNH XÁC của sản phẩm rồi gọi lại tool.` };
+        }
 
         // Tìm sản phẩm bằng regex match (hỗ trợ cả variant/hương vị trong tên)
         const product = await Product.findOne({
@@ -441,6 +451,10 @@ const executeFunctionCall = async (functionCall, userId, context = {}) => {
     if (name === "remove_from_cart") {
         if (!userId) return { error: "Bạn cần đăng nhập để thao tác giỏ hàng." };
         const productName = args?.productName || "";
+
+        if (productName.length < 5 || /^(sản phẩm|số|sp|mục|item)\s*\d*$/i.test(productName.trim())) {
+            return { message: `Lỗi hệ thống: Tham số productName "${productName}" không hợp lệ. AI vui lòng truyền TÊN ĐẦY ĐỦ VÀ CHÍNH XÁC của sản phẩm cần xóa.` };
+        }
 
         const cart = await Cart.findOne({ userId });
         if (!cart || !cart.items || cart.items.length === 0) {
@@ -1039,12 +1053,12 @@ const boldMatchesProduct = (boldText, productName) => {
     // 1. Khớp chính xác (sau khi normalize, bỏ khoảng trắng thừa)
     if (normalP === normalB) return true;
 
-    // 2. Tên DB chứa toàn bộ nội dung bold — bold là sub-chuỗi đặc trưng của tên DB
-    //    Yêu cầu bold phải đủ dài (>= 6 ký tự) để tránh khớp sai với từ ngắn chung chung
-    if (normalP.includes(normalB) && normalB.length >= 6) return true;
-
-    // 3. Bold chứa toàn bộ tên DB — bot đã thêm thông tin vào sau tên
+    // 2. Bold chứa toàn bộ tên DB — bot đã thêm thông tin vào sau tên
     if (normalB.includes(normalP) && normalP.length >= 6) return true;
+    
+    // 3. Tên DB chứa toàn bộ nội dung bold — GIẢM THIỂU RỦI RO bằng cách yêu cầu bold phải đủ dài (>= 15 ký tự)
+    // Tránh trường hợp boldText là "Vitamin C" khớp với "Viên uống bổ sung Vitamin C"
+    if (normalP.includes(normalB) && normalB.length >= 15) return true;
 
     return false;
 };

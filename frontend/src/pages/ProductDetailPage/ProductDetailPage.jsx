@@ -4,6 +4,7 @@ import {
     Spin, Row, Col, Typography, Divider, message,
     InputNumber, Breadcrumb, Image,
 } from 'antd';
+import { BellOutlined } from '@ant-design/icons';
 import { useDispatch, useSelector } from 'react-redux';
 import { jwtDecode } from 'jwt-decode';
 import { addOrder, syncCart } from '../../redux/slice/orderSlice';
@@ -17,9 +18,11 @@ import {
 } from './Style';
 import * as CategoryService from '../../services/CategoryService';
 import * as ProductService from '../../services/ProductService';
+import * as NotificationService from '../../services/NotificationService';
 import { slugify } from '../../utils';
 import SliderComponent from '../../components/SliderComponent/SliderComponent';
 import RecommendationCarousel from '../../components/RecommendationCarousel/RecommendationCarousel';
+import { useNotification } from '../../context/NotificationContext';
 
 
 
@@ -33,6 +36,8 @@ const ProductDetailPage = () => {
     const [reviews, setReviews] = useState([]);
     const [selectedImage, setSelectedImage] = useState(null);
     const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
+    const [isRestockSubscribed, setIsRestockSubscribed] = useState(false);
+    const [isSubscribing, setIsSubscribing] = useState(false);
     // const access_token = useSelector((state) => state.user.access_token);
     const access_token = localStorage.getItem('access_token');
     const user = useSelector((state) => state.user);
@@ -40,7 +45,9 @@ const ProductDetailPage = () => {
     const dispatch = useDispatch();
     const navigate = useNavigate();
     const [categories, setCategories] = useState([]);
-    const [productImageList, setProductImageList] = useState([])
+    const [productImageList, setProductImageList] = useState([]);
+    const { socket } = useNotification();
+    const [realTimeStock, setRealTimeStock] = useState(0);
 
     useEffect(() => {
         const fetchProduct = async () => {
@@ -54,6 +61,7 @@ const ProductDetailPage = () => {
                 ).filter(Boolean);
                 setProductImageList(normalizedImages);
                 setSelectedImage(normalizedImages[0] || null);
+                setRealTimeStock(res?.data?.countInStock || 0);
             } catch (err) {
                 console.error('Lỗi khi lấy chi tiết sản phẩm:', err);
                 message.error('Không thể tải sản phẩm.');
@@ -72,6 +80,25 @@ const ProductDetailPage = () => {
         fetchCategories();
     }, [id]);
 
+    useEffect(() => {
+        if (!socket || !id) return;
+
+        socket.emit("joinProductRoom", id);
+
+        const handleStockUpdate = (data) => {
+            if (data.productId === id) {
+                setRealTimeStock(data.countInStock);
+            }
+        };
+
+        socket.on("product:stock_updated", handleStockUpdate);
+
+        return () => {
+            socket.emit("leaveProductRoom", id);
+            socket.off("product:stock_updated", handleStockUpdate);
+        };
+    }, [socket, id]);
+
     const handleAddToCart = async () => {
         if (!access_token) {
             message.warning('Vui lòng đăng nhập để thêm vào giỏ hàng!');
@@ -79,7 +106,7 @@ const ProductDetailPage = () => {
             return;
         }
 
-        const stock = Number(product?.countInStock || 0);
+        const stock = Number(realTimeStock || 0);
         if (stock <= 0) {
             message.warning('Sản phẩm hiện đang hết hàng!');
             return;
@@ -130,7 +157,7 @@ const ProductDetailPage = () => {
             return;
         }
 
-        const stock = Number(product?.countInStock || 0);
+        const stock = Number(realTimeStock || 0);
         if (stock <= 0) {
             message.warning('Sản phẩm hiện đang hết hàng!');
             return;
@@ -157,6 +184,29 @@ const ProductDetailPage = () => {
             }
         }));
         navigate('/order');
+    };
+
+    const handleSubscribeRestock = async () => {
+        if (!access_token) {
+            message.warning('Vui lòng đăng nhập để nhận thông báo!');
+            navigate('/login', { state: { from: `/productDetail/${id}` } });
+            return;
+        }
+        setIsSubscribing(true);
+        try {
+            const token = (() => { const r = localStorage.getItem('access_token'); try { return JSON.parse(r); } catch { return r; } })();
+            const res = await NotificationService.subscribeRestock(product?._id, token);
+            if (res?.status === 'OK') {
+                setIsRestockSubscribed(res.subscribed);
+                message.success(res.message);
+            } else {
+                message.warning(res?.message || 'Không thể đăng ký!');
+            }
+        } catch (err) {
+            message.error('Có lỗi xảy ra.');
+        } finally {
+            setIsSubscribing(false);
+        }
     };
 
     const getCategoryPath = (category, allCategories) => {
@@ -273,14 +323,50 @@ const ProductDetailPage = () => {
                         <div className="sold">Đã bán: {product.sold || 0}</div>
                         <div style={{ margin: '20px 0', padding: '10px 12px', borderRadius: 10, border: '1px solid rgba(2,132,199,0.16)', background: 'rgba(248,250,252,0.8)' }}>
                             <span className="label">Số lượng: </span>
-                            <InputNumber min={1} max={product?.countInStock || 1} value={quantity} onChange={(value) => setQuantity(value)} />
+                            <InputNumber disabled={realTimeStock <= 0} min={1} max={realTimeStock || 1} value={quantity} onChange={(value) => setQuantity(value)} />
                         </div>
-                        <StyledAddButton onClick={() => product?.countInStock !== 0 ? handleAddToCart() : message.warning('Sản phẩm hiện đang hết hàng!')} style={{ marginRight: 16, background: '#F59E0B', borderColor: '#F59E0B', boxShadow: '0 10px 22px rgba(245,158,11,0.32)' }}>
+                        <StyledAddButton disabled={realTimeStock <= 0} onClick={() => realTimeStock !== 0 ? handleAddToCart() : message.warning('Sản phẩm hiện đang hết hàng!')} style={{ marginRight: 16, background: realTimeStock > 0 ? '#F59E0B' : '#d1d5db', borderColor: realTimeStock > 0 ? '#F59E0B' : '#d1d5db', boxShadow: realTimeStock > 0 ? '0 10px 22px rgba(245,158,11,0.32)' : 'none', cursor: realTimeStock > 0 ? 'pointer' : 'not-allowed' }}>
                             Thêm vào giỏ hàng
                         </StyledAddButton>
-                        <StyledAddButton onClick={() => product?.countInStock !== 0 ? handleBuyNow() : message.warning('Sản phẩm hiện đang hết hàng!')} style={{ background: '#10B981', borderColor: '#10B981', boxShadow: '0 10px 22px rgba(16,185,129,0.28)' }}>
+                        <StyledAddButton disabled={realTimeStock <= 0} onClick={() => realTimeStock !== 0 ? handleBuyNow() : message.warning('Sản phẩm hiện đang hết hàng!')} style={{ background: realTimeStock > 0 ? '#10B981' : '#d1d5db', borderColor: realTimeStock > 0 ? '#10B981' : '#d1d5db', boxShadow: realTimeStock > 0 ? '0 10px 22px rgba(16,185,129,0.28)' : 'none', cursor: realTimeStock > 0 ? 'pointer' : 'not-allowed' }}>
                             Mua ngay
                         </StyledAddButton>
+
+                        {/* Nút đăng ký nhận thông báo hàng về */}
+                        {realTimeStock <= 0 && (
+                            <button
+                                id="subscribe-restock-btn"
+                                onClick={handleSubscribeRestock}
+                                disabled={isSubscribing}
+                                style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 8,
+                                    marginTop: 12,
+                                    padding: '10px 20px',
+                                    borderRadius: 10,
+                                    border: `2px solid ${isRestockSubscribed ? '#6366f1' : '#e2e8f0'}`,
+                                    background: isRestockSubscribed
+                                        ? 'linear-gradient(135deg, #6366f1, #8b5cf6)'
+                                        : '#f8fafc',
+                                    color: isRestockSubscribed ? '#fff' : '#64748b',
+                                    fontWeight: 600,
+                                    fontSize: 13,
+                                    cursor: isSubscribing ? 'not-allowed' : 'pointer',
+                                    transition: 'all 0.2s',
+                                    width: '100%',
+                                    justifyContent: 'center',
+                                }}
+                            >
+                                <BellOutlined />
+                                {isSubscribing
+                                    ? 'Đang xử lý...'
+                                    : isRestockSubscribed
+                                        ? '✔ Đã đăng ký – Nhấn để hủy'
+                                        : 'Thông báo khi có hàng'
+                                }
+                            </button>
+                        )}
                     </ProductInfoWrapper>
                 </Col>
 

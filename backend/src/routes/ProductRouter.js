@@ -35,4 +35,7 @@ router.post('/get-recommendations-by-cart', authUserMiddleWare, ProductControlle
 router.get('/get-recommendations-by-history', authUserMiddleWare, ProductController.getRecommendationsByHistory);
 router.post('/rebuild-product-embeddings', authMiddleWare, ProductController.rebuildProductEmbeddings);
 
+// Đăng ký nhận thông báo khi sản phẩm có hàng trở lại
+router.post('/:productId/subscribe-restock', authUserMiddleWare, ProductController.subscribeRestock);
+
 module.exports = router;

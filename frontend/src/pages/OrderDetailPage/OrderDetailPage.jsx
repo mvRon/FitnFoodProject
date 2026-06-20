@@ -3,6 +3,7 @@ import { useLocation, useParams } from 'react-router-dom'; // Để lấy orderI
 import { Typography, Spin, Divider, Tag, Space, Button } from 'antd';
 import { LoadingOutlined } from '@ant-design/icons';
 import * as OrderService from '../../services/OrderService.js'
+import { useSelector } from 'react-redux';
 // import axios from 'axios'; 
 
 import {
@@ -30,19 +31,30 @@ const OrderDetailPage = () => {
   const [error, setError] = useState(null);
   const location = useLocation()
   const { state } = location
+  const user = useSelector((state) => state.user);
+  
+  let token = state?.token || user?.access_token;
+  try {
+      if (typeof token === 'string' && token.startsWith('"')) {
+          token = JSON.parse(token);
+      }
+  } catch (e) {
+      console.error("Token parse error", e);
+  }
+
   const flag = (orderId ? true : false)
 
 
   const fetchDetailOrder = async () => {
-    const res = await OrderService.getDetailOrder(state?.token, orderId)
+    const res = await OrderService.getDetailOrder(token, orderId)
     return res.data
   }
   const queryDetailOrder = useQuery({
-    queryKey: ['orderDetail'],
+    queryKey: ['orderDetail', orderId],
     queryFn: fetchDetailOrder,
     retry: 3,
     retryDelay: 1000,
-    enabled: flag,
+    enabled: flag && !!token,
   })
   const { isPending, data } = queryDetailOrder
 

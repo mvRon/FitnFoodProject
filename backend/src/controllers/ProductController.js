@@ -1,5 +1,6 @@
 const ProducService = require('../services/ProductService');
 const RecommendationService = require('../services/RecommendationService');
+const Product = require('../models/ProductModel');
 
 const createProduct = async (req, res) => {
     try {
@@ -281,7 +282,42 @@ const rebuildProductEmbeddings = async (req, res) => {
 };
 
 
+// Đăng ký / hủy đăng ký nhận thông báo hàng về
+const subscribeRestock = async (req, res) => {
+    try {
+        const { productId } = req.params;
+        const userId = req.user?.id;
 
+        if (!productId || !userId) {
+            return res.status(200).json({ status: "ERR", message: "Product ID and user required!" });
+        }
+
+        const product = await Product.findById(productId).select('countInStock restockSubscribers name');
+        if (!product) {
+            return res.status(404).json({ status: "ERR", message: "Product not found!" });
+        }
+
+        if (product.countInStock > 0) {
+            return res.status(200).json({ status: "ERR", message: "Sản phẩm đang còn hàng, không cần đăng ký!" });
+        }
+
+        const alreadySubscribed = product.restockSubscribers.some(
+            (sub) => String(sub) === String(userId)
+        );
+
+        if (alreadySubscribed) {
+            // Toggle: hủy đăng ký
+            await Product.findByIdAndUpdate(productId, { $pull: { restockSubscribers: userId } });
+            return res.status(200).json({ status: "OK", message: "Đã hủy đăng ký thông báo hàng về.", subscribed: false });
+        } else {
+            // Đăng ký mới
+            await Product.findByIdAndUpdate(productId, { $addToSet: { restockSubscribers: userId } });
+            return res.status(200).json({ status: "OK", message: "Đã đăng ký nhận thông báo khi sản phẩm có hàng!", subscribed: true });
+        }
+    } catch (e) {
+        return res.status(500).json({ status: "ERR", message: e.message });
+    }
+};
 
 module.exports = {
     createProduct,
@@ -303,5 +339,6 @@ module.exports = {
     getRecommendationsByProduct,
     getRecommendationsByCart,
     getRecommendationsByHistory,
-    rebuildProductEmbeddings
+    rebuildProductEmbeddings,
+    subscribeRestock,
 }

@@ -3,6 +3,8 @@ import { createPortal } from 'react-dom';
 import { CloseCircleFilled, SearchOutlined } from '@ant-design/icons';
 import {
   SearchShell,
+  InputContainer,
+  GhostText,
   SearchInput,
   SearchButton,
   SearchIconWrap,
@@ -11,7 +13,9 @@ import {
   SuggestionItem,
   SuggestionThumb,
   SuggestionInfo,
+  SuggestionTitleRow,
   SuggestionName,
+  SemanticBadge,
   SuggestionMeta,
   SuggestionStatus,
   SuggestionsFooter,
@@ -33,6 +37,8 @@ const SearchComponent = ({
   onFocus,
   onBlur,
   onClear,
+  onLoadMore,
+  totalSuggestions = 0,
 }) => {
   const shellRef = useRef(null);
   const [dropdownStyle, setDropdownStyle] = useState({});
@@ -55,6 +61,26 @@ const SearchComponent = ({
     }
     if (onChange) {
       onChange({ target: { value: '' } });
+    }
+  };
+
+  // Determine Ghost Text
+  let ghostSuggestion = null;
+  let restOfGhostText = '';
+  if (hasQuery && suggestions.length > 0) {
+    const firstMatch = suggestions.find(s => s.name && s.name.toLowerCase().startsWith(String(value).toLowerCase()));
+    if (firstMatch) {
+      ghostSuggestion = firstMatch;
+      restOfGhostText = firstMatch.name.substring(String(value).length);
+    }
+  }
+
+  const handleKeyDown = (e) => {
+    if ((e.key === 'Tab' || e.key === 'ArrowRight') && ghostSuggestion) {
+      e.preventDefault();
+      if (onChange) {
+        onChange({ target: { value: ghostSuggestion.name } });
+      }
     }
   };
 
@@ -92,15 +118,24 @@ const SearchComponent = ({
       <SearchIconWrap aria-hidden="true">
         <SearchOutlined />
       </SearchIconWrap>
-      <SearchInput
-        value={value}
-        onChange={onChange}
-        placeholder={placeholder}
-        disabled={disabled}
-        aria-label={placeholder}
-        onFocus={onFocus}
-        onBlur={onBlur}
-      />
+      <InputContainer>
+        {ghostSuggestion && (
+          <GhostText>
+            <span style={{ visibility: 'hidden' }}>{value}</span>
+            {restOfGhostText}
+          </GhostText>
+        )}
+        <SearchInput
+          value={value}
+          onChange={onChange}
+          onKeyDown={handleKeyDown}
+          placeholder={placeholder}
+          disabled={disabled}
+          aria-label={placeholder}
+          onFocus={onFocus}
+          onBlur={onBlur}
+        />
+      </InputContainer>
       {hasQuery && (
         <ClearButton type="button" onClick={handleClear} disabled={disabled} aria-label="Xóa nội dung tìm kiếm">
           <CloseCircleFilled />
@@ -121,21 +156,32 @@ const SearchComponent = ({
               type="button"
               onMouseDown={() => onSelectSuggestion && onSelectSuggestion(item)}
             >
-              <SuggestionThumb src={item?.images?.[0] || item?.image || ''} alt={item?.name || 'product'} />
+              {item?.images?.[0] || item?.image ? (
+                <SuggestionThumb src={item?.images?.[0] || item?.image} alt={item?.name || 'product'} />
+              ) : (
+                <div style={{ width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f0f0f0', borderRadius: 4, marginRight: 12 }}>
+                  <SearchOutlined style={{ color: '#999', fontSize: 16 }} />
+                </div>
+              )}
               <SuggestionInfo>
-                <SuggestionName>{item?.name || 'San pham'}</SuggestionName>
+                <SuggestionTitleRow>
+                  <SuggestionName title={item?.name || 'Sản phẩm'}>
+                    {item?.name || 'Sản phẩm'}
+                  </SuggestionName>
+                  {item?.isSemanticOnly && <SemanticBadge>Gợi ý thêm</SemanticBadge>}
+                </SuggestionTitleRow>
                 <SuggestionMeta>
-                  {convertPrice(item?.price) || ''}{item?.discount ? ` • Giam ${item.discount}%` : ''}
+                  {convertPrice(item?.price) || ''}{item?.discount ? ` • Giảm ${item.discount}%` : ''}
                 </SuggestionMeta>
               </SuggestionInfo>
             </SuggestionItem>
           ))}
-          {!isLoading && suggestions.length > 0 && (
+          {!isLoading && suggestions.length > 0 && suggestions.length < totalSuggestions && (
             <SuggestionsFooter
               type="button"
-              onMouseDown={() => onSearch && onSearch(value || '')}
+              onMouseDown={onLoadMore}
             >
-              Xem tất cả kết quả
+              Xem thêm gợi ý
             </SuggestionsFooter>
           )}
         </SuggestionsPanel>,

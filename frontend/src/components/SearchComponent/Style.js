@@ -67,14 +67,42 @@ export const SearchIconWrap = styled.span`
   }
 `;
 
+export const InputContainer = styled.div`
+  position: relative;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+`;
+
+export const GhostText = styled.span`
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  color: rgba(30, 41, 59, 0.35);
+  font-size: 14px;
+  font-weight: 500;
+  pointer-events: none;
+  white-space: pre;
+  user-select: none;
+  z-index: 0;
+
+  @media (max-width: 768px) {
+    font-size: 12px;
+  }
+`;
+
 export const SearchInput = styled.input`
   flex: 1;
+  width: 100%;
   border: none;
   outline: none;
   background: transparent;
   font-size: 14px;
   font-weight: 500;
   color: var(--color-text);
+  z-index: 1;
 
   &::placeholder {
     color: rgba(30, 41, 59, 0.55);
@@ -205,12 +233,36 @@ export const SuggestionInfo = styled.div`
   flex-direction: column;
   gap: 2px;
   flex: 1;
+  overflow: hidden;
+`;
+
+export const SuggestionTitleRow = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
 `;
 
 export const SuggestionName = styled.span`
   font-size: 13px;
   font-weight: 600;
   color: var(--color-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 0 1 auto;
+`;
+
+export const SemanticBadge = styled.span`
+  background: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
 `;
 
 export const SuggestionMeta = styled.span`

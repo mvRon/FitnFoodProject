@@ -89,6 +89,13 @@ const createImportVoucher = (payload, userId) => {
                         { new: true }
                     );
 
+                    if (updatedProduct) {
+                        const oldStock = updatedProduct.countInStock - quantity;
+                        require("./ProductService").triggerRestockNotifications(updatedProduct, oldStock).catch(err => {
+                            console.error("Restock notification error:", err);
+                        });
+                    }
+
                     if (!updatedProduct) {
                         for (const rollback of productUpdates) {
                             await Product.findByIdAndUpdate(rollback.productId, {
@@ -614,6 +621,13 @@ const confirmVoucher = (voucherId, userId) => {
                         },
                         { new: true }
                     );
+
+                    if (updatedProduct) {
+                        const oldStock = updatedProduct.countInStock - quantity;
+                        require("./ProductService").triggerRestockNotifications(updatedProduct, oldStock).catch(err => {
+                            console.error("Restock notification error:", err);
+                        });
+                    }
 
                     if (!updatedProduct) {
                         for (const rollback of updatedProducts) {

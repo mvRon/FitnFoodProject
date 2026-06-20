@@ -3,6 +3,7 @@ import { Badge, Col, message, Popover } from 'antd';
 import { WrapperHeader, WrapperTextHeader, WrapperHeaderAccount, WrapperSpanHeader, WrapperContentPopup, WrapperEmailUser } from './Style'
 import { UserOutlined, CaretDownOutlined, ShoppingCartOutlined } from '@ant-design/icons';
 import SearchComponent from '../SearchComponent/SearchComponent';
+import NotificationBellComponent from '../NotificationBellComponent/NotificationBellComponent';
 
 import { useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
@@ -30,6 +31,8 @@ const HeaderComponent = ({ isHiddenSearch = false, isHiddenCart = false }) => {
   const [userAvatart, setUserAvatar] = useState('')
   const [search, setSearch] = useState('')
   const [suggestions, setSuggestions] = useState([])
+  const [totalSuggestions, setTotalSuggestions] = useState(0)
+  const [suggestionLimit, setSuggestionLimit] = useState(6)
   const [isSuggesting, setIsSuggesting] = useState(false)
   const [showSuggestions, setShowSuggestions] = useState(false)
   const order = useSelector((state) => state.order)
@@ -75,10 +78,10 @@ const HeaderComponent = ({ isHiddenSearch = false, isHiddenCart = false }) => {
   }, [user])
 
   useEffect(() => {
-    if (typeof searchValue === 'string' && searchValue !== search) {
+    if (typeof searchValue === 'string') {
       setSearch(searchValue)
     }
-  }, [searchValue, search])
+  }, [searchValue])
 
   useEffect(() => {
     return () => {
@@ -88,10 +91,16 @@ const HeaderComponent = ({ isHiddenSearch = false, isHiddenCart = false }) => {
     }
   }, [])
 
+  // Khi đổi từ khóa mới, reset limit về 6
+  useEffect(() => {
+    setSuggestionLimit(6)
+  }, [searchDebounce])
+
   useEffect(() => {
     const query = (searchDebounce || '').trim()
     if (!query) {
       setSuggestions([])
+      setTotalSuggestions(0)
       setIsSuggesting(false)
       return
     }
@@ -99,14 +108,16 @@ const HeaderComponent = ({ isHiddenSearch = false, isHiddenCart = false }) => {
     let isActive = true
     setIsSuggesting(true)
 
-    ProductService.searchProducts(query, { limit: 6, includeImages: true, page: 1 })
+    ProductService.searchProducts(query, { limit: suggestionLimit, includeImages: true, page: 1 })
       .then((res) => {
         if (!isActive) return
         setSuggestions(res?.data || [])
+        setTotalSuggestions(res?.total || 0)
       })
       .catch(() => {
         if (!isActive) return
         setSuggestions([])
+        setTotalSuggestions(0)
       })
       .finally(() => {
         if (!isActive) return
@@ -116,7 +127,12 @@ const HeaderComponent = ({ isHiddenSearch = false, isHiddenCart = false }) => {
     return () => {
       isActive = false
     }
-  }, [searchDebounce])
+  }, [searchDebounce, suggestionLimit])
+
+  const handleLoadMoreSuggestions = (e) => {
+    e.preventDefault();
+    setSuggestionLimit(prev => prev + 6);
+  };
 
 
 
@@ -151,16 +167,14 @@ const HeaderComponent = ({ isHiddenSearch = false, isHiddenCart = false }) => {
   const onSearch = (e) => {
     const nextValue = e.target.value
     setSearch(nextValue)
-    dispatch(searchProduct(nextValue))
   }
 
   const handleSearchSubmit = () => {
-    const trimmed = (search || '').trim()
-    dispatch(searchProduct(trimmed))
-    if (trimmed.length > 0) {
-      navigate('/')
+    if (suggestions.length > 0) {
+      handleSelectSuggestion(suggestions[0]);
+    } else {
+      setShowSuggestions(false);
     }
-    setShowSuggestions(false)
   }
 
   const handleSearchFocus = () => {
@@ -201,7 +215,6 @@ const HeaderComponent = ({ isHiddenSearch = false, isHiddenCart = false }) => {
           justifyContent: 'space-between',
           flexWrap: 'nowrap',
           minHeight: 56,
-          overflowX: 'auto',
         }}
       >
         {/* Logo */}
@@ -247,6 +260,8 @@ const HeaderComponent = ({ isHiddenSearch = false, isHiddenCart = false }) => {
               onSelectSuggestion={handleSelectSuggestion}
               onFocus={handleSearchFocus}
               onBlur={handleSearchBlur}
+              onLoadMore={handleLoadMoreSuggestions}
+              totalSuggestions={totalSuggestions}
             />
           </div>
         )}
@@ -287,6 +302,10 @@ const HeaderComponent = ({ isHiddenSearch = false, isHiddenCart = false }) => {
               </div>
             )}
           </div>
+
+          {/* Notification Bell – chỉ hiện khi đã đăng nhập */}
+          {user?.access_token && <NotificationBellComponent />}
+
           {/* Cart */}
           {!isHiddenCart && (
             <div onClick={() => navigate('/order')} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 2 }}>

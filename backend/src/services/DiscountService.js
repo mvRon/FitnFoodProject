@@ -111,6 +111,23 @@ const createDiscount = async (data) => {
 				isActive: data.isActive ?? true
 			});
 
+			setImmediate(async () => {
+				try {
+					const NotificationService = require('./NotificationService');
+					const { broadcastFlashSale } = require('../socket/notificationSocket');
+					const notification = await NotificationService.createNotification({
+						recipientType: "all",
+						type: "FLASH_SALE",
+						title: `🎉 Mã giảm giá mới: ${newDiscount.code}`,
+						message: `Tặng bạn mã ${newDiscount.code} - ${newDiscount.name}. Số lượng có hạn, dùng ngay!`,
+						metadata: { link: '/' },
+					});
+					broadcastFlashSale(notification);
+				} catch (err) {
+					console.error("Lỗi khi gửi thông báo mã giảm giá:", err);
+				}
+			});
+
 			return resolve({
 				status: "OK",
 				message: "Discount created successfully!",

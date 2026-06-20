@@ -24,41 +24,18 @@ import {
 
 const { Text } = Typography;
 
-const CommentSection = ({ productId, refreshTrigger }) => {
+const CommentSection = ({ productId, reviews, refreshAll }) => {
     const dispatch = useDispatch();
     const { access_token, id: userId, name: currentUserName, avatar: currentUserAvatar } = useSelector((state) => state.user);
-    const [comments, setComments] = useState([]);
     const [content, setContent] = useState('');
     const [editingCommentId, setEditingCommentId] = useState(null);
-    const [loadingComments, setLoadingComments] = useState(false);
     const [submittingComment, setSubmittingComment] = useState(false);
     const [showAllComments, setShowAllComments] = useState(false);
 
-    const fetchComments = useCallback(async () => {
-        setLoadingComments(true);
-        try {
-            const res = await ProductService.getAllComment(productId);
-            if (res.status === 'OK') {
-                const onlyComments = (res.data || [])
-                    .filter(r => r.comment && r.comment.trim())
-                    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-                setComments(onlyComments);
-            } else {
-                message.error(res.message || 'Không thể tải bình luận.');
-            }
-        } catch (err) {
-            console.error('Lỗi khi tải bình luận:', err.response?.data || err.message);
-            message.error('Không thể tải bình luận.');
-        } finally {
-            setLoadingComments(false);
-        }
-    }, [productId]);
-
-    useEffect(() => {
-        if (productId) {
-            fetchComments();
-        }
-    }, [productId, fetchComments, refreshTrigger]);
+    // Xử lý reviews để lấy comments hợp lệ
+    const comments = (reviews || [])
+        .filter(r => r.comment && r.comment.trim())
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
     const handleComment = async () => {
         if (!access_token || access_token === '') {
@@ -82,7 +59,7 @@ const CommentSection = ({ productId, refreshTrigger }) => {
                 ? await ProductService.updateCommentProduct(productId, editingCommentId, parsedToken, { comment: content })
                 : await ProductService.addCommentProduct(productId, parsedToken, { comment: content });
             if (res.status === 'OK') {
-                await fetchComments();
+                if (typeof refreshAll === 'function') refreshAll();
                 setContent('');
                 setEditingCommentId(null);
                 message.success(editingCommentId ? 'Sửa bình luận thành công!' : 'Bình luận thành công!');
@@ -118,7 +95,7 @@ const CommentSection = ({ productId, refreshTrigger }) => {
             }
             const res = await ProductService.deleteCommentProduct(productId, commentId, parsedToken);
             if (res.status === 'OK') {
-                await fetchComments();
+                if (typeof refreshAll === 'function') refreshAll();
                 message.success('Xóa bình luận thành công!');
             } else {
                 message.error(res.message || 'Không thể xóa bình luận.');
@@ -163,7 +140,7 @@ const CommentSection = ({ productId, refreshTrigger }) => {
             </CommentInputCard>
 
             <CommentListContainer>
-                <Spin spinning={loadingComments}>
+                <div>
                     {visibleComments.length === 0 ? (
                         <div style={{ textAlign: 'center', padding: '20px', color: '#999' }}>Chưa có bình luận nào.</div>
                     ) : (
@@ -203,7 +180,7 @@ const CommentSection = ({ productId, refreshTrigger }) => {
                                                     replies={item.replies || []}
                                                     access_token={localStorage.getItem('access_token')}
                                                     userId={userId}
-                                                    fetchComments={fetchComments}
+                                                    refreshAll={refreshAll}
                                                 />
                                                 {item.user?._id === userId && (
                                                     <Dropdown
@@ -235,7 +212,7 @@ const CommentSection = ({ productId, refreshTrigger }) => {
                             </CommentListItem>
                         ))
                     )}
-                </Spin>
+                </div>
 
                 {!showAllComments && comments.length > 2 && (
                     <div style={{ textAlign: 'center', marginTop: '1rem' }}>

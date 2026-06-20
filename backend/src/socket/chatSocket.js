@@ -1,5 +1,40 @@
 const jwt = require("jsonwebtoken");
 const ChatService = require("../services/ChatService");
+const NotificationService = require("../services/NotificationService");
+const { emitToAdmin, emitToUser } = require("./notificationSocket");
+
+const _triggerChatSupportNotification = async (conversation) => {
+    try {
+        const notification = await NotificationService.createNotification({
+            recipientType: 'admin',
+            type: 'CHAT_SUPPORT',
+            title: 'Yêu cầu hỗ trợ mới',
+            message: `Khách hàng đang chờ hỗ trợ tại phiên chat.`,
+            metadata: { conversationId: String(conversation._id) },
+        });
+        emitToAdmin(notification);
+    } catch (err) {
+        console.error("[Notification] CHAT_SUPPORT trigger failed:", err);
+    }
+};
+
+const _triggerChatReplyNotification = async (conversation) => {
+    const userId = conversation?.customer?._id || conversation?.customer;
+    if (!userId) return; // Guest không nhận qua chuông
+    try {
+        const notification = await NotificationService.createNotification({
+            recipient: String(userId),
+            recipientType: 'user',
+            type: 'CHAT_REPLY',
+            title: 'Phản hồi từ Admin',
+            message: `Admin đã phản hồi tin nhắn hỗ trợ của bạn.`,
+            metadata: { conversationId: String(conversation._id) },
+        });
+        emitToUser(String(userId), notification);
+    } catch (err) {
+        console.error("[Notification] CHAT_REPLY trigger failed:", err);
+    }
+};
 
 const buildStatusPayload = (conversation) => ({
     conversationId: String(conversation?._id || ""),
@@ -98,6 +133,7 @@ const registerChatSocket = (io) => {
                     const updated = await ChatService.updateConversationStatus(conversationId, "waiting_for_admin");
                     io.to(conversationId).emit("chat:status", buildStatusPayload(updated));
                     io.to("admin_notifications").emit("chat:handoff_request", buildStatusPayload(updated));
+                    _triggerChatSupportNotification(updated);
                 }
                 return;
             }
@@ -262,6 +298,7 @@ const registerChatSocket = (io) => {
             const updated = await ChatService.updateConversationStatus(conversationId, "waiting_for_admin");
             io.to(conversationId).emit("chat:status", buildStatusPayload(updated));
             io.to("admin_notifications").emit("chat:handoff_request", buildStatusPayload(updated));
+            _triggerChatSupportNotification(updated);
         });
 
         socket.on("admin:accept", async ({ conversationId }) => {
@@ -303,6 +340,7 @@ const registerChatSocket = (io) => {
                 content: messageText,
             });
             io.to(conversationId).emit("chat:message", adminMessage);
+            _triggerChatReplyNotification(conversation);
         });
 
         socket.on("chat:close", async ({ conversationId }) => {

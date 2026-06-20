@@ -12,9 +12,12 @@ export const createOrder = async (access_token, data) => {
 };
 
 
-export const getAllOrder = async (access_token, id) => {
-    const res = await axiosJWT.get(
-        `${process.env.REACT_APP_API_URL_BACKEND}/order?includeImage=false`, {
+export const getAllOrder = async (access_token, id, dateRange) => {
+    let url = `${process.env.REACT_APP_API_URL_BACKEND}/order?includeImage=false`;
+    if (dateRange?.from && dateRange?.to) {
+        url += `&startDate=${dateRange.from}&endDate=${dateRange.to}`;
+    }
+    const res = await axiosJWT.get(url, {
         headers: {
             token: `Bearer ${access_token}`,
         },
@@ -45,9 +48,12 @@ export const deleteOrder = async (access_token, id) => {
 };
 
 
-export const getAllOrders = async (access_token) => {
-    const res = await axiosJWT.get(
-        `${process.env.REACT_APP_API_URL_BACKEND}/order/admin/all`, {
+export const getAllOrders = async (access_token, dateRange) => {
+    let url = `${process.env.REACT_APP_API_URL_BACKEND}/order/admin/all`;
+    if (dateRange?.from && dateRange?.to) {
+        url += `?startDate=${dateRange.from}&endDate=${dateRange.to}`;
+    }
+    const res = await axiosJWT.get(url, {
         headers: {
             token: `Bearer ${access_token}`,
         },
