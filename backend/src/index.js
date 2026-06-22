@@ -24,10 +24,13 @@ const port = process.env.PORT || 3001
 
 app.use(cookieParser())
 
-// Tập hợp các origin được phép (bao gồm cả Ngrok URL nếu có)
+// Tập hợp các origin được phép (bao gồm cả Ngrok URL và CLIENT_URL từ Vercel nếu có)
 const allowedOrigins = ['http://localhost:3000'];
 if (process.env.NGROK_URL && process.env.NGROK_URL.trim()) {
     allowedOrigins.push(process.env.NGROK_URL.trim());
+}
+if (process.env.CLIENT_URL && process.env.CLIENT_URL.trim()) {
+    allowedOrigins.push(process.env.CLIENT_URL.trim());
 }
 
 app.use(cors({
