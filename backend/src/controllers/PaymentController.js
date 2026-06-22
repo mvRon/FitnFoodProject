@@ -59,7 +59,7 @@ const createPaymentLink = async (req, res) => {
 
         // Bước 3: Tạo payment link PayOS
         const ngrokUrl = process.env.NGROK_URL || "";
-        const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
+        const frontendUrl = process.env.FRONTEND_URL || process.env.CLIENT_URL || "http://localhost:3000";
 
         const paymentLinkData = await PayOSService.createPaymentLink({
             orderCode: payosOrderCode,
