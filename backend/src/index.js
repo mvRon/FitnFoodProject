@@ -30,7 +30,12 @@ if (process.env.NGROK_URL && process.env.NGROK_URL.trim()) {
     allowedOrigins.push(process.env.NGROK_URL.trim());
 }
 if (process.env.CLIENT_URL && process.env.CLIENT_URL.trim()) {
-    allowedOrigins.push(process.env.CLIENT_URL.trim());
+    // Xoá bỏ dấu '/' ở cuối (nếu có) để tránh lỗi CORS do dư ký tự
+    let clientUrl = process.env.CLIENT_URL.trim();
+    if (clientUrl.endsWith('/')) {
+        clientUrl = clientUrl.slice(0, -1);
+    }
+    allowedOrigins.push(clientUrl);
 }
 
 app.use(cors({
