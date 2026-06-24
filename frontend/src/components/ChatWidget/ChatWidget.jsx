@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useNavigate } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
 import { Button, Input, Form, Modal, message as toast } from "antd";
-import { CloseOutlined, CustomerServiceOutlined, MessageOutlined, SendOutlined } from "@ant-design/icons";
+import { CloseOutlined, CustomerServiceOutlined, MessageOutlined, SendOutlined, CreditCardOutlined, ShoppingCartOutlined, CheckCircleOutlined, LinkOutlined, EnvironmentOutlined } from "@ant-design/icons";
 import { io } from "socket.io-client";
 import * as ChatService from "../../services/ChatService";
 import * as UserService from "../../services/UserService";
@@ -243,7 +243,7 @@ const ChatWidget = () => {
             const payosMessage = {
               _id: `payos-${Date.now()}`,
               sender: "bot",
-              content: `📱 Link thanh toán PayOS đã sẵn sàng! Nhấn nút bên dưới để mở trang thanh toán và quét mã QR. Link sẽ hết hạn sau 15 phút.`,
+              content: `Link thanh toán PayOS đã sẵn sàng! Nhấn nút bên dưới để mở trang thanh toán và quét mã QR. Link sẽ hết hạn sau 15 phút.`,
               createdAt: new Date().toISOString(),
               metadata: {
                 payosLink: payload.checkoutUrl,
@@ -542,7 +542,7 @@ const ChatWidget = () => {
                     {/* PayOS payment link */}
                     {message?.metadata?.payosLink && (
                       <CartNotification style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '8px' }}>
-                        <div>💳 Link thanh toán PayOS</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><CreditCardOutlined /> Link thanh toán PayOS</div>
                         <a
                           href={message.metadata.payosLink}
                           target="_blank"
@@ -558,7 +558,7 @@ const ChatWidget = () => {
                             textDecoration: 'none',
                           }}
                         >
-                          🔗 Mở trang thanh toán
+                          <><LinkOutlined /> Mở trang thanh toán</>
                         </a>
                       </CartNotification>
                     )}
@@ -566,14 +566,14 @@ const ChatWidget = () => {
                     {/* Cart update notification */}
                     {cartUpdate && cartUpdate.totalItems >= 0 && (
                       <CartNotification>
-                        🛒 Giỏ hàng: {cartUpdate.totalItems} sản phẩm
+                        <ShoppingCartOutlined /> Giỏ hàng: {cartUpdate.totalItems} sản phẩm
                       </CartNotification>
                     )}
 
                     {/* Order created notification */}
                     {orderCreated && orderCreated.orderId && (
                       <CartNotification>
-                        ✅ Đơn hàng #{String(orderCreated.orderId).slice(-8).toUpperCase()} — {convertPrice(orderCreated.totalPrice)}
+                        <CheckCircleOutlined /> Đơn hàng #{String(orderCreated.orderId).slice(-8).toUpperCase()} — {convertPrice(orderCreated.totalPrice)}
                       </CartNotification>
                     )}
 
@@ -614,6 +614,8 @@ const ChatWidget = () => {
                               disabled={isDisabled}
                               onClick={() => handleAction(action.type, action.payload, messageId)}
                             >
+                              {action.type === "confirm_order" && <CheckCircleOutlined style={{ marginRight: 6 }} />}
+                              {action.type === "change_address" && <EnvironmentOutlined style={{ marginRight: 6 }} />}
                               {action.label}
                             </ActionButton>
                           );

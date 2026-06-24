@@ -164,6 +164,34 @@ export const AdminDiscountGlobalStyle = createGlobalStyle`
         color: #92400E;
         font-weight: 600;
     }
+
+    .admin-discount-page .admin-discount-refresh-btn {
+        border-radius: 10px;
+        min-height: 38px;
+        color: #B45309;
+        border-color: rgba(245, 158, 11, 0.5);
+        background: rgba(245, 158, 11, 0.08);
+        font-weight: 600;
+    }
+
+    .admin-discount-page .admin-discount-refresh-btn:hover {
+        color: #92400E !important;
+        border-color: #F59E0B !important;
+    }
+
+    .admin-discount-page .admin-discount-search-input {
+        max-width: 460px;
+        border-radius: 12px;
+        border-color: rgba(2, 132, 199, 0.3);
+        min-height: 42px;
+    }
+
+    .admin-discount-page .admin-discount-search-input:hover,
+    .admin-discount-page .admin-discount-search-input:focus,
+    .admin-discount-page .admin-discount-search-input.ant-input-affix-wrapper-focused {
+        border-color: #0284C7;
+        box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15);
+    }
 `;
 
 export const WrapperHeader = styled.h1`
@@ -178,3 +206,85 @@ export const WrapperHeader = styled.h1`
         margin-bottom: 10px;
     }
 `;
+
+export const DashboardShell = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+`
+
+export const HeaderCard = styled.div`
+	position: relative;
+	overflow: hidden;
+	border-radius: 22px;
+	padding: 22px;
+	border: 1px solid rgba(2, 132, 199, 0.2);
+	background:
+		radial-gradient(circle at 10% -10%, rgba(16, 185, 129, 0.28), transparent 42%),
+		radial-gradient(circle at 90% 0%, rgba(245, 158, 11, 0.2), transparent 42%),
+		linear-gradient(135deg, rgba(16, 185, 129, 0.08), rgba(2, 132, 199, 0.08));
+`
+
+export const HeaderTitle = styled.h2`
+	margin: 0;
+	display: inline-flex;
+	align-items: center;
+	gap: 10px;
+	color: #0F766E;
+	font-size: 24px;
+	font-weight: 800;
+`
+
+export const HeaderDesc = styled.p`
+	margin: 8px 0 0;
+	color: #334155;
+	max-width: 760px;
+`
+
+export const StatsGrid = styled.div`
+	margin-top: 18px;
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 12px;
+
+	@media (max-width: 992px) {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+
+	@media (max-width: 560px) {
+		grid-template-columns: repeat(1, minmax(0, 1fr));
+	}
+`
+
+export const StatCard = styled.div`
+	border-radius: 14px;
+	border: 1px solid rgba(2, 132, 199, 0.2);
+	background: rgba(255, 255, 255, 0.78);
+	backdrop-filter: blur(4px);
+	padding: 14px;
+`
+
+export const StatLabel = styled.div`
+	color: #0369A1;
+	font-size: 13px;
+	font-weight: 600;
+`
+
+export const StatValue = styled.div`
+	margin-top: 6px;
+	color: #1E293B;
+	font-size: 28px;
+	font-weight: 800;
+`
+
+export const FilterBar = styled.div`
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: 12px;
+	flex-wrap: wrap;
+	border-radius: 16px;
+	padding: 14px;
+	border: 1px solid rgba(2, 132, 199, 0.15);
+	background: #fff;
+`

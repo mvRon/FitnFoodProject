@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Typography, Table, Tag, Space, Button, Popconfirm, message } from 'antd'; // Thêm Popconfirm và message
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { SyncOutlined } from '@ant-design/icons';
 import * as OrderService from '../../services/OrderService.js'
 // import axios from 'axios'; // Sẽ dùng sau này khi có API backend
 
@@ -445,7 +446,8 @@ const OrderListPage = () => {
                 </>
             )}
             <RefreshBtn onClick={() => queryOrder.refetch()} disabled={queryOrder.isFetching}>
-                {queryOrder.isFetching ? "🔄 Đang tải..." : "🔄 Làm mới"}
+                <SyncOutlined spin={queryOrder.isFetching} style={{ marginRight: 6 }} />
+                {queryOrder.isFetching ? "Đang tải..." : "Làm mới"}
             </RefreshBtn>
         </FilterBar>
 

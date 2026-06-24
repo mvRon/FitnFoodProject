@@ -19,6 +19,9 @@ import {
     SaveOutlined,
     DollarOutlined,
     CarOutlined,
+    BankOutlined,
+    QrcodeOutlined,
+    PushpinOutlined
 } from '@ant-design/icons';
 
 import * as SystemSettingService from '../../services/SystemSettingService';
@@ -346,7 +349,7 @@ const AdminSystemSettingComponent = () => {
 
                     <PaymentMethodRow>
                         <PaymentMethodInfo>
-                            <div className="pm-icon">💵</div>
+                            <div className="pm-icon"><DollarOutlined /></div>
                             <div>
                                 <div className="pm-name">COD – Thanh toán khi nhận hàng</div>
                                 <div className="pm-desc">Khách trả tiền mặt khi nhận hàng</div>
@@ -359,7 +362,7 @@ const AdminSystemSettingComponent = () => {
 
                     <PaymentMethodRow>
                         <PaymentMethodInfo>
-                            <div className="pm-icon">🏦</div>
+                            <div className="pm-icon"><BankOutlined /></div>
                             <div>
                                 <div className="pm-name">Chuyển khoản ngân hàng</div>
                                 <div className="pm-desc">Khách chuyển khoản trước khi giao</div>
@@ -372,7 +375,7 @@ const AdminSystemSettingComponent = () => {
 
                     <PaymentMethodRow>
                         <PaymentMethodInfo>
-                            <div className="pm-icon">📱</div>
+                            <div className="pm-icon"><QrcodeOutlined /></div>
                             <div>
                                 <div className="pm-name">PayOS – Thanh toán QR</div>
                                 <div className="pm-desc">Quét mã QR qua app ngân hàng</div>
@@ -426,7 +429,7 @@ const AdminSystemSettingComponent = () => {
                             lineHeight: 1.6,
                         }}
                     >
-                        <strong>📌 Lưu ý:</strong> Tên người gửi này sẽ xuất hiện trong tất cả
+                        <strong><PushpinOutlined style={{ marginRight: 6 }} />Lưu ý:</strong> Tên người gửi này sẽ xuất hiện trong tất cả
                         email hệ thống gửi đi bao gồm: xác thực tài khoản, khôi phục mật khẩu và
                         xác nhận đơn hàng.
                     </div>

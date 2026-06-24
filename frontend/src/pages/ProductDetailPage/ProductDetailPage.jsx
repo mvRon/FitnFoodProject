@@ -4,7 +4,7 @@ import {
     Spin, Row, Col, Typography, Divider, message,
     InputNumber, Breadcrumb, Image,
 } from 'antd';
-import { BellOutlined } from '@ant-design/icons';
+import { BellOutlined, CheckOutlined } from '@ant-design/icons';
 import { useDispatch, useSelector } from 'react-redux';
 import { jwtDecode } from 'jwt-decode';
 import { addOrder, syncCart } from '../../redux/slice/orderSlice';
@@ -362,7 +362,7 @@ const ProductDetailPage = () => {
                                 {isSubscribing
                                     ? 'Đang xử lý...'
                                     : isRestockSubscribed
-                                        ? '✔ Đã đăng ký – Nhấn để hủy'
+                                        ? <><CheckOutlined /> Đã đăng ký – Nhấn để hủy</>
                                         : 'Thông báo khi có hàng'
                                 }
                             </button>

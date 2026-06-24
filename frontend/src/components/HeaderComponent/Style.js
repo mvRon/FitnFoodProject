@@ -181,7 +181,7 @@ export const WrapperHeaderAccount = styled.div`
   }
 `;
 
-// ✅ Avatar styled
+// Avatar styled
 export const AvatarImage = styled.img`
   width: 30px;
   height: 30px;
@@ -194,7 +194,7 @@ export const AvatarImage = styled.img`
   }
 `;
 
-// ✅ Login action wrapper
+// Login action wrapper
 export const LoginAction = styled.div`
   display: flex;
   align-items: center;
@@ -205,7 +205,7 @@ export const LoginAction = styled.div`
 
 
 
-// ✅ Login text
+// Login text
 export const LoginText = styled.span`
   font-size: 12px;
   white-space: none;

@@ -1,6 +1,17 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BellOutlined, CheckOutlined } from '@ant-design/icons';
+import { 
+    BellOutlined, 
+    CheckOutlined, 
+    InboxOutlined, 
+    ShoppingCartOutlined, 
+    CustomerServiceOutlined, 
+    WarningOutlined, 
+    CarOutlined, 
+    CheckCircleOutlined, 
+    FireOutlined, 
+    MessageOutlined 
+} from '@ant-design/icons';
 import { useNotification } from '../../context/NotificationContext';
 import {
     BellContainer,
@@ -30,14 +41,14 @@ import {
 // Notification type config: icon + color + navigate path
 // =============================================
 const TYPE_CONFIG = {
-    LOW_STOCK:      { icon: '📦', color: '#f59e0b', label: 'Tồn kho thấp' },
-    NEW_ORDER:      { icon: '🛒', color: '#10b981', label: 'Đơn hàng mới' },
-    CHAT_SUPPORT:   { icon: '💬', color: '#6366f1', label: 'Yêu cầu CSKH' },
-    PAYMENT_FAILED: { icon: '⚠️', color: '#ef4444', label: 'Lỗi thanh toán' },
-    ORDER_STATUS:   { icon: '🚚', color: '#0ea5e9', label: 'Đơn hàng' },
-    RESTOCK:        { icon: '✅', color: '#10b981', label: 'Hàng về' },
-    FLASH_SALE:     { icon: '🔥', color: '#f97316', label: 'Flash Sale' },
-    CHAT_REPLY:     { icon: '💬', color: '#8b5cf6', label: 'Phản hồi CSKH' },
+    LOW_STOCK:      { icon: <InboxOutlined />, color: '#f59e0b', label: 'Tồn kho thấp' },
+    NEW_ORDER:      { icon: <ShoppingCartOutlined />, color: '#10b981', label: 'Đơn hàng mới' },
+    CHAT_SUPPORT:   { icon: <CustomerServiceOutlined />, color: '#6366f1', label: 'Yêu cầu CSKH' },
+    PAYMENT_FAILED: { icon: <WarningOutlined />, color: '#ef4444', label: 'Lỗi thanh toán' },
+    ORDER_STATUS:   { icon: <CarOutlined />, color: '#0ea5e9', label: 'Đơn hàng' },
+    RESTOCK:        { icon: <CheckCircleOutlined />, color: '#10b981', label: 'Hàng về' },
+    FLASH_SALE:     { icon: <FireOutlined />, color: '#f97316', label: 'Flash Sale' },
+    CHAT_REPLY:     { icon: <MessageOutlined />, color: '#8b5cf6', label: 'Phản hồi CSKH' },
 };
 
 const getNavigatePath = (notification) => {
@@ -157,12 +168,12 @@ const NotificationBellComponent = () => {
                     <NotificationList className="notif-list-container">
                         {displayNotifications.length === 0 ? (
                             <EmptyState>
-                                <div style={{ fontSize: 40, marginBottom: 12 }}>🔔</div>
+                                <div style={{ fontSize: 40, marginBottom: 12 }}><BellOutlined /></div>
                                 <div style={{ fontSize: 13, fontWeight: 500 }}>Chưa có thông báo nào</div>
                             </EmptyState>
                         ) : (
                             displayNotifications.map((notif) => {
-                                const config = TYPE_CONFIG[notif.type] || { icon: '🔔', color: '#64748b' };
+                                const config = TYPE_CONFIG[notif.type] || { icon: <BellOutlined />, color: '#64748b' };
                                 return (
                                     <NotificationItemWrapper
                                         key={notif._id}

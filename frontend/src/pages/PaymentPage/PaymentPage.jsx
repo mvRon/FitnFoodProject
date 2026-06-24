@@ -37,6 +37,7 @@ import ModalComponent from "../../components/ModalComponent/ModalComponent";
 import LoadingComponent from "../../components/LoadingComponent/LoadingComponent";
 import PaymentQRModal from "../../components/PaymentQRModal/PaymentQRModal";
 import { useMutationHook } from "../../hooks/useMutationHook";
+import { DollarOutlined, WarningOutlined, QrcodeOutlined } from '@ant-design/icons';
 import * as UserService from "../../services/UserService";
 import { updateUser } from "../../redux/slice/userSlice";
 import * as OrderService from "../../services/OrderService";
@@ -215,8 +216,6 @@ const PaymentPage = () => {
   const totalPriceMemo = useMemo(() => {
     return Number(priceMemo - priceDiscountMemo + deliveryMemo);
   }, [priceMemo, priceDiscountMemo, deliveryMemo]);
-
-  const paymentMethodLabel = "Thanh toán khi nhận hàng (COD)";
 
   const appliedDiscountPayload = useMemo(() => {
     if (!orderDiscount?.code) {
@@ -518,7 +517,7 @@ const PaymentPage = () => {
             <PaymentHeroDescription>Hoàn tất thông tin giao nhận để hệ thống xử lý đơn hàng nhanh hơn.</PaymentHeroDescription>
             <PaymentHeroBadges>
               <PaymentHeroBadge $variant={selectedPaymentMethod === 'cash' ? 'success' : 'info'}>
-                {selectedPaymentMethod === 'cash' ? '💵 COD - Thanh toán khi nhận' : '📱 PayOS - Quét QR'}
+                {selectedPaymentMethod === 'cash' ? <><DollarOutlined /> COD - Thanh toán khi nhận</> : <><QrcodeOutlined /> PayOS - Quét QR</>}
               </PaymentHeroBadge>
               <PaymentHeroBadge $variant="info">Tạm tính: {convertPrice(priceMemo)}</PaymentHeroBadge>
             </PaymentHeroBadges>
@@ -549,16 +548,16 @@ const PaymentPage = () => {
                 >
                   {paymentMethods.cod && (
                     <Radio value="cash">
-                      <PaymentAccentText $color="#16a34a">💵 COD</PaymentAccentText> - Thanh toán khi nhận hàng
+                      <PaymentAccentText $color="#16a34a"><DollarOutlined /> COD</PaymentAccentText> - Thanh toán khi nhận hàng
                     </Radio>
                   )}
                   {paymentMethods.payos && (
                     <Radio value="payos">
-                      <PaymentAccentText $color="#0ea5e9">📱 PayOS QR</PaymentAccentText> - Chuyển khoản qua app ngân hàng
+                      <PaymentAccentText $color="#0ea5e9"><QrcodeOutlined /> PayOS QR</PaymentAccentText> - Chuyển khoản qua app ngân hàng
                     </Radio>
                   )}
                   {!paymentMethods.cod && !paymentMethods.payos && (
-                    <span style={{ color: '#ef4444', fontSize: 13 }}>⚠️ Hiện chưa có phương thức thanh toán nào khả dụng</span>
+                    <span style={{ color: '#ef4444', fontSize: 13 }}><WarningOutlined /> Hiện chưa có phương thức thanh toán nào khả dụng</span>
                   )}
                 </WrapperRadio>
               </WrapperInfo>

@@ -1,8 +1,19 @@
 // frontend/src/components/AdminDiscountComponent/AdminDiscountComponent.jsx
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Button, Form, Input, Select, DatePicker, Table, Space, Popconfirm, message, InputNumber } from 'antd';
-import { PlusOutlined, DeleteOutlined, EditOutlined, SearchOutlined } from '@ant-design/icons';
-import { AdminDiscountGlobalStyle, WrapperHeader } from './Style'; // Import styles
+import { PlusOutlined, DeleteOutlined, EditOutlined, SearchOutlined, ReloadOutlined, PercentageOutlined } from '@ant-design/icons';
+import {
+    AdminDiscountGlobalStyle,
+    DashboardShell,
+    HeaderCard,
+    HeaderTitle,
+    HeaderDesc,
+    StatsGrid,
+    StatCard,
+    StatLabel,
+    StatValue,
+    FilterBar
+} from './Style'; // Import styles
 
 import useMutationHook from '../../hooks/useMutationHook';
 import * as DiscountService from '../../services/DiscountService.js'; // Sẽ tạo service này sau
@@ -21,6 +32,7 @@ const AdminDiscountComponent = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isModalOpenDelete, setIsModalOpenDelete] = useState(false);
     const [isModalOpenEdit, setIsModalOpenEdit] = useState(false);
+    const [searchKeyword, setSearchKeyword] = useState('');
 
     const user = useSelector((state) => state.user);
 
@@ -263,22 +275,73 @@ const AdminDiscountComponent = () => {
         },
     ];
 
-    const dataTable = discounts?.data
-        ? discounts.data.map((discount) => ({ ...discount, key: discount._id }))
-        : [];
+    const stats = useMemo(() => {
+        const total = discounts?.data?.length || 0;
+        const active = discounts?.data?.filter(d => d.isActive).length || 0;
+        const inactive = total - active;
+        return { total, active, inactive };
+    }, [discounts?.data]);
+
+    const rawDataTable = discounts?.data || [];
+    const dataTable = rawDataTable
+        .filter(item => {
+            if (!searchKeyword) return true;
+            return item?.name?.toLowerCase().includes(searchKeyword.toLowerCase()) || item?.code?.toLowerCase().includes(searchKeyword.toLowerCase());
+        })
+        .map((discount) => ({ ...discount, key: discount._id }));
 
     return (
-        <div className="admin-discount-page">
+        <>
             <AdminDiscountGlobalStyle />
-            <WrapperHeader>Quản lý Mã giảm giá</WrapperHeader>
+            <DashboardShell className="admin-discount-page">
+                <HeaderCard>
+                    <HeaderTitle>
+                        <PercentageOutlined /> Quản lý Mã giảm giá
+                    </HeaderTitle>
+                    <HeaderDesc>
+                        Tạo và quản lý các chương trình khuyến mãi, mã giảm giá để thu hút khách hàng.
+                    </HeaderDesc>
 
-            <div className="admin-discount-toolbar">
-                <Button className="admin-discount-add-btn" onClick={handleAddDiscount}>
-                    <PlusOutlined /> Thêm mã giảm giá
-                </Button>
-            </div>
+                    <StatsGrid>
+                        <StatCard>
+                            <StatLabel>Tổng mã giảm giá</StatLabel>
+                            <StatValue>{stats.total}</StatValue>
+                        </StatCard>
+                        <StatCard>
+                            <StatLabel>Đang hoạt động</StatLabel>
+                            <StatValue>{stats.active}</StatValue>
+                        </StatCard>
+                        <StatCard>
+                            <StatLabel>Ngừng hoạt động</StatLabel>
+                            <StatValue>{stats.inactive}</StatValue>
+                        </StatCard>
+                    </StatsGrid>
+                </HeaderCard>
 
-            <div className="admin-discount-table-wrap">
+                <FilterBar>
+                    <Input
+                        placeholder="Tìm theo tên mã, code..."
+                        prefix={<SearchOutlined />}
+                        value={searchKeyword}
+                        onChange={(e) => setSearchKeyword(e.target.value)}
+                        className="admin-discount-search-input"
+                        allowClear
+                    />
+                    <Space wrap>
+                        <Button className="admin-discount-add-btn" onClick={handleAddDiscount} style={{ height: 38 }}>
+                            <PlusOutlined /> Thêm mã giảm giá
+                        </Button>
+                        <Button
+                            className="admin-discount-refresh-btn"
+                            icon={<ReloadOutlined />}
+                            onClick={() => queryDiscount.refetch()}
+                        >
+                            Làm mới
+                        </Button>
+                    </Space>
+                </FilterBar>
+
+                <div className="admin-discount-table-wrap">
                 <Table
                     loading={isLoadingDiscounts}
                     columns={columns}
@@ -616,7 +679,8 @@ const AdminDiscountComponent = () => {
             >
                 <div className="admin-discount-delete-content">Bạn có chắc chắn muốn xóa mã giảm giá này không?</div>
             </ModalComponent>
-        </div>
+            </DashboardShell>
+        </>
     );
 };
 

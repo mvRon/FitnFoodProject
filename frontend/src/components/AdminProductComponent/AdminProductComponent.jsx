@@ -1,10 +1,22 @@
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useRef, useState, useMemo } from 'react'
 import { Button, Checkbox, Form, Input, message, Modal, Select, Space, Tag, InputNumber } from 'antd'
-import { DeleteOutlined, EditOutlined, PlusOutlined, SearchOutlined, UploadOutlined } from '@ant-design/icons'
+import { DeleteOutlined, EditOutlined, PlusOutlined, SearchOutlined, UploadOutlined, AppstoreOutlined, ReloadOutlined } from '@ant-design/icons'
 import TableComponent from '../TableComponent/TableComponent'
 // import InputComponent from '../InputComponent/InputComponent'
 import { getBase64, renderOption, compressImage } from '../../utils'
-import { AdminProductPageGlobalStyle, WrapperHeader, WrapperUploadFile } from './Style'
+import {
+    AdminProductPageGlobalStyle,
+    WrapperUploadFile,
+    DashboardShell,
+    HeaderCard,
+    HeaderTitle,
+    HeaderDesc,
+    StatsGrid,
+    StatCard,
+    StatLabel,
+    StatValue,
+    FilterBar
+} from './Style'
 import * as ProductService from '../../services/ProductService'
 import { useMutationHook } from '../../hooks/useMutationHook'
 // import * as message from '../../components/MessageComponent/MessageComponent'
@@ -31,6 +43,7 @@ const AdminProductComponent = () => {
     const [isModalOpenDelete, setIsModalOpenDelete] = useState(false)
     const user = useSelector((state) => state?.user)
     const [searchText, setSearchText] = useState('');
+    const [searchKeyword, setSearchKeyword] = useState('');
     const [searchedColumn, setSearchedColumn] = useState('');
     const searchInput = useRef(null);
     const [typeSelect, setTypeSelect] = useState('')
@@ -380,7 +393,6 @@ const AdminProductComponent = () => {
             dataIndex: 'name',
             render: (text) => <a>{text}</a>,
             sorter: (a, b) => a.name.length - b.name.length,
-            ...getColumnSearchProps('name') //sort by name
         },
         {
             title: 'Giá bán',
@@ -494,12 +506,17 @@ const AdminProductComponent = () => {
     ];
 
     //Xuất dữ liệu ra từ bảng, số lượng được định nghĩa ở Controller Backend || set cứng 1000 sản phẩm ở ProductService.js frontend
-    const dataTable = products?.data?.length && products?.data.map((product) => {
-        return {
-            ...product,
-            key: product._id,
-        }
-    })
+    const dataTable = products?.data
+        ?.filter(product => {
+            if (!searchKeyword) return true;
+            return product?.name?.toLowerCase().includes(searchKeyword.toLowerCase());
+        })
+        .map((product) => {
+            return {
+                ...product,
+                key: product._id,
+            }
+        }) || [];
 
 
     const showModal = () => {
@@ -712,16 +729,70 @@ const AdminProductComponent = () => {
         });
     };
 
+    const stats = useMemo(() => {
+        const total = products?.data?.length || 0;
+        const types = new Set(products?.data?.map(p => getEntityId(p.type))).size || 0;
+        const outOfStock = products?.data?.filter(p => p.countInStock === 0).length || 0;
+        const totalSold = products?.data?.reduce((acc, p) => acc + (p.sold || 0), 0) || 0;
+        return { total, types, outOfStock, totalSold };
+    }, [products?.data]);
+
     return (
-        <div className="admin-product-page">
+        <>
             <AdminProductPageGlobalStyle />
-            <WrapperHeader>Quản lý sản phẩm</WrapperHeader>
-            <div className="admin-product-toolbar">
-                <Button className="admin-product-add-btn" onClick={showModal}>
-                    <PlusOutlined />Thêm sản phẩm
-                </Button>
-            </div>
-            <div className="admin-product-table-wrap">
+            <DashboardShell className="admin-product-page">
+                <HeaderCard>
+                    <HeaderTitle>
+                        <AppstoreOutlined /> Quản lý sản phẩm
+                    </HeaderTitle>
+                    <HeaderDesc>
+                        Quản lý toàn bộ danh sách sản phẩm, giá bán, tồn kho và trạng thái đánh giá.
+                    </HeaderDesc>
+
+                    <StatsGrid>
+                        <StatCard>
+                            <StatLabel>Tổng sản phẩm</StatLabel>
+                            <StatValue>{stats.total}</StatValue>
+                        </StatCard>
+                        <StatCard>
+                            <StatLabel>Loại sản phẩm</StatLabel>
+                            <StatValue>{stats.types}</StatValue>
+                        </StatCard>
+                        <StatCard>
+                            <StatLabel>Hết hàng</StatLabel>
+                            <StatValue>{stats.outOfStock}</StatValue>
+                        </StatCard>
+                        <StatCard>
+                            <StatLabel>Tổng đã bán</StatLabel>
+                            <StatValue>{stats.totalSold}</StatValue>
+                        </StatCard>
+                    </StatsGrid>
+                </HeaderCard>
+
+                <FilterBar>
+                    <Input
+                        placeholder="Tìm kiếm sản phẩm..."
+                        prefix={<SearchOutlined />}
+                        value={searchKeyword}
+                        onChange={(e) => setSearchKeyword(e.target.value)}
+                        className="admin-product-search-input"
+                        allowClear
+                    />
+                    <Space wrap>
+                        <Button className="admin-product-add-btn" onClick={showModal}>
+                            <PlusOutlined />Thêm sản phẩm
+                        </Button>
+                        <Button
+                            className="admin-product-refresh-btn"
+                            icon={<ReloadOutlined />}
+                            onClick={() => queryProduct.refetch()}
+                        >
+                            Làm mới
+                        </Button>
+                    </Space>
+                </FilterBar>
+
+                <div className="admin-product-table-wrap">
                 <TableComponent
                     handleDeleteMany={handleDeleteManyProduct}
                     columns={columns}
@@ -910,7 +981,8 @@ const AdminProductComponent = () => {
                     <div>Bạn có chắc muốn xóa sản phẩm này không?</div>
                 </LoadingComponent>
             </ModalComponent>
-        </div>
+            </DashboardShell>
+        </>
     )
 }
 

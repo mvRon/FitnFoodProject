@@ -9,7 +9,7 @@ export const SettingWrapper = styled.div`
 
 // ─── Header banner ────────────────────────────────────────────────────────────
 export const SettingHeader = styled.div`
-    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%);
+    background: linear-gradient(135deg, #0284C7 0%, #10B981 100%);
     border-radius: 18px;
     padding: 28px 32px;
     margin-bottom: 28px;
@@ -17,7 +17,7 @@ export const SettingHeader = styled.div`
     display: flex;
     align-items: center;
     gap: 20px;
-    box-shadow: 0 8px 32px rgba(99, 102, 241, 0.28);
+    box-shadow: 0 8px 32px rgba(2, 132, 199, 0.28);
 `;
 
 export const HeaderIcon = styled.div`
@@ -68,11 +68,11 @@ export const TabCard = styled.div`
     }
 
     .ant-tabs-tab-active .ant-tabs-tab-btn {
-        color: #6366f1 !important;
+        color: #10B981 !important;
     }
 
     .ant-tabs-ink-bar {
-        background: #6366f1 !important;
+        background: #10B981 !important;
     }
 `;
 
@@ -80,12 +80,12 @@ export const TabCard = styled.div`
 export const SectionLabel = styled.div`
     font-size: 12px;
     font-weight: 600;
-    color: #6366f1;
+    color: #0284C7;
     text-transform: uppercase;
     letter-spacing: 0.06em;
     margin-bottom: 16px;
     padding-bottom: 10px;
-    border-bottom: 1px solid #ede9fe;
+    border-bottom: 1px solid rgba(2, 132, 199, 0.1);
 `;
 
 // ─── Logo preview ─────────────────────────────────────────────────────────────
@@ -93,18 +93,18 @@ export const LogoPreview = styled.div`
     width: 96px;
     height: 96px;
     border-radius: 12px;
-    border: 2px dashed #c4b5fd;
+    border: 2px dashed rgba(2, 132, 199, 0.3);
     display: flex;
     align-items: center;
     justify-content: center;
     overflow: hidden;
-    background: #faf5ff;
+    background: #F8FAFC;
     cursor: pointer;
     transition: border-color 0.2s;
     position: relative;
 
     &:hover {
-        border-color: #8b5cf6;
+        border-color: #0284C7;
     }
 
     img {
@@ -120,7 +120,7 @@ export const LogoPlaceholder = styled.div`
     flex-direction: column;
     align-items: center;
     gap: 4px;
-    color: #a78bfa;
+    color: #0284C7;
     font-size: 12px;
 
     .anticon {
@@ -135,8 +135,8 @@ export const PaymentMethodRow = styled.div`
     justify-content: space-between;
     padding: 14px 16px;
     border-radius: 10px;
-    background: #faf5ff;
-    border: 1px solid #ede9fe;
+    background: #F8FAFC;
+    border: 1px solid rgba(2, 132, 199, 0.1);
     margin-bottom: 10px;
     transition: background 0.2s;
 
@@ -158,26 +158,26 @@ export const PaymentMethodInfo = styled.div`
         align-items: center;
         justify-content: center;
         font-size: 17px;
-        background: #ede9fe;
-        color: #7c3aed;
+        background: rgba(2, 132, 199, 0.1);
+        color: #0284C7;
     }
 
     .pm-name {
         font-weight: 600;
         font-size: 14px;
-        color: #1e1b4b;
+        color: #1E293B;
     }
 
     .pm-desc {
         font-size: 12px;
-        color: #7c7c9a;
+        color: #64748B;
         margin-top: 1px;
     }
 `;
 
 // ─── Nút Lưu ─────────────────────────────────────────────────────────────────
 export const SaveButton = styled.button`
-    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    background: linear-gradient(135deg, #0284C7, #10B981);
     border: none;
     border-radius: 10px;
     height: 44px;
@@ -191,7 +191,7 @@ export const SaveButton = styled.button`
     gap: 8px;
     margin-top: 24px;
     transition: opacity 0.2s, transform 0.15s;
-    box-shadow: 0 4px 14px rgba(99, 102, 241, 0.35);
+    box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35);
 
     &:hover:not(:disabled) {
         opacity: 0.92;

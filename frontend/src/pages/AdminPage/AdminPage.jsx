@@ -137,7 +137,7 @@ const AdminPage = () => {
         {
             key: 'Revenue',
             icon: <BarChartOutlined />,
-            label: 'Doanh thu & AI',
+            label: 'Doanh thu',
         },
         {
             key: 'Notification',
