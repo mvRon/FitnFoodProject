@@ -17,6 +17,7 @@ import * as CartService from "../../services/CartService";
 import isEqual from "lodash/isEqual";
 import { jwtDecode } from "jwt-decode";
 import RecommendationCarousel from "../../components/RecommendationCarousel/RecommendationCarousel";
+import { useSystemSetting } from "../../context/SystemSettingContext";
 import {
   WrapperCountOrder,
   WrapperInfo,
@@ -37,6 +38,10 @@ const OrderPage = () => {
   const order = useSelector((state) => state.order);
   const user = useSelector((state) => state.user);
   const dispatch = useDispatch();
+  // Lấy phí ship từ cài đặt hệ thống
+  const { setting } = useSystemSetting();
+  const shippingFee = setting?.shippingFee ?? 30000;
+  const freeShippingThreshold = setting?.freeShippingThreshold ?? 200000;
   const [listChecked, setListChecked] = useState([]);
   const [isOpenModalUpdateInfo, setIsOpenModalUpdateInfo] = useState(false);
   const [isOpenDiscountModal, setIsOpenDiscountModal] = useState(false);
@@ -193,16 +198,12 @@ const OrderPage = () => {
     return Number(itemDiscountMemo + couponDiscountMemo);
   }, [itemDiscountMemo, couponDiscountMemo]);
 
-  // Tính phí giao hàng
+  // Tính phí giao hàng dựa trên cài đặt hệ thống
   const deliveryMemo = useMemo(() => {
-    if (priceMemo >= 500000 || order?.orderItems?.length === 0) {
-      return 0;
-    } else if (priceMemo >= 200000 && priceMemo < 500000) {
-      return 10000;
-    } else {
-      return 20000;
-    }
-  }, [priceMemo]);
+    if (order?.orderItems?.length === 0 || priceMemo === 0) return 0;
+    if (priceMemo >= freeShippingThreshold) return 0;
+    return shippingFee;
+  }, [priceMemo, shippingFee, freeShippingThreshold, order?.orderItems?.length]);
 
   // Tính tổng tiền cuối cùng
   const totalPriceMemo = useMemo(() => {
@@ -397,16 +398,12 @@ const OrderPage = () => {
 
   const itemsDelivery = [
     {
-      title: "20.000 VND",
-      description: "Dưới 200.000 VND",
+      title: `${(shippingFee).toLocaleString('vi-VN')} VND`,
+      description: `Dưới ${(freeShippingThreshold).toLocaleString('vi-VN')} VND`,
     },
     {
-      title: "10.000 VND",
-      description: "Từ 200.000 VND đến dưới 500.000 VND",
-    },
-    {
-      title: "0 VND",
-      description: "Trên 500.000 VND",
+      title: '0 VND',
+      description: `Từ ${(freeShippingThreshold).toLocaleString('vi-VN')} VND trở lên – Miễn phí ship`,
     },
   ];
 

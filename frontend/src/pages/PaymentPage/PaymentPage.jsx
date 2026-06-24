@@ -45,6 +45,7 @@ import * as DiscountService from "../../services/DiscountService";
 import { useLocation, useNavigate } from "react-router-dom";
 import { jwtDecode } from "jwt-decode";
 import { io } from "socket.io-client";
+import { useSystemSetting } from "../../context/SystemSettingContext";
 
 const resolveToken = (accessToken) => {
   if (!accessToken) return null;
@@ -92,6 +93,19 @@ const PaymentPage = () => {
   const [delivery, setDelivery] = useState("fast");
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("cash"); // "cash" | "payos"
   const [isCreatingPayOS, setIsCreatingPayOS] = useState(false);
+
+  // Lấy cài đặt phương thức thanh toán từ hệ thống
+  const { setting } = useSystemSetting();
+  const paymentMethods = setting?.paymentMethods || { cod: true, bankTransfer: true, payos: true };
+
+  // Tự động chọn phương thức khả dụng nếu phương thức hiện tại bị tắt
+  useEffect(() => {
+    if (selectedPaymentMethod === 'cash' && !paymentMethods.cod) {
+      if (paymentMethods.payos) setSelectedPaymentMethod('payos');
+    } else if (selectedPaymentMethod === 'payos' && !paymentMethods.payos) {
+      if (paymentMethods.cod) setSelectedPaymentMethod('cash');
+    }
+  }, [paymentMethods.cod, paymentMethods.payos, selectedPaymentMethod]);
   const [payosModal, setPayosModal] = useState({
     isOpen: false,
     qrCode: "",
@@ -533,12 +547,19 @@ const PaymentPage = () => {
                   value={selectedPaymentMethod}
                   defaultValue="cash"
                 >
-                  <Radio value="cash">
-                    <PaymentAccentText $color="#16a34a">💵 COD</PaymentAccentText> - Thanh toán khi nhận hàng
-                  </Radio>
-                  <Radio value="payos">
-                    <PaymentAccentText $color="#0ea5e9">📱 PayOS QR</PaymentAccentText> - Chuyển khoản qua app ngân hàng
-                  </Radio>
+                  {paymentMethods.cod && (
+                    <Radio value="cash">
+                      <PaymentAccentText $color="#16a34a">💵 COD</PaymentAccentText> - Thanh toán khi nhận hàng
+                    </Radio>
+                  )}
+                  {paymentMethods.payos && (
+                    <Radio value="payos">
+                      <PaymentAccentText $color="#0ea5e9">📱 PayOS QR</PaymentAccentText> - Chuyển khoản qua app ngân hàng
+                    </Radio>
+                  )}
+                  {!paymentMethods.cod && !paymentMethods.payos && (
+                    <span style={{ color: '#ef4444', fontSize: 13 }}>⚠️ Hiện chưa có phương thức thanh toán nào khả dụng</span>
+                  )}
                 </WrapperRadio>
               </WrapperInfo>
             </PaymentContentColumn>

@@ -10,6 +10,7 @@ import LoadingComponent from './components/LoadingComponent/LoadingComponent'
 import DefaultComponent from './components/DefaultComponent/DefaultComponent'
 import { message } from 'antd'
 import { fetchCart } from './redux/slice/orderSlice'
+import { useSystemSetting } from './context/SystemSettingContext'
 
 
 
@@ -17,8 +18,24 @@ function App() {
 
   const dispatch = useDispatch()
   const user = useSelector((state) => state.user)
-
+  const { setting } = useSystemSetting()
   const [isLoading, setIsLoading] = useState(false)
+
+  // Áp dụng SEO: cập nhật document.title và meta description từ cài đặt hệ thống
+  useEffect(() => {
+    if (setting?.metaTitle) {
+      document.title = setting.metaTitle;
+    }
+    if (setting?.metaDescription) {
+      let metaDesc = document.querySelector('meta[name="description"]');
+      if (!metaDesc) {
+        metaDesc = document.createElement('meta');
+        metaDesc.setAttribute('name', 'description');
+        document.head.appendChild(metaDesc);
+      }
+      metaDesc.setAttribute('content', setting.metaDescription);
+    }
+  }, [setting?.metaTitle, setting?.metaDescription]);
 
 
   useEffect(() => {

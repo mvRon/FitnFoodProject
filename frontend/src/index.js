@@ -12,6 +12,7 @@ import { Provider } from 'react-redux'
 import { persistor, store } from './redux/store'
 import { PersistGate } from 'redux-persist/integration/react'
 import { NotificationProvider } from './context/NotificationContext'
+import { SystemSettingProvider } from './context/SystemSettingContext'
 
 
 
@@ -23,9 +24,11 @@ root.render(
   <QueryClientProvider client={queryClient}>
     <Provider store={store}>
       <PersistGate loading={null} persistor={persistor}>
-          <NotificationProvider>
-            <App />
-          </NotificationProvider>
+          <SystemSettingProvider>
+            <NotificationProvider>
+              <App />
+            </NotificationProvider>
+          </SystemSettingProvider>
       </PersistGate>
     </Provider>
     <ReactQueryDevtools initialIsOpen={false} />

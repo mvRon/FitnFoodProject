@@ -14,6 +14,7 @@ import { searchProduct } from '../../redux/slice/productSlice';
 import Logo from '../../assets/logoFitnFood.jpg'
 import { clearOrder, syncCart } from '../../redux/slice/orderSlice';
 import { useDebounce } from '../../hooks/useDebounce';
+import { useSystemSetting } from '../../context/SystemSettingContext';
 
 // import {
 //   AvatarImage,
@@ -26,6 +27,7 @@ const HeaderComponent = ({ isHiddenSearch = false, isHiddenCart = false }) => {
 
   const user = useSelector((state) => state.user)
   const dispatch = useDispatch()
+  const { setting } = useSystemSetting()
   const [isloading, setIsLoading] = useState(false)
   const [userName, setUserName] = useState('')
   const [userAvatart, setUserAvatar] = useState('')
@@ -230,12 +232,12 @@ const HeaderComponent = ({ isHiddenSearch = false, isHiddenCart = false }) => {
           onClick={handleHome}
         >
           <img
-            src={Logo}
+            src={setting?.storeLogo || Logo}
             alt="logo"
             style={{ height: 40, width: 60, borderRadius: '50%', objectFit: 'cover' }}
           />
-          <span className="hidden-mobile" style={{ color: 'var(--color-white)', fontWeight: 700, fontSize: 35 }}>
-            <em>FIT</em>n<span style={{ color: 'var(--color-accent)' }}><em>FOOD</em></span>
+          <span className="hidden-mobile" style={{ color: 'var(--color-white)', fontWeight: 700, fontSize: 30 }}>
+            {setting?.storeName || 'FITnFOOD'}
           </span>
         </div>
 

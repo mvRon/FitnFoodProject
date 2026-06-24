@@ -1,4 +1,4 @@
-import { AppstoreAddOutlined, ProductOutlined, UserOutlined, ShoppingCartOutlined, ShopOutlined, GiftOutlined, SettingOutlined, MessageOutlined, BarChartOutlined, BellOutlined } from '@ant-design/icons';
+import { AppstoreAddOutlined, ProductOutlined, UserOutlined, ShoppingCartOutlined, ShopOutlined, GiftOutlined, SettingOutlined, MessageOutlined, BarChartOutlined, BellOutlined, DatabaseOutlined } from '@ant-design/icons';
 import { Button, Form, Input, Menu, message as toast } from 'antd'
 import React, { useEffect, useState } from 'react'
 import { getLevelKeys } from '../../utils';
@@ -19,6 +19,7 @@ import AdminUserComponent from '../../components/AdminUserComponent/AdminUserCom
 import AdminChatComponent from '../../components/AdminChatComponent/AdminChatComponent';
 import AdminRevenueDashboard from '../../components/AdminRevenueDashboard/AdminRevenueDashboard';
 import AdminNotificationComponent from '../../components/AdminNotificationComponent/AdminNotificationComponent';
+import AdminSystemSettingComponent from '../../components/AdminSystemSettingComponent/AdminSystemSettingComponent';
 import * as NotificationService from '../../services/NotificationService';
 
 const AdminPage = () => {
@@ -59,6 +60,8 @@ const AdminPage = () => {
                 )
             case 'Notification':
                 return <AdminNotificationComponent />
+            case 'Setting':
+                return <AdminSystemSettingComponent />
             default:
                 return <></>
         }
@@ -117,7 +120,7 @@ const AdminPage = () => {
         },
         {
             key: 'System',
-            icon: <SettingOutlined />,
+            icon: <DatabaseOutlined />,
             label: 'Quản lý kho hàng',
             children: [
                 {
@@ -140,7 +143,12 @@ const AdminPage = () => {
             key: 'Notification',
             icon: <BellOutlined />,
             label: 'Gửi thông báo',
-        }
+        },
+        {
+            key: 'Setting',
+            icon: <SettingOutlined />,
+            label: 'Cài đặt hệ thống',
+        },
     ];
 
 
