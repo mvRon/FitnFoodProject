@@ -73,6 +73,16 @@ export const updateOrder = async (id, token, updateData) => {
     return res.data;
 }
 
+export const createManualOrder = async (access_token, data) => {
+    const res = await axiosJWT.post(
+        `${process.env.REACT_APP_API_URL_BACKEND}/order/admin/create-manual-order`, data, {
+        headers: {
+            token: `Bearer ${access_token}`,
+        },
+    })
+    return res.data;
+};
+
 // =============================================
 // PayOS Payment Functions
 // =============================================

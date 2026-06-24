@@ -159,11 +159,49 @@ const updateOrder = async (req, res) => {
 };
 
 
+// Admin tạo đơn hàng tại quầy
+const createManualOrder = async (req, res) => {
+    try {
+        const {
+            orderItems,
+            paymentMethod,
+            customerType,
+            itemsPrice,
+            totalPrice,
+            fullName,
+            address,
+            city,
+            phone,
+            user,
+        } = req.body;
+
+        if (!orderItems || !orderItems.length || !itemsPrice || !totalPrice) {
+            return res.status(200).json({
+                status: "ERR",
+                message: "Missing essential order details!",
+            });
+        }
+
+        const response = await OrderService.createManualOrderService({
+            ...req.body,
+            adminId: req.user.id // Lấy admin ID từ token
+        });
+
+        return res.status(200).json(response);
+    } catch (e) {
+        return res.status(500).json({
+            status: "ERR",
+            message: e.message || "Something went wrong!"
+        });
+    }
+};
+
 module.exports = {
     createOrder,
     getUserOrders,
     getOrderById,
     deleteOrder,
     getAllOrders,
-    updateOrder
+    updateOrder,
+    createManualOrder
 };

@@ -1,6 +1,7 @@
 const Order = require("../models/OrderModel");
 const Product = require("../models/ProductModel");
 const EmailService = require('./EmailService')
+const PayOSService = require('./PayOSService');
 const User = require("../models/UserModel");
 const InventoryVoucher = require("../models/InventoryVoucherModel");
 const StockCard = require("../models/StockCardModel");
@@ -20,14 +21,17 @@ const createOrder = (newOrder) => {
 
         try {
             // Check user existence and get email outside the transaction to minimize database locking
-            const userData = await User.findById(user).select('email').lean();
-            if (!userData) {
-                return resolve({
-                    status: 'ERR',
-                    message: `User not found!`
-                });
+            let userEmail = email;
+            if (user) {
+                const userData = await User.findById(user).select('email').lean();
+                if (!userData) {
+                    return resolve({
+                        status: 'ERR',
+                        message: `User not found!`
+                    });
+                }
+                userEmail = email || userData.email;
             }
-            const userEmail = email || userData.email;
 
             // Lấy session từ MongoDB để dùng transaction - đảm bảo atomicity
             session = await require('mongoose').startSession();
@@ -127,7 +131,7 @@ const createOrder = (newOrder) => {
                 voucherCode,
                 transactionType: "EXPORT",
                 exportReason: "SALE",
-                performedBy: user,
+                performedBy: newOrder.adminId || user,
                 linkedOrder: createdOrderDoc._id,
                 voucherDate: new Date(),
                 status: "confirmed",
@@ -135,7 +139,7 @@ const createOrder = (newOrder) => {
                 totalAmount: voucherItems.reduce((sum, item) => sum + item.amount, 0),
                 note: `Xuat kho tu don hang ${createdOrderDoc._id}`,
                 confirmedAt: new Date(),
-                confirmedBy: user,
+                confirmedBy: newOrder.adminId || user,
             }], { session });
 
             const saleVoucherDoc = Array.isArray(saleVoucher) ? saleVoucher[0] : saleVoucher;
@@ -150,7 +154,7 @@ const createOrder = (newOrder) => {
                 quantityIn: 0,
                 quantityOut: Number(item.amount || 0),
                 balanceAfter: Number(item.countInStock || 0),
-                performedBy: user,
+                performedBy: newOrder.adminId || user,
                 note: `Lien ket don hang ${createdOrderDoc._id}`,
             }));
 
@@ -163,13 +167,15 @@ const createOrder = (newOrder) => {
 
             // Gửi email bất đồng bộ ngoài transaction bằng setImmediate để phản hồi HTTP ngay lập tức
             setImmediate(() => {
-                EmailService.sendEmailOrder({ 
-                    email: userEmail, 
-                    orderItems: normalizedOrderItems, 
-                    totalPrice 
-                }).catch((err) => {
-                    console.error("Failed to send order confirmation email:", err);
-                });
+                if (userEmail) {
+                    EmailService.sendEmailOrder({ 
+                        email: userEmail, 
+                        orderItems: normalizedOrderItems, 
+                        totalPrice 
+                    }).catch((err) => {
+                        console.error("Failed to send order confirmation email:", err);
+                    });
+                }
 
                 // Thông báo đơn hàng mới cho Admin
                 _triggerNewOrderNotification(createdOrderDoc).catch((err) => {
@@ -548,6 +554,92 @@ module.exports = {
     updateOrder,
     createPendingOrder,
     cancelExpiredOrder,
+    createManualOrderService
+};
+// =============================================
+// Tạo đơn tại quầy cho Admin
+// =============================================
+async function createManualOrderService(newOrder) {
+    try {
+        const { paymentMethod, customerType, ...rest } = newOrder;
+
+        const address = newOrder.address?.trim() || "Tại cửa hàng";
+        const city = newOrder.city?.trim() || "Tại cửa hàng";
+        const fullName = newOrder.fullName?.trim() || "Khách vãng lai";
+        const phone = newOrder.phone?.trim() || "0000000000";
+        const user = customerType === 'guest' ? null : newOrder.user;
+
+        const orderData = {
+            ...rest,
+            address,
+            city,
+            fullName,
+            phone,
+            user,
+            paymentMethod: paymentMethod || 'cash',
+            shippingPrice: 0,
+            isDelivered: 'delivered',
+            adminId: newOrder.adminId, // for inventory performedBy
+        };
+
+        if (paymentMethod === 'cash') {
+            orderData.isPaid = true;
+            orderData.paidAt = new Date();
+            const result = await createOrder(orderData);
+            return result;
+        } else if (paymentMethod === 'payos') {
+            const pendingOrderResult = await createPendingOrder(orderData);
+            
+            if (pendingOrderResult.status === "ERR") {
+                return pendingOrderResult;
+            }
+
+            const order = pendingOrderResult.data;
+            const payosOrderCode = PayOSService.generateOrderCode(order._id);
+            
+            const frontendUrl = process.env.FRONTEND_URL || process.env.CLIENT_URL || "http://localhost:3000";
+
+            const paymentLinkData = await PayOSService.createPaymentLink({
+                orderCode: payosOrderCode,
+                amount: Math.round(order.totalPrice),
+                description: `FitnFood #${String(order._id).slice(-6).toUpperCase()}`,
+                items: orderData.orderItems.map((item) => ({
+                    name: String(item.name || "Sản phẩm").slice(0, 50),
+                    quantity: Number(item.amount || 1),
+                    price: Math.round(Number(item.price || 0)),
+                })),
+                returnUrl: `${frontendUrl}/orderSuccess`,
+                cancelUrl: `${frontendUrl}/payment`,
+                buyerName: fullName,
+                buyerPhone: phone,
+            });
+
+            await Order.findByIdAndUpdate(order._id, {
+                payosOrderCode,
+                paymentLinkId: paymentLinkData.paymentLinkId,
+            });
+
+            return {
+                status: "OK",
+                message: "Pending order and PayOS link created!",
+                data: {
+                    orderId: order._id,
+                    payosOrderCode,
+                    qrCode: paymentLinkData.qrCode,
+                    checkoutUrl: paymentLinkData.checkoutUrl,
+                    paymentLinkId: paymentLinkData.paymentLinkId,
+                    totalPrice: order.totalPrice,
+                },
+            };
+        } else {
+            return {
+                status: "ERR",
+                message: "Unsupported payment method!",
+            };
+        }
+    } catch (e) {
+        throw e;
+    }
 };
 
 // =============================================
@@ -664,13 +756,17 @@ async function createPendingOrder(newOrder) {
         payosOrderCode, paymentLinkId,
     } = newOrder;
 
-    const deliveryStatus = "pending";
+    const deliveryStatus = newOrder.isDelivered || "pending";
     let session = null;
 
     try {
-        const userData = await User.findById(user).select('email').lean();
-        if (!userData) {
-            return { status: 'ERR', message: 'User not found!' };
+        let userEmail = email;
+        if (user) {
+            const userData = await User.findById(user).select('email').lean();
+            if (!userData) {
+                return { status: 'ERR', message: 'User not found!' };
+            }
+            userEmail = email || userData.email;
         }
 
         session = await require('mongoose').startSession();
@@ -751,7 +847,7 @@ async function createPendingOrder(newOrder) {
             voucherCode,
             transactionType: "EXPORT",
             exportReason: "SALE",
-            performedBy: user,
+            performedBy: newOrder.adminId || user,
             linkedOrder: createdOrderDoc._id,
             voucherDate: new Date(),
             status: "confirmed",
@@ -759,7 +855,7 @@ async function createPendingOrder(newOrder) {
             totalAmount: voucherItems.reduce((sum, item) => sum + item.amount, 0),
             note: `Xuat kho PayOS don hang ${createdOrderDoc._id}`,
             confirmedAt: new Date(),
-            confirmedBy: user,
+            confirmedBy: newOrder.adminId || user,
         }], { session });
 
         const saleVoucherDoc = Array.isArray(saleVoucher) ? saleVoucher[0] : saleVoucher;
@@ -774,7 +870,7 @@ async function createPendingOrder(newOrder) {
             quantityIn: 0,
             quantityOut: Number(item.amount || 0),
             balanceAfter: Number(item.countInStock || 0),
-            performedBy: user,
+            performedBy: newOrder.adminId || user,
             note: `Lien ket don hang PayOS ${createdOrderDoc._id}`,
         }));
 

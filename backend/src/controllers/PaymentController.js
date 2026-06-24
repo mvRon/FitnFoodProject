@@ -161,10 +161,10 @@ const handleWebhook = async (req, res) => {
             // Gửi email xác nhận đơn hàng
             if (order.user && order.user.email) {
                 setImmediate(() => {
-                    EmailService.sendEmailOrder({ 
-                        email: order.user.email, 
-                        orderItems: order.orderItems, 
-                        totalPrice: order.totalPrice 
+                    EmailService.sendEmailOrder({
+                        email: order.user.email,
+                        orderItems: order.orderItems,
+                        totalPrice: order.totalPrice
                     }).catch((err) => {
                         console.error("[PayOS] Failed to send order confirmation email:", err);
                     });
@@ -269,14 +269,15 @@ const cancelPayment = async (req, res) => {
     try {
         const { orderId } = req.body;
         const userId = req.user?.id;
+        const isAdmin = req.user?.isAdmin;
 
         const order = await Order.findById(orderId);
         if (!order) {
             return res.status(200).json({ status: "ERR", message: "Order not found!" });
         }
 
-        // Chỉ chủ đơn hàng mới được hủy
-        if (order.user.toString() !== String(userId)) {
+        // Chỉ chủ đơn hàng hoặc Admin mới được hủy
+        if (!isAdmin && (!order.user || order.user.toString() !== String(userId))) {
             return res.status(403).json({ status: "ERR", message: "Unauthorized!" });
         }
 

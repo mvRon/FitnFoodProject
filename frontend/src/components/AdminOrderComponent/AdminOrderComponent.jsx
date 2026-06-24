@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Button, Col, Divider, Form, Input, InputNumber, Row, Select, Space, Tag, message } from "antd";
+import { Button, Col, Divider, Form, Input, InputNumber, Row, Select, Space, Tag, message, Radio, Modal, QRCode } from "antd";
 import { DeleteOutlined, EditOutlined, PlusOutlined, SearchOutlined, SyncOutlined, ShoppingCartOutlined, ReloadOutlined } from "@ant-design/icons";
 import TableComponent from "../TableComponent/TableComponent";
 import LoadingComponent from "../LoadingComponent/LoadingComponent";
@@ -23,6 +23,8 @@ import * as ProductService from "../../services/ProductService";
 import * as UserService from "../../services/UserService";
 import { useNavigate } from "react-router-dom";
 import { FilterBar, FilterBtn, RefreshBtn, DateInput } from "./FilterStyles";
+import { io } from "socket.io-client";
+import PaymentQRModal from "../../components/PaymentQRModal/PaymentQRModal";
 
 const VN_OFFSET = 7 * 60 * 60 * 1000; // GMT+7 (Việt Nam)
 
@@ -48,6 +50,16 @@ const getEndOfDayUTC = (vnDate) => {
         23, 59, 59, 999
     );
     return new Date(msAtEndOfDayVN - VN_OFFSET).toISOString();
+};
+
+const resolveToken = (accessToken) => {
+    if (!accessToken) return null;
+    if (typeof accessToken !== "string") return accessToken;
+    try {
+        return JSON.parse(accessToken);
+    } catch (error) {
+        return accessToken;
+    }
 };
 
 const getPresetRange = (preset) => {
@@ -147,6 +159,61 @@ const AdminOrderComponent = () => {
         }
     }
 
+
+    const [payosModal, setPayosModal] = useState({
+        isOpen: false,
+        qrCode: "",
+        checkoutUrl: "",
+        orderId: "",
+        bin: "",
+        accountNumber: "",
+        accountName: "",
+        description: "",
+    });
+
+    const socketRef = useRef(null);
+
+    useEffect(() => {
+        const apiBase = process.env.REACT_APP_API_URL_BACKEND || "";
+        const socketUrl = apiBase.replace(/\/api\/?$/, "");
+        if (!socketUrl) return;
+
+        const token = resolveToken(localStorage.getItem("access_token"));
+        const socket = io(socketUrl, {
+            auth: token ? { token } : {},
+            transports: ["websocket"],
+        });
+        socketRef.current = socket;
+
+        return () => {
+            socket.disconnect();
+            socketRef.current = null;
+        };
+    }, []);
+
+    const handlePayOSSuccess = () => {
+        setPayosModal({ isOpen: false, qrCode: "", checkoutUrl: "", orderId: "", bin: "", accountNumber: "", accountName: "", description: "" });
+        message.success("Thanh toán PayOS thành công!");
+        setIsModalCreateOrderOpen(false);
+        createOrderForm.resetFields();
+        queryOrder.refetch();
+        productsQuery.refetch();
+    };
+
+    const handlePayOSCancel = async () => {
+        const { orderId } = payosModal;
+        setPayosModal({ isOpen: false, qrCode: "", checkoutUrl: "", orderId: "", bin: "", accountNumber: "", accountName: "", description: "" });
+        if (orderId) {
+            try { await OrderService.cancelPayment(storageData, orderId); }
+            catch (e) { console.error(e); }
+        }
+    };
+
+    const handlePayOSExpire = () => {
+        setPayosModal({ isOpen: false, qrCode: "", checkoutUrl: "", orderId: "", bin: "", accountNumber: "", accountName: "", description: "" });
+        message.info("Phiên thanh toán đã hết hạn");
+    };
+
     const fetchGetDetailOrder = async (orderId) => {
         if (!storageData) return;
         setIsLoading(true);
@@ -190,7 +257,7 @@ const AdminOrderComponent = () => {
     });
 
     const mutationCreateOrder = useMutationHook((payload) => {
-        return OrderService.createOrder(storageData, payload);
+        return OrderService.createManualOrder(storageData, payload);
     });
 
     const getAllOrders = async () => {
@@ -242,11 +309,24 @@ const AdminOrderComponent = () => {
 
     useEffect(() => {
         if (mutationCreateOrder.isSuccess && mutationCreateOrder.data?.status === "OK") {
-            message.success("Tạo đơn hàng tại quầy thành công");
-            setIsModalCreateOrderOpen(false);
-            createOrderForm.resetFields();
-            queryOrder.refetch();
-            productsQuery.refetch();
+            if (mutationCreateOrder.data.data?.qrCode) {
+                setPayosModal({
+                    isOpen: true,
+                    qrCode: mutationCreateOrder.data.data.qrCode,
+                    checkoutUrl: mutationCreateOrder.data.data.checkoutUrl,
+                    orderId: String(mutationCreateOrder.data.data.orderId),
+                    bin: mutationCreateOrder.data.data.bin || "",
+                    accountNumber: mutationCreateOrder.data.data.accountNumber || "",
+                    accountName: mutationCreateOrder.data.data.accountName || "",
+                    description: mutationCreateOrder.data.data.description || "",
+                });
+            } else {
+                message.success("Tạo đơn hàng tại quầy thành công");
+                setIsModalCreateOrderOpen(false);
+                createOrderForm.resetFields();
+                queryOrder.refetch();
+                productsQuery.refetch();
+            }
         }
 
         if (mutationCreateOrder.isSuccess && mutationCreateOrder.data?.status !== "OK") {
@@ -257,6 +337,7 @@ const AdminOrderComponent = () => {
     const users = usersQuery?.data?.data || [];
     const products = productsQuery?.data?.data || [];
     const watchedOrderItems = Form.useWatch("orderItems", createOrderForm) || [];
+    const customerType = Form.useWatch("customerType", createOrderForm) || "registered";
 
     const userOptions = users
         .filter((user) => !user?.isAdmin)
@@ -585,13 +666,14 @@ const AdminOrderComponent = () => {
 
             mutationCreateOrder.mutate({
                 user: values.user,
+                customerType: values.customerType,
                 fullName: values.fullName,
                 phone: values.phone,
                 address: values.address,
                 city: values.city,
                 paymentMethod: values.paymentMethod,
-                isPaid: Boolean(values.isPaid),
-                paidAt: values.isPaid ? new Date().toISOString() : null,
+                isPaid: values.paymentMethod === 'cash',
+                paidAt: values.paymentMethod === 'cash' ? new Date().toISOString() : null,
                 isDelivered: "delivered",
                 orderItems: normalizedItems,
                 itemsPrice,
@@ -789,7 +871,7 @@ const AdminOrderComponent = () => {
                             form={createOrderForm}
                             layout="vertical"
                             className="admin-order-form"
-                            initialValues={{ paymentMethod: "cash", isPaid: true, orderItems: [{ amount: 1 }] }}
+                            initialValues={{ customerType: "registered", paymentMethod: "cash", isPaid: true, orderItems: [{ amount: 1 }] }}
                             onFinish={onSubmitManualOrder}
                         >
                             <div className="admin-order-create-hero">
@@ -803,39 +885,48 @@ const AdminOrderComponent = () => {
                                 </div>
                             </div>
 
+                            <Form.Item name="customerType" label="Loại khách hàng">
+                                <Radio.Group>
+                                    <Radio value="registered">Khách đã có tài khoản</Radio>
+                                    <Radio value="guest">Khách vãng lai</Radio>
+                                </Radio.Group>
+                            </Form.Item>
+
                             <Row gutter={[12, 8]}>
+                                {customerType === "registered" && (
+                                    <Col xs={24} md={12}>
+                                        <Form.Item
+                                            label="Khách hàng đã có tài khoản"
+                                            name="user"
+                                            rules={[{ required: true, message: "Vui lòng chọn khách hàng" }]}
+                                        >
+                                            <Select
+                                                showSearch
+                                                optionFilterProp="label"
+                                                options={userOptions}
+                                                onChange={handleSelectCustomerForManualOrder}
+                                                placeholder="Chọn người dùng"
+                                            />
+                                        </Form.Item>
+                                    </Col>
+                                )}
                                 <Col xs={24} md={12}>
-                                    <Form.Item
-                                        label="Khách hàng đã có tài khoản"
-                                        name="user"
-                                        rules={[{ required: true, message: "Vui lòng chọn khách hàng" }]}
-                                    >
-                                        <Select
-                                            showSearch
-                                            optionFilterProp="label"
-                                            options={userOptions}
-                                            onChange={handleSelectCustomerForManualOrder}
-                                            placeholder="Chọn người dùng"
-                                        />
-                                    </Form.Item>
-                                </Col>
-                                <Col xs={24} md={12}>
-                                    <Form.Item style={{ marginBottom: 8 }} label="Số điện thoại" name="phone" rules={[{ required: true }]}>
+                                    <Form.Item style={{ marginBottom: 8 }} label="Số điện thoại" name="phone" rules={[{ required: true, message: "Vui lòng nhập SĐT" }]}>
                                         <Input />
                                     </Form.Item>
                                 </Col>
                                 <Col xs={24} md={12}>
-                                    <Form.Item style={{ marginBottom: 8 }} label="Họ tên" name="fullName" rules={[{ required: true }]}>
+                                    <Form.Item style={{ marginBottom: 8 }} label="Họ tên" name="fullName" rules={[{ required: true, message: "Vui lòng nhập họ tên" }]}>
                                         <Input />
                                     </Form.Item>
                                 </Col>
                                 <Col xs={24} md={12}>
-                                    <Form.Item style={{ marginBottom: 8 }} label="Thành phố" name="city" rules={[{ required: true }]}>
+                                    <Form.Item style={{ marginBottom: 8 }} label="Thành phố" name="city">
                                         <Input />
                                     </Form.Item>
                                 </Col>
                                 <Col span={24}>
-                                    <Form.Item style={{ marginBottom: 8 }} label="Địa chỉ" name="address" rules={[{ required: true }]}>
+                                    <Form.Item style={{ marginBottom: 8 }} label="Địa chỉ" name="address">
                                         <Input />
                                     </Form.Item>
                                 </Col>
@@ -909,16 +1000,7 @@ const AdminOrderComponent = () => {
                                     <Select
                                         options={[
                                             { value: "cash", label: "Tiền mặt tại quầy" },
-                                            { value: "card", label: "Thẻ" },
-                                            { value: "transfer", label: "Chuyển khoản" },
-                                        ]}
-                                    />
-                                </Form.Item>
-                                <Form.Item style={{ minWidth: 220 }} label="Trạng thái thanh toán" name="isPaid" rules={[{ required: true }]}>
-                                    <Select
-                                        options={[
-                                            { value: true, label: "Đã thanh toán" },
-                                            { value: false, label: "Chưa thanh toán" },
+                                            { value: "payos", label: "PayOS (Quét QR)" },
                                         ]}
                                     />
                                 </Form.Item>
@@ -945,6 +1027,22 @@ const AdminOrderComponent = () => {
                         </Form>
                     </LoadingComponent>
                 </ModalComponent>
+
+                <PaymentQRModal
+                    isOpen={payosModal.isOpen}
+                    qrCode={payosModal.qrCode}
+                    checkoutUrl={payosModal.checkoutUrl}
+                    amount={mutationCreateOrder.data?.data?.totalPrice || 0}
+                    orderId={payosModal.orderId}
+                    socketRef={socketRef}
+                    onSuccess={handlePayOSSuccess}
+                    onCancel={handlePayOSCancel}
+                    onExpire={handlePayOSExpire}
+                    bin={payosModal.bin}
+                    accountNumber={payosModal.accountNumber}
+                    accountName={payosModal.accountName}
+                    description={payosModal.description}
+                />
             </DashboardShell>
         </>
     );
