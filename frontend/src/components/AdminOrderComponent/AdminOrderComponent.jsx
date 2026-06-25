@@ -594,7 +594,6 @@ const AdminOrderComponent = () => {
 
         if (storageData && rowSelected) {
             mutationUpdateOrder.mutate({
-                ...data,
                 id: rowSelected,
                 token: storageData,
                 isDelivered,

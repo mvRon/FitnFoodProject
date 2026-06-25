@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useLocation, useParams } from 'react-router-dom'; // Để lấy orderId từ URL
+import { useLocation, useParams, useNavigate } from 'react-router-dom'; // Để lấy orderId từ URL
 import { Typography, Spin, Divider, Tag, Space, Button, Result } from 'antd';
 import { LoadingOutlined } from '@ant-design/icons';
 import * as OrderService from '../../services/OrderService.js'
@@ -32,6 +32,7 @@ const OrderDetailPage = () => {
   const location = useLocation()
   const { state } = location
   const user = useSelector((state) => state.user);
+  const navigate = useNavigate();
   
   let token = state?.token || user?.access_token;
   try {
@@ -56,7 +57,7 @@ const OrderDetailPage = () => {
     retryDelay: 1000,
     enabled: flag && !!token,
   })
-  const { isPending, data } = queryDetailOrder
+  const { isPending, data, refetch } = queryDetailOrder
 
   const priceMemo = useMemo(() => {
     const result = data?.orderItems?.reduce((total, current) => {
@@ -140,8 +141,8 @@ const OrderDetailPage = () => {
       <OrderDetailWrapper>
         <SectionCard title={<Title level={4}>Lỗi</Title>}>
           <Text type="danger">{error}</Text>
-          <Button type="primary" onClick={() => window.history.back()} style={{ marginTop: '20px' }}>
-            Quay lại
+          <Button type="primary" onClick={() => navigate('/myOrder', { state: { id: user?.id, token: token } })} style={{ marginTop: '20px', backgroundColor: '#10B981', borderColor: '#10B981' }}>
+            Quay lại danh sách đơn hàng
           </Button>
         </SectionCard>
       </OrderDetailWrapper>
@@ -160,10 +161,10 @@ const OrderDetailPage = () => {
                     <Button 
                         type="primary" 
                         size="large" 
-                        onClick={() => window.history.back()}
-                        style={{ borderRadius: '8px', padding: '0 32px', height: '44px' }}
+                        onClick={() => navigate('/myOrder', { state: { id: user?.id, token: token } })}
+                        style={{ borderRadius: '8px', padding: '0 32px', height: '44px', backgroundColor: '#10B981', borderColor: '#10B981' }}
                     >
-                        Quay lại
+                        Quay lại danh sách đơn hàng
                     </Button>
                 }
             />
@@ -277,10 +278,12 @@ const OrderDetailPage = () => {
               <Text className="value">{formatCurrency(orderDetail.totalPrice)}</Text>
             </PriceDetail>
             <Space>
-              <Button style={{ marginTop: '25px' }} type="primary" onClick={() => window.history.back()}>
-                Quay lại đơn hàng
+              <Button style={{ marginTop: '25px', backgroundColor: '#10B981', borderColor: '#10B981', borderRadius: '8px', padding: '0 24px', height: '40px', fontWeight: 500 }} type="primary" onClick={() => navigate('/myOrder', { state: { id: user?.id, token: token } })}>
+                Quay lại danh sách đơn hàng
               </Button>
-              {/* Thêm các nút hành động khác nếu cần, ví dụ: "Mua lại", "Liên hệ hỗ trợ" */}
+              <Button style={{ marginTop: '25px', borderRadius: '8px', padding: '0 24px', height: '40px', fontWeight: 500, color: '#0284C7', borderColor: '#0284C7' }} onClick={() => refetch()}>
+                Làm mới dữ liệu
+              </Button>
             </Space>
           </SectionCard>
         </div>

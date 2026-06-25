@@ -503,7 +503,7 @@ const updateOrder = (orderId, updateData, userId) => {
             if (!userData) {
                 return resolve({
                     status: 'ERR',
-                    message: 'User not found!'
+                    message: 'Không tìm thấy người dùng!'
                 });
             }
 
@@ -511,7 +511,7 @@ const updateOrder = (orderId, updateData, userId) => {
             if (!oldOrder) {
                 return resolve({
                     status: 'ERR',
-                    message: 'Order not found!'
+                    message: 'Không tìm thấy đơn hàng!'
                 });
             }
 
@@ -520,7 +520,7 @@ const updateOrder = (orderId, updateData, userId) => {
             if (!userData.isAdmin && order.user.toString() !== userId.toString()) {
                 return resolve({
                     status: 'ERR',
-                    message: 'Unauthorized: You can only update your own orders!'
+                    message: 'Không có quyền: Bạn chỉ có thể cập nhật đơn hàng của mình!'
                 });
             }
 
@@ -535,7 +535,7 @@ const updateOrder = (orderId, updateData, userId) => {
 
             return resolve({
                 status: 'OK',
-                message: 'Order updated successfully!',
+                message: 'Cập nhật trạng thái đơn hàng thành công!',
                 data: order
             });
         } catch (error) {
