@@ -32,13 +32,24 @@ export const BreadcrumbWrap = styled.div`
 
   .ant-breadcrumb a,
   .ant-breadcrumb-link {
-    color: #0369a1;
+    color: #475569;
+    font-weight: 500;
+    font-size: 14px;
+    transition: color 0.2s ease;
+  }
+
+  .ant-breadcrumb a:hover {
+    color: #10B981;
+  }
+
+  .ant-breadcrumb > span:last-child .ant-breadcrumb-link {
+    color: #1E293B;
     font-weight: 600;
-    cursor: pointer;
   }
 
   .ant-breadcrumb-separator {
-    color: #0ea5e9;
+    color: #94A3B8;
+    margin: 0 8px;
   }
 `;
 

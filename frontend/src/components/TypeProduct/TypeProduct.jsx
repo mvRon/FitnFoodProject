@@ -4,21 +4,29 @@ import styled from 'styled-components'
 import { slugify } from '../../utils'
 
 const TypeItem = styled.div`
-  padding: 12px 16px;
-  margin-bottom: 12px;
-  background-color: #fff;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  padding: 10px 22px;
+  background-color: #ffffff;
+  border: 1px solid rgba(148, 163, 184, 0.3); /* Slate 400 with opacity */
+  border-radius: 50px; /* Pill shape */
+  box-shadow: 0 4px 10px rgba(30, 41, 59, 0.04);
   cursor: pointer;
-  transition: all 0.3s;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   text-align: center;
-  font-weight: 500;
-  color: #333;
+  font-weight: 600;
+  font-size: 14px;
+  color: #1E293B; /* Slate 800 */
   user-select: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
 
   &:hover {
-    background-color: #f5f5f5;
+    border-color: #10B981; /* Emerald Green */
+    color: #10B981;
+    background-color: rgba(16, 185, 129, 0.04);
     transform: translateY(-2px);
+    box-shadow: 0 6px 14px rgba(16, 185, 129, 0.12);
   }
 `
 

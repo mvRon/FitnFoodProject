@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import CardComponent from '../../components/CardComponent/CardComponent.jsx';
-import { BreadcrumbWrap, WrapperButtonMore, WrapperProducts, WrapperTypeProduct } from './Style.js'
+import { BreadcrumbWrap, WrapperButtonMore, WrapperProducts, WrapperTypeProduct, CategoryBar } from './Style.js'
 
 import TypeProduct from '../../components/TypeProduct/TypeProduct.jsx'
 // import { Button } from 'antd';
@@ -86,12 +86,12 @@ const HomePage = () => {
   return (
     <div>
       <LoadingComponent isPending={false}>
-        <BreadcrumbWrap>
-          <Breadcrumb items={[
-            { title: 'Trang chủ' }
-          ]} />
-        </BreadcrumbWrap>
         <div className="body" style={{ background: 'linear-gradient(180deg, rgba(16,185,129,0.08), rgba(2,132,199,0.06) 35%, rgba(248,250,252,0.9) 100%)', width: '100%' }}>
+          <BreadcrumbWrap>
+            <Breadcrumb items={[
+              { title: 'Trang chủ' }
+            ]} />
+          </BreadcrumbWrap>
           <div id="container" style={{ maxWidth: '1270px', width: '100%', margin: '0 auto', padding: '0 16px' }}>
             <div
               style={{
@@ -112,19 +112,18 @@ const HomePage = () => {
               </p>
             </div>
             <div style={{ maxWidth: '1270px', width: '100%', margin: '0 auto', padding: '0 6px' }}>
-              <div className="typeproduct-horizontal-scroll" style={{ overflowX: 'auto', overflowY: 'hidden', whiteSpace: 'nowrap', paddingBottom: 8 }}>
-                <WrapperTypeProduct>
+              <CategoryBar>
+                <WrapperTypeProduct className="hide-scrollbar">
                   {parentCategories.map((item) => (
-                    <div key={item._id} style={{ display: 'inline-block', marginRight: 10, verticalAlign: 'top' }}>
-                      <TypeProduct
-                        name={item.name}
-                        _id={item._id}
-                        onClick={() => navigate(`/product/${slugify(item.name)}-${item._id}`, { state: item._id })}
-                      />
-                    </div>
+                    <TypeProduct
+                      key={item._id}
+                      name={item.name}
+                      _id={item._id}
+                      onClick={() => navigate(`/product/${slugify(item.name)}-${item._id}`, { state: item._id })}
+                    />
                   ))}
                 </WrapperTypeProduct>
-              </div>
+              </CategoryBar>
             </div>
             {accessToken && (
               <RecommendationCarousel context="history" />
