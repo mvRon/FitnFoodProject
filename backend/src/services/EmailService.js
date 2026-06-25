@@ -12,12 +12,12 @@ const getEmailSettings = async () => {
         const setting = await SystemSettingModel.findOne().select('emailSenderName autoSendEmail').lean();
         return {
             senderName: setting?.emailSenderName || 'FitnFood Corporation',
-            autoSendEmail: setting?.autoSendEmail || { verifyAccount: true, recoveryPassword: true, sendEmailOrder: true }
+            autoSendEmail: setting?.autoSendEmail || { verifyAccount: true, recoveryPassword: true, sendEmailOrder: true, restockNotification: true }
         };
     } catch {
         return {
             senderName: 'FitnFood Corporation',
-            autoSendEmail: { verifyAccount: true, recoveryPassword: true, sendEmailOrder: true }
+            autoSendEmail: { verifyAccount: true, recoveryPassword: true, sendEmailOrder: true, restockNotification: true }
         };
     }
 };
@@ -279,8 +279,108 @@ const sendEmailOrder = async ({ email, orderItems, totalPrice }) => {
     }
 };
 
+const sendRestockEmail = async ({ email, productName, productUrl }) => {
+    try {
+        const settings = await getEmailSettings();
+        if (settings.autoSendEmail && settings.autoSendEmail.restockNotification === false) {
+            console.log("Bỏ qua gửi email thông báo có hàng do bị tắt trong cài đặt hệ thống.");
+            return;
+        }
+        const senderName = settings.senderName;
+        const transporter = nodemailer.createTransport({
+            host: "smtp.gmail.com",
+            port: 465,
+            secure: true, // dùng SSL
+            auth: {
+                user: process.env.EMAIL_USER,
+                pass: process.env.EMAIL_PASSWORD
+            }
+        });
+
+        // Hàm tạo nội dung HTML
+        const htmlContent = (name, url) => `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8" />
+                <title>Sản phẩm đã có hàng trở lại</title>
+                <style>
+                body {
+                    font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+                    background-color: #f4f4f4;
+                    margin: 0;
+                    padding: 0;
+                }
+                .container {
+                    background-color: #ffffff;
+                    max-width: 600px;
+                    margin: 40px auto;
+                    padding: 30px;
+                    border-radius: 10px;
+                    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+                }
+                h2 {
+                    color: #10B981;
+                }
+                p {
+                    color: #555555;
+                    line-height: 1.6;
+                }
+                .button {
+                    display: inline-block;
+                    padding: 14px 24px;
+                    background-color: #10B981;
+                    color: white;
+                    text-decoration: none;
+                    border-radius: 6px;
+                    margin-top: 20px;
+                    font-weight: bold;
+                }
+                .footer {
+                    font-size: 12px;
+                    color: #999999;
+                    margin-top: 30px;
+                }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                <h2>Tin vui: Đã có hàng! 🎉</h2>
+                <p>Xin chào,</p>
+                <p>Sản phẩm <strong>${name}</strong> mà bạn đang theo dõi hiện đã có hàng trở lại tại FitnFood.</p>
+                <p>Số lượng có hạn, hãy nhanh tay đặt hàng ngay để không bỏ lỡ!</p>
+
+                <!-- URL sản phẩm -->
+                <a href="${url}" class="button">
+                    Mua ngay bây giờ
+                </a>
+
+                <p>Cảm ơn bạn đã luôn đồng hành và ủng hộ FitnFood.</p>
+
+                <div class="footer">
+                    © 2025 FitnFood Corporation. All rights reserved.
+                </div>
+                </div>
+            </body>
+            </html>
+        `;
+
+        const info = await transporter.sendMail({
+            from: `"${senderName}" <${process.env.EMAIL_USER}>`,
+            to: `${email}`,
+            subject: "FITNFOOD - SẢN PHẨM ĐÃ CÓ HÀNG TRỞ LẠI",
+            html: htmlContent(productName, productUrl),
+        });
+
+        console.log("Đã gửi email thông báo có hàng: %s", info.messageId);
+    } catch (error) {
+        console.error("Lỗi gửi email thông báo có hàng:", error);
+    }
+};
+
 module.exports = {
     verifyAccount,
     recoveryPassword,
-    sendEmailOrder
+    sendEmailOrder,
+    sendRestockEmail
 };

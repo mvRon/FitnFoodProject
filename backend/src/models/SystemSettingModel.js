@@ -57,6 +57,7 @@ const SystemSettingSchema = new mongoose.Schema(
             verifyAccount: { type: Boolean, default: true },
             recoveryPassword: { type: Boolean, default: true },
             sendEmailOrder: { type: Boolean, default: true },
+            restockNotification: { type: Boolean, default: true },
         },
 
         // ────────────────────────────────────────────

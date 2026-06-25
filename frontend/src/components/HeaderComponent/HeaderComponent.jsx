@@ -234,7 +234,7 @@ const HeaderComponent = ({ isHiddenSearch = false, isHiddenCart = false }) => {
           <img
             src={setting?.storeLogo || Logo}
             alt="logo"
-            style={{ height: 40, width: 60, borderRadius: '50%', objectFit: 'cover' }}
+            style={{ height: 44, width: 'auto', maxWidth: 100, borderRadius: '8px', objectFit: 'contain' }}
           />
           <span className="hidden-mobile" style={{ color: 'var(--color-white)', fontWeight: 700, fontSize: 30 }}>
             {setting?.storeName || 'FITnFOOD'}

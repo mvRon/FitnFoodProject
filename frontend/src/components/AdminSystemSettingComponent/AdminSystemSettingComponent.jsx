@@ -41,6 +41,7 @@ import {
     PaymentMethodInfo,
     SaveButton,
 } from './Style';
+import { useSystemSetting } from '../../context/SystemSettingContext';
 
 const { TextArea } = Input;
 
@@ -56,6 +57,43 @@ const fileToBase64 = (file) =>
     });
 
 // ─────────────────────────────────────────────────────────────────────────────
+//  Helper: Resize ảnh
+// ─────────────────────────────────────────────────────────────────────────────
+const resizeImage = (file, maxWidth = 300, maxHeight = 300) =>
+    new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target.result;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+
+                if (width > height) {
+                    if (width > maxWidth) {
+                        height = Math.round((height * maxWidth) / width);
+                        width = maxWidth;
+                    }
+                } else {
+                    if (height > maxHeight) {
+                        width = Math.round((width * maxHeight) / height);
+                        height = maxHeight;
+                    }
+                }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', 0.9));
+            };
+            img.onerror = (err) => reject(err);
+        };
+        reader.onerror = (err) => reject(err);
+    });
+
+// ─────────────────────────────────────────────────────────────────────────────
 //  Component chính
 // ─────────────────────────────────────────────────────────────────────────────
 const AdminSystemSettingComponent = () => {
@@ -66,6 +104,7 @@ const AdminSystemSettingComponent = () => {
         try { return JSON.parse(raw); } catch { return raw; }
     };
 
+    const { setSetting } = useSystemSetting();
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
 
@@ -106,6 +145,7 @@ const AdminSystemSettingComponent = () => {
                         autoSendEmail_verifyAccount: d.autoSendEmail?.verifyAccount ?? true,
                         autoSendEmail_recoveryPassword: d.autoSendEmail?.recoveryPassword ?? true,
                         autoSendEmail_sendEmailOrder: d.autoSendEmail?.sendEmailOrder ?? true,
+                        autoSendEmail_restockNotification: d.autoSendEmail?.restockNotification ?? true,
                     });
                     seoForm.setFieldsValue({
                         metaTitle: d.metaTitle,
@@ -128,6 +168,7 @@ const AdminSystemSettingComponent = () => {
             setSaving(true);
             const res = await SystemSettingService.updateSystemSetting(data, getToken());
             if (res?.status === 'OK') {
+                setSetting((prev) => ({ ...prev, ...data }));
                 toast.success('Lưu cài đặt thành công!');
             } else {
                 toast.error('Lưu thất bại, vui lòng thử lại.');
@@ -147,8 +188,8 @@ const AdminSystemSettingComponent = () => {
             toast.warning('Ảnh logo không được vượt quá 2MB');
             return;
         }
-        const base64 = await fileToBase64(file);
-        setLogoPreview(base64);
+        const resizedBase64 = await resizeImage(file);
+        setLogoPreview(resizedBase64);
     };
 
     // ── Tab: Thông tin cửa hàng ─────────────────────────────────────────────
@@ -179,6 +220,7 @@ const AdminSystemSettingComponent = () => {
                 verifyAccount: values.autoSendEmail_verifyAccount,
                 recoveryPassword: values.autoSendEmail_recoveryPassword,
                 sendEmailOrder: values.autoSendEmail_sendEmailOrder,
+                restockNotification: values.autoSendEmail_restockNotification,
             }
         });
     };
@@ -457,6 +499,16 @@ const AdminSystemSettingComponent = () => {
                                     <div style={{ fontSize: 12, color: '#64748B', marginTop: 2 }}>Gửi email hóa đơn tự động khi khách hàng đặt hàng thành công.</div>
                                 </div>
                                 <Form.Item name="autoSendEmail_sendEmailOrder" valuePropName="checked" style={{ margin: 0 }}>
+                                    <Switch />
+                                </Form.Item>
+                            </div>
+
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                <div>
+                                    <div style={{ fontWeight: 500, color: '#1E293B', fontSize: 13 }}>Thông báo có hàng (Restock)</div>
+                                    <div style={{ fontSize: 12, color: '#64748B', marginTop: 2 }}>Gửi email báo sản phẩm đã có hàng lại cho người dùng theo dõi.</div>
+                                </div>
+                                <Form.Item name="autoSendEmail_restockNotification" valuePropName="checked" style={{ margin: 0 }}>
                                     <Switch />
                                 </Form.Item>
                             </div>
