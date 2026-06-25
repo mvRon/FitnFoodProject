@@ -60,7 +60,7 @@ const SystemSettingSchema = new mongoose.Schema(
         // ────────────────────────────────────────────
         metaTitle: {
             type: String,
-            default: 'FitnFood – Thực phẩm lành mạnh cho cuộc sống năng động',
+            default: 'FITNFOOD',
         },
         metaDescription: {
             type: String,

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Button, Col, Divider, Form, Input, InputNumber, Row, Select, Space, Tag, message, Radio, Modal, QRCode } from "antd";
-import { DeleteOutlined, EditOutlined, PlusOutlined, SearchOutlined, SyncOutlined, ShoppingCartOutlined, ReloadOutlined } from "@ant-design/icons";
+import { DeleteOutlined, EditOutlined, PlusOutlined, SearchOutlined, SyncOutlined, ShoppingCartOutlined, ReloadOutlined, EyeOutlined } from "@ant-design/icons";
 import TableComponent from "../TableComponent/TableComponent";
 import LoadingComponent from "../LoadingComponent/LoadingComponent";
 import ModalComponent from "../ModalComponent/ModalComponent";
@@ -120,10 +120,13 @@ const AdminOrderComponent = () => {
     const [isModalCreateOrderOpen, setIsModalCreateOrderOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [stateDetailOrder, setStateDetailOrder] = useState({});
+    const [isReadOnly, setIsReadOnly] = useState(false);
     const [form] = Form.useForm();
     const [createOrderForm] = Form.useForm();
     const searchInput = useRef(null);
+    const searchKeywordRef = useRef(null);
     const [searchKeyword, setSearchKeyword] = useState("");
+    const navigate = useNavigate();
 
     const [preset, setPreset] = useState("all");
     const [customFrom, setCustomFrom] = useState("");
@@ -494,28 +497,40 @@ const AdminOrderComponent = () => {
         },
         {
             title: "Hành động",
-            render: (_, record) => (
-                <Space>
-                    <Button
-                        className="admin-order-action-btn admin-order-action-btn-danger"
-                        icon={<DeleteOutlined />}
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            setRowSelected(record._id);
-                            setIsModalOpenDelete(true);
-                        }}
-                    />
-                    <Button
-                        className="admin-order-action-btn"
-                        icon={<EditOutlined />}
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            setRowSelected(record._id);
-                            setIsOpenDrawer(true);
-                        }}
-                    />
-                </Space>
-            ),
+            render: (_, record) => {
+                const isCompleted = record.isPaid && record.isDelivered === 'delivered';
+                return (
+                    <Space>
+                        <Button
+                            className="admin-order-action-btn admin-order-action-btn-danger"
+                            icon={<DeleteOutlined />}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setRowSelected(record._id);
+                                setIsModalOpenDelete(true);
+                            }}
+                        />
+                        <Button
+                            className="admin-order-action-btn"
+                            icon={<EditOutlined />}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setRowSelected(record._id);
+                                setIsReadOnly(isCompleted);
+                                setIsOpenDrawer(true);
+                            }}
+                        />
+                        <Button
+                            className="admin-order-action-btn"
+                            icon={<EyeOutlined />}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`/orderDetail/${record._id}`);
+                            }}
+                        />
+                    </Space>
+                );
+            },
         },
     ];
 
@@ -589,8 +604,6 @@ const AdminOrderComponent = () => {
         }
     };
 
-
-    const navigate = useNavigate()
     const handleGetDetailProduct = async (productId) => {
         navigate(`/productDetail/${productId}`)
     }
@@ -779,7 +792,9 @@ const AdminOrderComponent = () => {
                         data={dataTable}
                         onRow={(record) => ({
                             onClick: () => {
+                                const isCompleted = record.isPaid && record.isDelivered === 'delivered';
                                 setRowSelected(record._id);
+                                setIsReadOnly(isCompleted);
                                 setIsOpenDrawer(true);
                             },
                         })}
@@ -809,7 +824,7 @@ const AdminOrderComponent = () => {
                                 <Input disabled />
                             </Form.Item>
                             <Form.Item label="Giao hàng" name="isDelivered" rules={[{ required: true, message: "Chọn trạng thái" }]}>
-                                <Select>
+                                <Select disabled={isReadOnly}>
                                     <Select.Option value="pending">Chờ xử lý</Select.Option>
                                     <Select.Option value="processing">Đang xử lý</Select.Option>
                                     <Select.Option value="shipping">Đang giao hàng</Select.Option>
@@ -817,14 +832,16 @@ const AdminOrderComponent = () => {
                                 </Select>
                             </Form.Item>
                             <Form.Item label="Thanh toán" name="isPaid" rules={[{ required: true, message: "Chọn trạng thái" }]}>
-                                <Select>
+                                <Select disabled={isReadOnly}>
                                     <Select.Option value={true}>Đã thanh toán</Select.Option>
                                     <Select.Option value={false}>Chưa thanh toán</Select.Option>
                                 </Select>
                             </Form.Item>
-                            <Form.Item>
-                                <Button className="admin-order-submit-btn" type="primary" htmlType="submit">Cập nhật</Button>
-                            </Form.Item>
+                            {!isReadOnly && (
+                                <Form.Item>
+                                    <Button className="admin-order-submit-btn" type="primary" htmlType="submit">Cập nhật</Button>
+                                </Form.Item>
+                            )}
                         </Form>
 
                         <div className="admin-order-item-list">

@@ -118,7 +118,11 @@ function App() {
     async error => {
       const originalRequest = error.config
 
-      if ((error.response?.status === 401 || error.response?.status === 403) && !originalRequest._retry) {
+      const isTokenError = error.response?.data?.message === "Invalid token" || 
+                           error.response?.data?.message === "Token required!" || 
+                           error.response?.data?.message === "The authentication";
+
+      if ((error.response?.status === 401 || (error.response?.status === 403 && isTokenError) || (error.response?.status === 404 && isTokenError)) && !originalRequest._retry) {
         originalRequest._retry = true
 
         // Clear localStorage + Redux
@@ -141,8 +145,13 @@ function App() {
               const Page = route.page
               const isCheckAuth = !route.isPrivate || user?.isAdmin
               const Layout = route.isShowHeader ? DefaultComponent : Fragment
+              
+              if (!isCheckAuth) {
+                return null;
+              }
+
               return (
-                <Route key={route.path} path={isCheckAuth ? route.path : undefined} element={
+                <Route key={route.path} path={route.path} element={
                   <Layout>
                     <Page />
                   </Layout>

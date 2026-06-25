@@ -12,6 +12,7 @@ import OrderListPage from "../pages/OrderListPage/OrderListPage";
 import OrderDetailPage from "../pages/OrderDetailPage/OrderDetailPage";
 import ForgotPasswordPage from "../pages/ForgotPasswordPage/ForgotPasswordPage";
 import ResetPasswordPage from "../pages/ResetPasswordPage/ResetPasswordPage";
+import NotFoundPage from "../pages/NotFoundPage/NotFoundPage";
 
 
 
@@ -50,7 +51,7 @@ export const routes = [
         path: '/system/admin',
         page: AdminPage,
         isShowHeader: true,
-        isPrivate: false
+        isPrivate: true
     },
     {
         path: '/product/:type',
@@ -99,5 +100,11 @@ export const routes = [
         page: ResetPasswordPage,
         isPrivate: false,
         isShowHeader: true
+    },
+    {
+        path: '*',
+        page: NotFoundPage,
+        isShowHeader: true,
+        isPrivate: false
     }
 ]
