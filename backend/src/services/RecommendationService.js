@@ -6,11 +6,28 @@ const { embedText } = require("./EmbeddingService");
 
 const VECTOR_INDEX = process.env.MONGO_VECTOR_INDEX || "product_embedding_index";
 const EMBEDDING_DIM = Number(process.env.AI_EMBEDDING_DIM || 384);
-const DEFAULT_LIMIT = Number(process.env.RECOMMENDATION_LIMIT || 5);
+const DEFAULT_LIMIT = Number(process.env.RECOMMENDATION_LIMIT || 10);
 const RECENT_ORDER_LIMIT = Number(process.env.RECOMMENDATION_ORDER_LIMIT || 5);
 
 const historyCache = new Map();
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+// Helper tính toán trung bình cộng ADN của các sản phẩm
+const computeAverageEmbedding = (embeddings) => {
+    const validEmbeddings = (embeddings || []).filter(emb => Array.isArray(emb) && emb.length === EMBEDDING_DIM);
+    if (validEmbeddings.length === 0) return null;
+    
+    const result = new Array(EMBEDDING_DIM).fill(0);
+    for (const emb of validEmbeddings) {
+        for (let i = 0; i < EMBEDDING_DIM; i++) {
+            result[i] += emb[i];
+        }
+    }
+    for (let i = 0; i < EMBEDDING_DIM; i++) {
+        result[i] /= validEmbeddings.length;
+    }
+    return result;
+};
 
 const resolveCategoryId = (typeField) => {
     if (!typeField) return null;
@@ -182,18 +199,23 @@ const getRecommendationsByCart = async (productIds, options = {}) => {
     }
 
     const products = await Product.find({ _id: { $in: excludeIds } })
-        .select("name type description")
+        .select("name type description embedding")
         .lean();
-    const categoryIds = Array.from(
-        new Set(products.map((item) => resolveCategoryId(item.type)).filter(Boolean))
-    );
-    const categoryMap = await getCategoryMap(categoryIds);
-    const cartText = products
-        .map((item) => buildProductText(item, categoryMap[resolveCategoryId(item.type)]))
-        .filter(Boolean)
-        .join(" | ");
 
-    const embedding = await embedText(cartText);
+    let embedding = computeAverageEmbedding(products.map(p => p.embedding));
+
+    if (!embedding) {
+        const categoryIds = Array.from(
+            new Set(products.map((item) => resolveCategoryId(item.type)).filter(Boolean))
+        );
+        const categoryMap = await getCategoryMap(categoryIds);
+        const cartText = products
+            .map((item) => buildProductText(item, categoryMap[resolveCategoryId(item.type)]))
+            .filter(Boolean)
+            .join(" | ");
+        embedding = await embedText(cartText);
+    }
+
     let results = await vectorSearchProducts({ queryVector: embedding, limit, excludeIds });
 
     if (!results.length) {
@@ -238,23 +260,28 @@ const getRecommendationsByHistory = async (userId, options = {}) => {
 
     const products = purchasedIds.length
         ? await Product.find({ _id: { $in: purchasedIds } })
-            .select("name type description")
+            .select("name type description embedding")
             .lean()
         : [];
 
-    const categoryIds = Array.from(
-        new Set(products.map((item) => resolveCategoryId(item.type)).filter(Boolean))
-    );
-    const categoryMap = await getCategoryMap(categoryIds);
+    let embedding = computeAverageEmbedding(products.map(p => p.embedding));
 
-    const historyText = products.length
-        ? products
-            .map((item) => buildProductText(item, categoryMap[resolveCategoryId(item.type)]))
-            .filter(Boolean)
-            .join(" | ")
-        : orderItems.map((item) => item?.name).filter(Boolean).join(" | ");
+    if (!embedding) {
+        const categoryIds = Array.from(
+            new Set(products.map((item) => resolveCategoryId(item.type)).filter(Boolean))
+        );
+        const categoryMap = await getCategoryMap(categoryIds);
 
-    const embedding = await embedText(historyText);
+        const historyText = products.length
+            ? products
+                .map((item) => buildProductText(item, categoryMap[resolveCategoryId(item.type)]))
+                .filter(Boolean)
+                .join(" | ")
+            : orderItems.map((item) => item?.name).filter(Boolean).join(" | ");
+
+        embedding = await embedText(historyText);
+    }
+
     let results = await vectorSearchProducts({ queryVector: embedding, limit, excludeIds: purchasedIds });
 
     if (!results.length) {
