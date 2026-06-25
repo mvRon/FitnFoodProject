@@ -9,6 +9,9 @@ const EMBEDDING_DIM = Number(process.env.AI_EMBEDDING_DIM || 384);
 const DEFAULT_LIMIT = Number(process.env.RECOMMENDATION_LIMIT || 5);
 const RECENT_ORDER_LIMIT = Number(process.env.RECOMMENDATION_ORDER_LIMIT || 5);
 
+const historyCache = new Map();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
 const resolveCategoryId = (typeField) => {
     if (!typeField) return null;
     if (typeof typeField === "string") return typeField;
@@ -207,6 +210,12 @@ const getRecommendationsByCart = async (productIds, options = {}) => {
 
 const getRecommendationsByHistory = async (userId, options = {}) => {
     const limit = Number(options.limit) || DEFAULT_LIMIT;
+    const cacheKey = `${userId}_${limit}`;
+    
+    const cachedData = historyCache.get(cacheKey);
+    if (cachedData && Date.now() - cachedData.timestamp < CACHE_TTL) {
+        return cachedData.result;
+    }
 
     const orders = await Order.find({ user: userId })
         .sort({ createdAt: -1 })
@@ -253,11 +262,15 @@ const getRecommendationsByHistory = async (userId, options = {}) => {
     }
 
     const reason = "Dựa trên lịch sử mua hàng của bạn";
-    return {
+    const result = {
         status: "OK",
         message: "Recommendations generated successfully!",
         data: results.map((item) => mapRecommendation(item, reason, item?.score)),
     };
+
+    historyCache.set(cacheKey, { result, timestamp: Date.now() });
+
+    return result;
 };
 
 const rebuildProductEmbeddings = async (options = {}) => {
