@@ -1,16 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { Form, Input, Button, message as toast, Select } from 'antd';
-import { BellOutlined } from '@ant-design/icons';
+import { BellOutlined, FireOutlined } from '@ant-design/icons';
 import { useSelector } from 'react-redux';
 import * as NotificationService from '../../services/NotificationService';
 import * as ProductService from '../../services/ProductService';
 import * as DiscountService from '../../services/DiscountService';
 import {
-    PanelWrapper,
-    PanelHeader,
-    HeaderIcon,
+    NotificationGlobalStyle,
+    DashboardShell,
+    HeaderCard,
     HeaderTitle,
-    HeaderSubtitle,
+    HeaderDesc,
     FormWrapper,
     SubmitButton
 } from './Style';
@@ -56,7 +56,7 @@ const AdminNotificationComponent = () => {
             }, token);
 
             if (res?.status === 'OK') {
-                toast.success('🔥 Flash Sale đã được gửi đến tất cả người dùng!');
+                toast.success('Flash Sale đã được gửi đến tất cả người dùng!');
                 form.resetFields();
             } else {
                 toast.error(res?.message || 'Gửi thất bại!');
@@ -69,19 +69,20 @@ const AdminNotificationComponent = () => {
     };
 
     return (
-        <PanelWrapper>
-            <PanelHeader>
-                <HeaderIcon>🔥</HeaderIcon>
+        <DashboardShell className="admin-notification-page">
+            <NotificationGlobalStyle />
+            <HeaderCard>
                 <HeaderTitle>
-                    Gửi Flash Sale Realtime
+                    <FireOutlined /> Gửi Flash Sale Realtime
                 </HeaderTitle>
-                <HeaderSubtitle>
+                <HeaderDesc>
                     Thông báo sẽ được push ngay lập tức đến tất cả người dùng đang online (kể cả khách vãng lai).
-                </HeaderSubtitle>
-            </PanelHeader>
+                </HeaderDesc>
+            </HeaderCard>
 
             <FormWrapper>
                 <Form
+                    className="admin-notification-form"
                     form={form}
                     layout="vertical"
                     onFinish={handleSendFlashSale}
@@ -92,7 +93,7 @@ const AdminNotificationComponent = () => {
                         rules={[{ required: true, message: 'Vui lòng nhập tiêu đề!' }]}
                     >
                         <Input
-                            placeholder="VD: 🔥 FLASH SALE hôm nay – Giảm đến 50%!"
+                            placeholder="VD: FLASH SALE hôm nay – Giảm đến 50%!"
                             size="large"
                             maxLength={80}
                             showCount
@@ -142,12 +143,12 @@ const AdminNotificationComponent = () => {
                             onChange={(val) => {
                                 let currentMessage = form.getFieldValue('message') || '';
                                 // Loại bỏ câu chèn cũ nếu đã tồn tại
-                                currentMessage = currentMessage.replace(/\n*🎁 Nhập mã .*? để được giảm giá!/g, '');
+                                currentMessage = currentMessage.replace(/\n*Nhập mã .*? để được giảm giá!/g, '');
 
                                 if (val) {
                                     const selectedDiscount = discounts.find(d => d._id === val);
                                     if (selectedDiscount) {
-                                        const appendText = `\n🎁 Nhập mã ${selectedDiscount.code} để được giảm giá!`;
+                                        const appendText = `\nNhập mã ${selectedDiscount.code} để được giảm giá!`;
                                         form.setFieldsValue({ message: (currentMessage + appendText).trim() });
                                     }
                                 } else {
@@ -161,18 +162,14 @@ const AdminNotificationComponent = () => {
                         />
                     </Form.Item>
 
-                    <SubmitButton type="submit" disabled={isSending}>
-                        {isSending ? (
-                            'Đang gửi...'
-                        ) : (
-                            <>
-                                <BellOutlined /> Phát sóng Flash Sale ngay
-                            </>
-                        )}
-                    </SubmitButton>
+                    <Form.Item>
+                        <SubmitButton type="submit" disabled={isSending}>
+                            <BellOutlined /> {isSending ? 'Đang gửi...' : 'Gửi Thông Báo Bắn Push'}
+                        </SubmitButton>
+                    </Form.Item>
                 </Form>
             </FormWrapper>
-        </PanelWrapper>
+        </DashboardShell>
     );
 };
 

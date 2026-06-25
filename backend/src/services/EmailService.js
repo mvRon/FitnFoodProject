@@ -2,8 +2,23 @@ const nodemailer = require("nodemailer");
 const dotenv = require("dotenv");
 dotenv.config();
 
+const SystemSettingModel = require('../models/SystemSettingModel');
+
+/**
+ * Lấy tên người gửi từ cài đặt hệ thống (fallback về default nếu chưa có document)
+ */
+const getSenderName = async () => {
+    try {
+        const setting = await SystemSettingModel.findOne().select('emailSenderName').lean();
+        return setting?.emailSenderName || 'FitnFood Corporation';
+    } catch {
+        return 'FitnFood Corporation';
+    }
+};
+
 const verifyAccount = async ({ email, verificationCode }) => {
     try {
+        const senderName = await getSenderName();
         const transporter = nodemailer.createTransport({
             host: "smtp.gmail.com",
             port: 465,
@@ -53,7 +68,7 @@ const verifyAccount = async ({ email, verificationCode }) => {
         `;
 
         const info = await transporter.sendMail({
-            from: `"FitnFood Corporation" <${process.env.EMAIL_USER}>`,
+            from: `"${senderName}" <${process.env.EMAIL_USER}>`,
             to: `${email}`,
             subject: "MÃ XÁC THỰC TÀI KHOẢN FITNFOOD",
             html: htmlContent(verificationCode),
@@ -67,6 +82,7 @@ const verifyAccount = async ({ email, verificationCode }) => {
 
 const recoveryPassword = async ({ email, token }) => {
     try {
+        const senderName = await getSenderName();
         const transporter = nodemailer.createTransport({
             host: "smtp.gmail.com",
             port: 465,
@@ -145,7 +161,7 @@ const recoveryPassword = async ({ email, token }) => {
         `;
 
         const info = await transporter.sendMail({
-            from: `"FitnFood Corporation" <${process.env.EMAIL_USER}>`,
+            from: `"${senderName}" <${process.env.EMAIL_USER}>`,
             to: `${email}`,
             subject: "KHÔI PHỤC MẬT KHẨU",
             html: htmlContent(token),
@@ -160,6 +176,7 @@ const recoveryPassword = async ({ email, token }) => {
 
 const sendEmailOrder = async ({ email, orderItems, totalPrice }) => {
     try {
+        const senderName = await getSenderName();
         const transporter = nodemailer.createTransport({
             host: "smtp.gmail.com",
             port: 465,
@@ -217,7 +234,7 @@ const sendEmailOrder = async ({ email, orderItems, totalPrice }) => {
         };
 
         const info = await transporter.sendMail({
-            from: `"FitnFood Corporation" <${process.env.EMAIL_USER}>`,
+            from: `"${senderName}" <${process.env.EMAIL_USER}>`,
             to: `${email}`,
             subject: "THÔNG BÁO ĐƠN HÀNG",
             html: htmlContent(orderItems, totalPrice),

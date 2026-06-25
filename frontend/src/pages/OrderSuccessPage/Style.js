@@ -5,76 +5,87 @@ export const OrderSuccessWrapper = styled.div`
     justify-content: center;
     align-items: center;
     min-height: calc(100vh - 64px);
-    background:
-      radial-gradient(circle at 14% 12%, rgba(16, 185, 129, 0.2), rgba(16, 185, 129, 0) 34%),
-      radial-gradient(circle at 88% 12%, rgba(2, 132, 199, 0.16), rgba(2, 132, 199, 0) 34%),
-      #f8fafc;
+    background: #F8FAFC; /* Nền chính Slate 50 */
     padding: 24px;
 
     .ant-result {
-        position: relative;
-        overflow: hidden;
-        background: linear-gradient(145deg, #ffffff, #f8fafc);
-        padding: 52px 34px;
-        border-radius: 20px;
-        border: 1px solid rgba(2, 132, 199, 0.2);
-        box-shadow: 0 20px 34px rgba(15, 23, 42, 0.1);
-        max-width: 560px;
+        background: #ffffff;
+        padding: 60px 40px;
+        border-radius: 16px;
+        border: 1px solid rgba(2, 132, 199, 0.1);
+        box-shadow: 0 10px 25px rgba(30, 41, 59, 0.05);
+        max-width: 600px;
         width: 100%;
         text-align: center;
-
-        &::before {
-          content: "";
-          position: absolute;
-          top: -30px;
-          right: -30px;
-          width: 120px;
-          height: 120px;
-          border-radius: 999px;
-          background: radial-gradient(circle, rgba(2, 132, 199, 0.25), rgba(2, 132, 199, 0));
-        }
     }
 
     .ant-result-icon .anticon {
-        font-size: 74px;
+        font-size: 80px;
+        color: #10B981; /* Emerald Green */
     }
 
     .ant-result-title {
-        font-size: 28px;
+        font-size: 32px;
         font-weight: 800;
-        color: #1e293b;
-        margin-bottom: 8px;
+        color: #1E293B; /* Slate 800 */
+        margin-top: 16px;
+        margin-bottom: 12px;
     }
 
     .ant-result-subtitle {
-        font-size: 16px;
-        color: #475569;
-        margin-bottom: 24px;
-        max-width: 420px;
+        font-size: 18px;
+        color: #1E293B; /* Slate 800 */
+        margin-bottom: 32px;
+        max-width: 480px;
         margin-left: auto;
         margin-right: auto;
+        line-height: 1.6;
     }
 
     .ant-result-extra {
         margin-top: 32px;
         display: flex;
-        gap: 10px;
+        gap: 16px;
         justify-content: center;
         flex-wrap: wrap;
     }
 
+    /* Nút CTA - Vitamin Orange */
     .ant-btn-primary {
-        background: linear-gradient(135deg, #10b981, #0284c7);
+        background-color: #F59E0B;
         border: none;
-        border-radius: 10px;
-        font-weight: 700;
-        box-shadow: 0 10px 22px rgba(2, 132, 199, 0.22);
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 16px;
+        height: 48px;
+        padding: 0 32px;
+        box-shadow: 0 4px 14px rgba(245, 158, 11, 0.3);
+        transition: all 0.3s;
     }
 
+    .ant-btn-primary:hover {
+        background-color: #D97706 !important;
+        box-shadow: 0 6px 20px rgba(245, 158, 11, 0.4);
+        transform: translateY(-2px);
+    }
+
+    /* Nút phụ - Ocean Blue (Outline) */
     .ant-btn-default {
-        border-radius: 10px;
-        border-color: rgba(2, 132, 199, 0.35);
-        color: #0369a1;
-        font-weight: 700;
+        border-radius: 8px;
+        border: 2px solid #0284C7;
+        color: #0284C7;
+        background: transparent;
+        font-weight: 600;
+        font-size: 16px;
+        height: 48px;
+        padding: 0 32px;
+        transition: all 0.3s;
+    }
+
+    .ant-btn-default:hover {
+        color: #fff !important;
+        background-color: #0284C7 !important;
+        border-color: #0284C7 !important;
+        transform: translateY(-2px);
     }
 `;

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useLocation, useParams } from 'react-router-dom'; // Để lấy orderId từ URL
-import { Typography, Spin, Divider, Tag, Space, Button } from 'antd';
+import { Typography, Spin, Divider, Tag, Space, Button, Result } from 'antd';
 import { LoadingOutlined } from '@ant-design/icons';
 import * as OrderService from '../../services/OrderService.js'
 import { useSelector } from 'react-redux';
@@ -151,12 +151,23 @@ const OrderDetailPage = () => {
   if (!orderDetail) {
     return (
       <OrderDetailWrapper>
-        <SectionCard title={<Title level={4}>Không có dữ liệu</Title>}>
-          <Text>Không tìm thấy thông tin đơn hàng.</Text>
-          <Button type="primary" onClick={() => window.history.back()} style={{ marginTop: '20px' }}>
-            Quay lại
-          </Button>
-        </SectionCard>
+        <div style={{ padding: '60px 20px', background: '#fff', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', display: 'flex', justifyContent: 'center' }}>
+            <Result
+                status="warning"
+                title={<span style={{ fontSize: '24px', fontWeight: 'bold' }}>Không tìm thấy đơn hàng</span>}
+                subTitle={<span style={{ fontSize: '16px', color: '#595959' }}>Đơn hàng bạn đang tìm kiếm không tồn tại, đã bị xóa hoặc bạn không có quyền xem đơn hàng này.</span>}
+                extra={
+                    <Button 
+                        type="primary" 
+                        size="large" 
+                        onClick={() => window.history.back()}
+                        style={{ borderRadius: '8px', padding: '0 32px', height: '44px' }}
+                    >
+                        Quay lại
+                    </Button>
+                }
+            />
+        </div>
       </OrderDetailWrapper>
     );
   }

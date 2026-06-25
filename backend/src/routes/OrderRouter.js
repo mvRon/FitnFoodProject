@@ -21,5 +21,7 @@ router.put("/:id", authUserMiddleWare, OrderController.updateOrder);
 // Admin lấy toàn bộ danh sách đơn hàng
 router.get("/admin/all", authMiddleWare, OrderController.getAllOrders);
 
+// Admin tạo đơn hàng tại quầy
+router.post("/admin/create-manual-order", authMiddleWare, OrderController.createManualOrder);
 
 module.exports = router;

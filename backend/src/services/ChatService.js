@@ -1152,8 +1152,8 @@ const generateBotMessage = async (question, conversationId, userId, statusCallba
     if (text.includes("[CHECKOUT_CONFIRM]")) {
         text = text.replace(/\[CHECKOUT_CONFIRM\]/gi, "").trim();
         actions = [
-            { type: "confirm_order", label: "✅ Xác nhận đặt hàng", payload: {} },
-            { type: "change_address", label: "📍 Đổi địa chỉ giao hàng", payload: {} },
+            { type: "confirm_order", label: "Xác nhận đặt hàng", payload: {} },
+            { type: "change_address", label: "Đổi địa chỉ giao hàng", payload: {} },
         ];
     }
 

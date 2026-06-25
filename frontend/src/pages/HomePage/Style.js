@@ -19,34 +19,62 @@ export const BreadcrumbWrap = styled.div`
 
   .ant-breadcrumb a,
   .ant-breadcrumb-link {
-    color: #0369a1;
+    color: #475569;
+    font-weight: 500;
+    font-size: 14px;
+    transition: color 0.2s ease;
+  }
+
+  .ant-breadcrumb a:hover {
+    color: #10B981;
+  }
+
+  .ant-breadcrumb > span:last-child .ant-breadcrumb-link {
+    color: #1E293B;
     font-weight: 600;
-    cursor: pointer;
   }
 
   .ant-breadcrumb-separator {
-    color: #0ea5e9;
+    color: #94A3B8;
+    margin: 0 8px;
   }
 `
+
+export const CategoryBar = styled.div`
+  margin-top: 16px;
+  padding: 6px 12px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(2, 132, 199, 0.15); /* Ocean Blue border */
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
+  margin-bottom: 8px;
+`;
 
 export const WrapperTypeProduct = styled.div`
   display: flex;
   align-items: center;
-  gap: 14px;
-  justify-content: flex-start;
-  height: auto;
-  margin-top: 10px;
-  flex-wrap: wrap;
-  padding: 8px;
-  border-radius: 16px;
-  background: linear-gradient(135deg, rgba(16, 185, 129, 0.12), rgba(2, 132, 199, 0.08));
-  border: 1px solid rgba(16, 185, 129, 0.25);
+  gap: 12px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  white-space: nowrap;
+  
+  /* Add padding specifically for scroll container to prevent clipping */
+  padding: 10px 6px 14px 6px;
 
-  @media (max-width: 768px) {
-    justify-content: center;
-    gap: 12px;
+  /* Hide scrollbar for clean UI but keep it scrollable */
+  &::-webkit-scrollbar {
+    height: 6px;
   }
-`
+  &::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, 0.4); /* Slate 400 */
+    border-radius: 10px;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+    margin: 0 16px; 
+  }
+`;
 
 export const WrapperButtonMore = styled(Button)`
   text-align: center;

@@ -168,18 +168,20 @@ const TypeProductPage = () => {
     };
 
     const categoryPath = currentCategory ? getCategoryPath(currentCategory, typeProduct) : [];
+
+
     const totalCategoryCount = currentCategory
-        ? siblingCategories.length
-        : topLevelCategories.length
+        ? Math.max(0, siblingCategories.length - 1)
+        : topLevelCategories.length;
 
     return (
         <PageRoot>
             <LoadingComponent isPending={isloading}>
                 <BreadcrumbWrap>
                     <Breadcrumb items={[
-                        { title: <span onClick={handleNavigateHome} style={{cursor: 'pointer'}}>Trang chủ</span> },
+                        { title: <span onClick={handleNavigateHome} style={{ cursor: 'pointer' }}>Trang chủ</span> },
                         ...categoryPath.map((cat) => ({
-                            title: <span onClick={() => handleNavigateCategory(cat)} style={{cursor: 'pointer'}}>{cat.name}</span>,
+                            title: <span onClick={() => handleNavigateCategory(cat)} style={{ cursor: 'pointer' }}>{cat.name}</span>,
                             key: cat._id
                         }))
                     ]} />

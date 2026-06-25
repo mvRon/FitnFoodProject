@@ -9,6 +9,7 @@ const ChatRouter = require('./ChatRouter');
 const PaymentRouter = require('./PaymentRouter');
 const RevenueRouter = require('./RevenueRouter');
 const NotificationRouter = require('./NotificationRouter');
+const SystemSettingRouter = require('./SystemSettingRouter');
 
 
 
@@ -24,6 +25,7 @@ const routes = (app) => {
     app.use('/api/payment', PaymentRouter);
     app.use('/api/revenue', RevenueRouter);
     app.use('/api/notification', NotificationRouter);
+    app.use('/api/system-setting', SystemSettingRouter);
 
 
 

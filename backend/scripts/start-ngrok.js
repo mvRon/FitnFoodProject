@@ -84,7 +84,7 @@ async function main() {
             console.log(`\nBackend server thoát với code: ${code}`);
             try {
                 await listener.close();
-            } catch (e) {}
+            } catch (e) { }
             process.exit(code);
         });
 
@@ -93,7 +93,7 @@ async function main() {
             console.log('\n🛑 Đang tắt Ngrok...');
             try {
                 await listener.close();
-            } catch (e) {}
+            } catch (e) { }
             server.kill();
             process.exit(0);
         };

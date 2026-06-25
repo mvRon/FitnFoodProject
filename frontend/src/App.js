@@ -10,6 +10,7 @@ import LoadingComponent from './components/LoadingComponent/LoadingComponent'
 import DefaultComponent from './components/DefaultComponent/DefaultComponent'
 import { message } from 'antd'
 import { fetchCart } from './redux/slice/orderSlice'
+import { useSystemSetting } from './context/SystemSettingContext'
 
 
 
@@ -17,8 +18,24 @@ function App() {
 
   const dispatch = useDispatch()
   const user = useSelector((state) => state.user)
-
+  const { setting } = useSystemSetting()
   const [isLoading, setIsLoading] = useState(false)
+
+  // Áp dụng SEO: cập nhật document.title và meta description từ cài đặt hệ thống
+  useEffect(() => {
+    if (setting?.metaTitle) {
+      document.title = setting.metaTitle;
+    }
+    if (setting?.metaDescription) {
+      let metaDesc = document.querySelector('meta[name="description"]');
+      if (!metaDesc) {
+        metaDesc = document.createElement('meta');
+        metaDesc.setAttribute('name', 'description');
+        document.head.appendChild(metaDesc);
+      }
+      metaDesc.setAttribute('content', setting.metaDescription);
+    }
+  }, [setting?.metaTitle, setting?.metaDescription]);
 
 
   useEffect(() => {
@@ -101,7 +118,11 @@ function App() {
     async error => {
       const originalRequest = error.config
 
-      if ((error.response?.status === 401 || error.response?.status === 403) && !originalRequest._retry) {
+      const isTokenError = error.response?.data?.message === "Invalid token" || 
+                           error.response?.data?.message === "Token required!" || 
+                           error.response?.data?.message === "The authentication";
+
+      if ((error.response?.status === 401 || (error.response?.status === 403 && isTokenError) || (error.response?.status === 404 && isTokenError)) && !originalRequest._retry) {
         originalRequest._retry = true
 
         // Clear localStorage + Redux
@@ -124,8 +145,13 @@ function App() {
               const Page = route.page
               const isCheckAuth = !route.isPrivate || user?.isAdmin
               const Layout = route.isShowHeader ? DefaultComponent : Fragment
+              
+              if (!isCheckAuth) {
+                return null;
+              }
+
               return (
-                <Route key={route.path} path={isCheckAuth ? route.path : undefined} element={
+                <Route key={route.path} path={route.path} element={
                   <Layout>
                     <Page />
                   </Layout>

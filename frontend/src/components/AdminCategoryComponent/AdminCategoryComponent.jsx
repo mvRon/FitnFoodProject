@@ -1,9 +1,19 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { Button, Form, Input, message, Modal, Select, Space, Tag } from 'antd';
-import { EditOutlined, DeleteOutlined, PlusOutlined } from '@ant-design/icons';
-import { WrapperHeader } from './Style';
-import { CategoryGlobalStyle } from './Style';
-import { AdminCategoryPageGlobalStyle } from './Style';
+import { EditOutlined, DeleteOutlined, PlusOutlined, SearchOutlined, TagsOutlined, ReloadOutlined } from '@ant-design/icons';
+import {
+    CategoryGlobalStyle,
+    AdminCategoryPageGlobalStyle,
+    DashboardShell,
+    HeaderCard,
+    HeaderTitle,
+    HeaderDesc,
+    StatsGrid,
+    StatCard,
+    StatLabel,
+    StatValue,
+    FilterBar
+} from './Style';
 import { getAllCategories, createCategory, updateCategory, deleteCategory } from '../../services/CategoryService';
 import TableComponent from '../TableComponent/TableComponent';
 import { useSelector } from 'react-redux';
@@ -12,6 +22,7 @@ const AdminCategoryComponent = () => {
     const [categories, setCategories] = useState([]);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [rowSelected, setRowSelected] = useState('');
+    const [searchKeyword, setSearchKeyword] = useState('');
     const [nameError, setNameError] = useState('');
     const [isFormValid, setIsFormValid] = useState(true);
     const [form] = Form.useForm();
@@ -176,7 +187,11 @@ const AdminCategoryComponent = () => {
     ];
 
     // Data for table
-    const dataTable = buildCategoryTableData(categories);
+    const rawDataTable = buildCategoryTableData(categories);
+    const dataTable = rawDataTable.filter(item => {
+        if (!searchKeyword) return true;
+        return item?.name?.toLowerCase().includes(searchKeyword.toLowerCase());
+    });
 
 
     // Add, edit, delete handlers
@@ -295,17 +310,66 @@ const AdminCategoryComponent = () => {
     };
 
 
+    const stats = useMemo(() => {
+        const total = categories?.length || 0;
+        const parents = categories?.filter(c => !c.parent).length || 0;
+        const children = categories?.filter(c => c.parent).length || 0;
+        return { total, parents, children };
+    }, [categories]);
+
     return (
-        <div className="admin-category-page">
+        <>
             <CategoryGlobalStyle />
             <AdminCategoryPageGlobalStyle />
-            <WrapperHeader>Quản lý loại sản phẩm</WrapperHeader>
-            <div className="admin-category-toolbar">
-                <Button className="admin-category-add-btn" onClick={() => { setIsModalOpen(true); form.resetFields(); setRowSelected(''); setNameError(''); setIsFormValid(true); }}>
-                    <PlusOutlined style={{ fontSize: '20px' }} /> Thêm loại sản phẩm
-                </Button>
-            </div>
-            <div className="admin-category-table-wrap">
+            <DashboardShell className="admin-category-page">
+                <HeaderCard>
+                    <HeaderTitle>
+                        <TagsOutlined /> Quản lý loại sản phẩm
+                    </HeaderTitle>
+                    <HeaderDesc>
+                        Thiết lập danh mục gốc và danh mục con giúp tổ chức sản phẩm một cách logic.
+                    </HeaderDesc>
+
+                    <StatsGrid>
+                        <StatCard>
+                            <StatLabel>Tổng loại sản phẩm</StatLabel>
+                            <StatValue>{stats.total}</StatValue>
+                        </StatCard>
+                        <StatCard>
+                            <StatLabel>Danh mục gốc</StatLabel>
+                            <StatValue>{stats.parents}</StatValue>
+                        </StatCard>
+                        <StatCard>
+                            <StatLabel>Danh mục con</StatLabel>
+                            <StatValue>{stats.children}</StatValue>
+                        </StatCard>
+                    </StatsGrid>
+                </HeaderCard>
+
+                <FilterBar>
+                    <Input
+                        placeholder="Tìm kiếm loại sản phẩm..."
+                        prefix={<SearchOutlined />}
+                        value={searchKeyword}
+                        onChange={(e) => setSearchKeyword(e.target.value)}
+                        className="admin-category-search-input"
+                        allowClear
+                    />
+                    <Space wrap>
+                        <Button className="admin-category-add-btn" onClick={() => { setIsModalOpen(true); form.resetFields(); setRowSelected(''); setNameError(''); setIsFormValid(true); }}>
+                            <PlusOutlined style={{ fontSize: '20px' }} /> Thêm loại sản phẩm
+                        </Button>
+                        <Button
+                            className="admin-category-refresh-btn"
+                            icon={<ReloadOutlined />}
+                            onClick={() => fetchCategories()}
+                        >
+                            Làm mới
+                        </Button>
+                    </Space>
+                </FilterBar>
+
+                <div className="admin-category-table-wrap">
                 <TableComponent
                     forceRender
                     columns={columns}
@@ -387,7 +451,8 @@ const AdminCategoryComponent = () => {
                     </Form.Item>
                 </Form>
             </Modal>
-        </div>
+            </DashboardShell>
+        </>
     );
 };
 

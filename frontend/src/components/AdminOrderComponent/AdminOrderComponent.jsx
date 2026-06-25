@@ -1,17 +1,30 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Button, Col, Divider, Form, Input, InputNumber, Row, Select, Space, Tag, message } from "antd";
-import { DeleteOutlined, EditOutlined, PlusOutlined, SearchOutlined } from "@ant-design/icons";
+import { Button, Col, Divider, Form, Input, InputNumber, Row, Select, Space, Tag, message, Radio, Modal, QRCode } from "antd";
+import { DeleteOutlined, EditOutlined, PlusOutlined, SearchOutlined, SyncOutlined, ShoppingCartOutlined, ReloadOutlined, EyeOutlined } from "@ant-design/icons";
 import TableComponent from "../TableComponent/TableComponent";
 import LoadingComponent from "../LoadingComponent/LoadingComponent";
 import ModalComponent from "../ModalComponent/ModalComponent";
 import { useMutationHook } from "../../hooks/useMutationHook";
 import { useQuery } from "@tanstack/react-query";
-import { OrderGlobalStyle, OrderPageContainer, WrapperHeader } from "./Style";
+import {
+    OrderGlobalStyle,
+    DashboardShell,
+    HeaderCard,
+    HeaderTitle,
+    HeaderDesc,
+    StatsGrid,
+    StatCard,
+    StatLabel,
+    StatValue,
+    FilterBarShell
+} from "./Style";
 import * as OrderService from "../../services/OrderService";
 import * as ProductService from "../../services/ProductService";
 import * as UserService from "../../services/UserService";
 import { useNavigate } from "react-router-dom";
 import { FilterBar, FilterBtn, RefreshBtn, DateInput } from "./FilterStyles";
+import { io } from "socket.io-client";
+import PaymentQRModal from "../../components/PaymentQRModal/PaymentQRModal";
 
 const VN_OFFSET = 7 * 60 * 60 * 1000; // GMT+7 (Việt Nam)
 
@@ -37,6 +50,16 @@ const getEndOfDayUTC = (vnDate) => {
         23, 59, 59, 999
     );
     return new Date(msAtEndOfDayVN - VN_OFFSET).toISOString();
+};
+
+const resolveToken = (accessToken) => {
+    if (!accessToken) return null;
+    if (typeof accessToken !== "string") return accessToken;
+    try {
+        return JSON.parse(accessToken);
+    } catch (error) {
+        return accessToken;
+    }
 };
 
 const getPresetRange = (preset) => {
@@ -97,9 +120,13 @@ const AdminOrderComponent = () => {
     const [isModalCreateOrderOpen, setIsModalCreateOrderOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [stateDetailOrder, setStateDetailOrder] = useState({});
+    const [isReadOnly, setIsReadOnly] = useState(false);
     const [form] = Form.useForm();
     const [createOrderForm] = Form.useForm();
     const searchInput = useRef(null);
+    const searchKeywordRef = useRef(null);
+    const [searchKeyword, setSearchKeyword] = useState("");
+    const navigate = useNavigate();
 
     const [preset, setPreset] = useState("all");
     const [customFrom, setCustomFrom] = useState("");
@@ -134,6 +161,61 @@ const AdminOrderComponent = () => {
             storageData = null;
         }
     }
+
+
+    const [payosModal, setPayosModal] = useState({
+        isOpen: false,
+        qrCode: "",
+        checkoutUrl: "",
+        orderId: "",
+        bin: "",
+        accountNumber: "",
+        accountName: "",
+        description: "",
+    });
+
+    const socketRef = useRef(null);
+
+    useEffect(() => {
+        const apiBase = process.env.REACT_APP_API_URL_BACKEND || "";
+        const socketUrl = apiBase.replace(/\/api\/?$/, "");
+        if (!socketUrl) return;
+
+        const token = resolveToken(localStorage.getItem("access_token"));
+        const socket = io(socketUrl, {
+            auth: token ? { token } : {},
+            transports: ["websocket"],
+        });
+        socketRef.current = socket;
+
+        return () => {
+            socket.disconnect();
+            socketRef.current = null;
+        };
+    }, []);
+
+    const handlePayOSSuccess = () => {
+        setPayosModal({ isOpen: false, qrCode: "", checkoutUrl: "", orderId: "", bin: "", accountNumber: "", accountName: "", description: "" });
+        message.success("Thanh toán PayOS thành công!");
+        setIsModalCreateOrderOpen(false);
+        createOrderForm.resetFields();
+        queryOrder.refetch();
+        productsQuery.refetch();
+    };
+
+    const handlePayOSCancel = async () => {
+        const { orderId } = payosModal;
+        setPayosModal({ isOpen: false, qrCode: "", checkoutUrl: "", orderId: "", bin: "", accountNumber: "", accountName: "", description: "" });
+        if (orderId) {
+            try { await OrderService.cancelPayment(storageData, orderId); }
+            catch (e) { console.error(e); }
+        }
+    };
+
+    const handlePayOSExpire = () => {
+        setPayosModal({ isOpen: false, qrCode: "", checkoutUrl: "", orderId: "", bin: "", accountNumber: "", accountName: "", description: "" });
+        message.info("Phiên thanh toán đã hết hạn");
+    };
 
     const fetchGetDetailOrder = async (orderId) => {
         if (!storageData) return;
@@ -178,7 +260,7 @@ const AdminOrderComponent = () => {
     });
 
     const mutationCreateOrder = useMutationHook((payload) => {
-        return OrderService.createOrder(storageData, payload);
+        return OrderService.createManualOrder(storageData, payload);
     });
 
     const getAllOrders = async () => {
@@ -230,11 +312,24 @@ const AdminOrderComponent = () => {
 
     useEffect(() => {
         if (mutationCreateOrder.isSuccess && mutationCreateOrder.data?.status === "OK") {
-            message.success("Tạo đơn hàng tại quầy thành công");
-            setIsModalCreateOrderOpen(false);
-            createOrderForm.resetFields();
-            queryOrder.refetch();
-            productsQuery.refetch();
+            if (mutationCreateOrder.data.data?.qrCode) {
+                setPayosModal({
+                    isOpen: true,
+                    qrCode: mutationCreateOrder.data.data.qrCode,
+                    checkoutUrl: mutationCreateOrder.data.data.checkoutUrl,
+                    orderId: String(mutationCreateOrder.data.data.orderId),
+                    bin: mutationCreateOrder.data.data.bin || "",
+                    accountNumber: mutationCreateOrder.data.data.accountNumber || "",
+                    accountName: mutationCreateOrder.data.data.accountName || "",
+                    description: mutationCreateOrder.data.data.description || "",
+                });
+            } else {
+                message.success("Tạo đơn hàng tại quầy thành công");
+                setIsModalCreateOrderOpen(false);
+                createOrderForm.resetFields();
+                queryOrder.refetch();
+                productsQuery.refetch();
+            }
         }
 
         if (mutationCreateOrder.isSuccess && mutationCreateOrder.data?.status !== "OK") {
@@ -245,6 +340,7 @@ const AdminOrderComponent = () => {
     const users = usersQuery?.data?.data || [];
     const products = productsQuery?.data?.data || [];
     const watchedOrderItems = Form.useWatch("orderItems", createOrderForm) || [];
+    const customerType = Form.useWatch("customerType", createOrderForm) || "registered";
 
     const userOptions = users
         .filter((user) => !user?.isAdmin)
@@ -401,40 +497,71 @@ const AdminOrderComponent = () => {
         },
         {
             title: "Hành động",
-            render: (_, record) => (
-                <Space>
-                    <Button
-                        className="admin-order-action-btn admin-order-action-btn-danger"
-                        icon={<DeleteOutlined />}
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            setRowSelected(record._id);
-                            setIsModalOpenDelete(true);
-                        }}
-                    />
-                    <Button
-                        className="admin-order-action-btn"
-                        icon={<EditOutlined />}
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            setRowSelected(record._id);
-                            setIsOpenDrawer(true);
-                        }}
-                    />
-                </Space>
-            ),
+            render: (_, record) => {
+                const isCompleted = record.isPaid && record.isDelivered === 'delivered';
+                return (
+                    <Space>
+                        <Button
+                            className="admin-order-action-btn admin-order-action-btn-danger"
+                            icon={<DeleteOutlined />}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setRowSelected(record._id);
+                                setIsModalOpenDelete(true);
+                            }}
+                        />
+                        <Button
+                            className="admin-order-action-btn"
+                            icon={<EditOutlined />}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setRowSelected(record._id);
+                                setIsReadOnly(isCompleted);
+                                setIsOpenDrawer(true);
+                            }}
+                        />
+                        <Button
+                            className="admin-order-action-btn"
+                            icon={<EyeOutlined />}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`/orderDetail/${record._id}`);
+                            }}
+                        />
+                    </Space>
+                );
+            },
         },
     ];
 
-    const dataTable = queryOrder?.data?.data?.map((order) => ({
-        ...order,
-        key: order._id,
-        customerName: order?.shippingAddress?.fullName || order.user?.name || "Không xác định",
-        phone: order.shippingAddress?.phone || "",
-        total: order.totalPrice,
-        isDelivered: order.isDelivered,
-        isPaid: order.isPaid,
-    })) || [];
+    const stats = useMemo(() => {
+        const orders = queryOrder?.data?.data || [];
+        const total = orders.length;
+        const processing = orders.filter(o => o.isDelivered === 'pending' || o.isDelivered === 'processing').length;
+        const delivered = orders.filter(o => o.isDelivered === 'delivered').length;
+        const revenue = orders.filter(o => o.isPaid).reduce((acc, curr) => acc + (curr.totalPrice || 0), 0);
+        return { total, processing, delivered, revenue };
+    }, [queryOrder?.data?.data]);
+
+    const dataTable = (queryOrder?.data?.data || [])
+        .map((order) => ({
+            ...order,
+            key: order._id,
+            customerName: order?.shippingAddress?.fullName || order.user?.name || "Không xác định",
+            phone: order.shippingAddress?.phone || "",
+            total: order.totalPrice,
+            isDelivered: order.isDelivered,
+            isPaid: order.isPaid,
+        }))
+        .filter((order) => {
+            if (!searchKeyword) return true;
+            const term = searchKeyword.toLowerCase();
+            return (
+                order.customerName.toLowerCase().includes(term) ||
+                order.phone.toLowerCase().includes(term) ||
+                (order._id && order._id.toLowerCase().includes(term))
+            );
+        });
 
     const handleDeleteOrder = () => {
         if (storageData && rowSelected) {
@@ -477,8 +604,6 @@ const AdminOrderComponent = () => {
         }
     };
 
-
-    const navigate = useNavigate()
     const handleGetDetailProduct = async (productId) => {
         navigate(`/productDetail/${productId}`)
     }
@@ -554,13 +679,14 @@ const AdminOrderComponent = () => {
 
             mutationCreateOrder.mutate({
                 user: values.user,
+                customerType: values.customerType,
                 fullName: values.fullName,
                 phone: values.phone,
                 address: values.address,
                 city: values.city,
                 paymentMethod: values.paymentMethod,
-                isPaid: Boolean(values.isPaid),
-                paidAt: values.isPaid ? new Date().toISOString() : null,
+                isPaid: values.paymentMethod === 'cash',
+                paidAt: values.paymentMethod === 'cash' ? new Date().toISOString() : null,
                 isDelivered: "delivered",
                 orderItems: normalizedItems,
                 itemsPrice,
@@ -575,307 +701,367 @@ const AdminOrderComponent = () => {
 
 
     return (
-        <OrderPageContainer className="admin-order-page">
+        <>
             <OrderGlobalStyle />
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: 14 }}>
-                <WrapperHeader style={{ marginBottom: 0 }}>Quản lý đơn hàng</WrapperHeader>
-                <Button
-                    className="admin-order-submit-btn"
-                    icon={<PlusOutlined />}
-                    onClick={() => setIsModalCreateOrderOpen(true)}
+            <DashboardShell className="admin-order-page">
+                <HeaderCard>
+                    <HeaderTitle>
+                        <ShoppingCartOutlined /> Quản lý Đơn hàng
+                    </HeaderTitle>
+                    <HeaderDesc>
+                        Theo dõi, xử lý và cập nhật trạng thái đơn hàng của khách hàng theo thời gian thực.
+                    </HeaderDesc>
+
+                    <StatsGrid>
+                        <StatCard>
+                            <StatLabel>Tổng đơn hàng</StatLabel>
+                            <StatValue>{stats.total}</StatValue>
+                        </StatCard>
+                        <StatCard>
+                            <StatLabel>Đang xử lý</StatLabel>
+                            <StatValue>{stats.processing}</StatValue>
+                        </StatCard>
+                        <StatCard>
+                            <StatLabel>Đã giao</StatLabel>
+                            <StatValue>{stats.delivered}</StatValue>
+                        </StatCard>
+                        <StatCard>
+                            <StatLabel>Doanh thu</StatLabel>
+                            <StatValue style={{ color: '#10B981' }}>{stats.revenue.toLocaleString('vi-VN')} đ</StatValue>
+                        </StatCard>
+                    </StatsGrid>
+                </HeaderCard>
+
+                <FilterBarShell>
+                    <Input
+                        placeholder="Tìm theo tên khách, SĐT, mã đơn..."
+                        prefix={<SearchOutlined />}
+                        value={searchKeyword}
+                        onChange={(e) => setSearchKeyword(e.target.value)}
+                        className="admin-order-search-input"
+                        allowClear
+                    />
+
+                    <Space wrap style={{ flex: 1, justifyContent: 'flex-end' }}>
+                        {PRESETS.map((p) => (
+                            <FilterBtn
+                                key={p.key}
+                                $active={preset === p.key}
+                                onClick={() => setPreset(p.key)}
+                            >
+                                {p.label}
+                            </FilterBtn>
+                        ))}
+                        {preset === "custom" && (
+                            <>
+                                <DateInput
+                                    type="date"
+                                    value={customFrom}
+                                    onChange={e => setCustomFrom(e.target.value)}
+                                    title="Từ ngày"
+                                />
+                                <span style={{ color: "#64748B", fontSize: 12 }}>→</span>
+                                <DateInput
+                                    type="date"
+                                    value={customTo}
+                                    onChange={e => setCustomTo(e.target.value)}
+                                    title="Đến ngày"
+                                />
+                            </>
+                        )}
+                        <Button
+                            className="admin-order-submit-btn"
+                            icon={<PlusOutlined />}
+                            onClick={() => setIsModalCreateOrderOpen(true)}
+                            type="primary"
+                            style={{ height: 38 }}
+                        >
+                            Tạo đơn tại quầy
+                        </Button>
+                        <RefreshBtn onClick={() => queryOrder.refetch()} disabled={queryOrder.isFetching}>
+                            <SyncOutlined spin={queryOrder.isFetching} style={{ marginRight: 6 }} />
+                            {queryOrder.isFetching ? "Đang tải..." : "Làm mới"}
+                        </RefreshBtn>
+                    </Space>
+                </FilterBarShell>
+
+                <div className="admin-order-table-wrap">
+                    <TableComponent
+                        columns={columns}
+                        isPending={queryOrder.isLoading}
+                        data={dataTable}
+                        onRow={(record) => ({
+                            onClick: () => {
+                                const isCompleted = record.isPaid && record.isDelivered === 'delivered';
+                                setRowSelected(record._id);
+                                setIsReadOnly(isCompleted);
+                                setIsOpenDrawer(true);
+                            },
+                        })}
+                    />
+                </div>
+
+                <ModalComponent
+                    title={`Chi tiết đơn hàng - ${stateDetailOrder?.orderId || ""}`}
+                    open={isOpenDrawer}
+                    width="50%"
+                    onCancel={() => setIsOpenDrawer(false)}
+                    footer={null}
+                    className="admin-order-modal"
                 >
-                    Tạo đơn tại quầy
-                </Button>
-            </div>
+                    <LoadingComponent isPending={isLoading || mutationUpdateOrder.isPending}>
+                        <Form className="admin-order-form" layout="vertical" form={form} onFinish={handleUpdateOrder} forceRender >
+                            <Form.Item label="Khách hàng" name="customerName">
+                                <Input disabled />
+                            </Form.Item>
+                            <Form.Item label="SĐT" name="phone">
+                                <Input disabled />
+                            </Form.Item>
+                            <Form.Item label="Địa chỉ" name={["shippingAddress", "address"]}>
+                                <Input disabled />
+                            </Form.Item>
+                            <Form.Item label="Tổng tiền" name="total">
+                                <Input disabled />
+                            </Form.Item>
+                            <Form.Item label="Giao hàng" name="isDelivered" rules={[{ required: true, message: "Chọn trạng thái" }]}>
+                                <Select disabled={isReadOnly}>
+                                    <Select.Option value="pending">Chờ xử lý</Select.Option>
+                                    <Select.Option value="processing">Đang xử lý</Select.Option>
+                                    <Select.Option value="shipping">Đang giao hàng</Select.Option>
+                                    <Select.Option value="delivered">Đã giao hàng</Select.Option>
+                                </Select>
+                            </Form.Item>
+                            <Form.Item label="Thanh toán" name="isPaid" rules={[{ required: true, message: "Chọn trạng thái" }]}>
+                                <Select disabled={isReadOnly}>
+                                    <Select.Option value={true}>Đã thanh toán</Select.Option>
+                                    <Select.Option value={false}>Chưa thanh toán</Select.Option>
+                                </Select>
+                            </Form.Item>
+                            {!isReadOnly && (
+                                <Form.Item>
+                                    <Button className="admin-order-submit-btn" type="primary" htmlType="submit">Cập nhật</Button>
+                                </Form.Item>
+                            )}
+                        </Form>
 
-            <FilterBar>
-                {PRESETS.map((p) => (
-                    <FilterBtn
-                        key={p.key}
-                        $active={preset === p.key}
-                        onClick={() => setPreset(p.key)}
-                    >
-                        {p.label}
-                    </FilterBtn>
-                ))}
-                {preset === "custom" && (
-                    <>
-                        <DateInput
-                            type="date"
-                            value={customFrom}
-                            onChange={e => setCustomFrom(e.target.value)}
-                            title="Từ ngày"
-                        />
-                        <span style={{ color: "#64748B", fontSize: 12 }}>→</span>
-                        <DateInput
-                            type="date"
-                            value={customTo}
-                            onChange={e => setCustomTo(e.target.value)}
-                            title="Đến ngày"
-                        />
-                    </>
-                )}
-                <RefreshBtn onClick={() => queryOrder.refetch()} disabled={queryOrder.isFetching}>
-                    {queryOrder.isFetching ? "🔄 Đang tải..." : "🔄 Làm mới"}
-                </RefreshBtn>
-            </FilterBar>
+                        <div className="admin-order-item-list">
+                            <b>Sản phẩm:</b>
+                            <ul>
+                                {(stateDetailOrder.orderItems || []).map((item, idx) => (
 
-            <div className="admin-order-table-wrap">
-                <TableComponent
-                    columns={columns}
-                    isPending={queryOrder.isLoading}
-                    data={dataTable}
-                    onRow={(record) => ({
-                        onClick: () => {
-                            setRowSelected(record._id);
-                            setIsOpenDrawer(true);
-                        },
-                    })}
-                />
-            </div>
-
-            <ModalComponent
-                title={`Chi tiết đơn hàng - ${stateDetailOrder?.orderId || ""}`}
-                open={isOpenDrawer}
-                width="50%"
-                onCancel={() => setIsOpenDrawer(false)}
-                footer={null}
-                className="admin-order-modal"
-            >
-                <LoadingComponent isPending={isLoading || mutationUpdateOrder.isPending}>
-                    <Form className="admin-order-form" layout="vertical" form={form} onFinish={handleUpdateOrder} forceRender >
-                        <Form.Item label="Khách hàng" name="customerName">
-                            <Input disabled />
-                        </Form.Item>
-                        <Form.Item label="SĐT" name="phone">
-                            <Input disabled />
-                        </Form.Item>
-                        <Form.Item label="Địa chỉ" name={["shippingAddress", "address"]}>
-                            <Input disabled />
-                        </Form.Item>
-                        <Form.Item label="Tổng tiền" name="total">
-                            <Input disabled />
-                        </Form.Item>
-                        <Form.Item label="Giao hàng" name="isDelivered" rules={[{ required: true, message: "Chọn trạng thái" }]}>
-                            <Select>
-                                <Select.Option value="pending">Chờ xử lý</Select.Option>
-                                <Select.Option value="processing">Đang xử lý</Select.Option>
-                                <Select.Option value="shipping">Đang giao hàng</Select.Option>
-                                <Select.Option value="delivered">Đã giao hàng</Select.Option>
-                            </Select>
-                        </Form.Item>
-                        <Form.Item label="Thanh toán" name="isPaid" rules={[{ required: true, message: "Chọn trạng thái" }]}>
-                            <Select>
-                                <Select.Option value={true}>Đã thanh toán</Select.Option>
-                                <Select.Option value={false}>Chưa thanh toán</Select.Option>
-                            </Select>
-                        </Form.Item>
-                        <Form.Item>
-                            <Button className="admin-order-submit-btn" type="primary" htmlType="submit">Cập nhật</Button>
-                        </Form.Item>
-                    </Form>
-
-                    <div className="admin-order-item-list">
-                        <b>Sản phẩm:</b>
-                        <ul>
-                            {(stateDetailOrder.orderItems || []).map((item, idx) => (
-
-                                <li key={idx}>
-                                    <img
-                                        className="admin-order-item-image"
-                                        onClick={() => handleGetDetailProduct(item?.product)}
-                                        src={item?.image}
-                                        alt={item?.name} /> {item.name} x {item.amount}: {item.price.toLocaleString()} VNĐ (Giá chưa giảm)
-                                </li>
-                            ))}
-                        </ul>
-                    </div>
-                </LoadingComponent>
-            </ModalComponent>
-
-            <ModalComponent
-                title="Xóa đơn hàng"
-                open={isModalOpenDelete}
-                onCancel={() => setIsModalOpenDelete(false)}
-                okText="Xóa"
-                onOk={handleDeleteOrder}
-                className="admin-order-modal"
-            >
-                <LoadingComponent isPending={mutationDeleteOrder.isPending}>
-                    <div>Bạn có chắc muốn xóa đơn hàng này không?</div>
-                </LoadingComponent>
-            </ModalComponent>
-
-            <ModalComponent
-                title="Tạo đơn hàng tại quầy"
-                open={isModalCreateOrderOpen}
-                onCancel={() => setIsModalCreateOrderOpen(false)}
-                footer={null}
-                width={900}
-                className="admin-order-modal admin-order-create-modal"
-            >
-                <LoadingComponent isPending={mutationCreateOrder.isPending || productsQuery.isLoading || usersQuery.isLoading}>
-                    <Form
-                        form={createOrderForm}
-                        layout="vertical"
-                        className="admin-order-form"
-                        initialValues={{ paymentMethod: "cash", isPaid: true, orderItems: [{ amount: 1 }] }}
-                        onFinish={onSubmitManualOrder}
-                    >
-                        <div className="admin-order-create-hero">
-                            <div>
-                                <h3>Đơn hàng tại quầy</h3>
-                                <p>Tạo nhanh đơn mua trực tiếp tại cửa hàng. Không áp dụng mã giảm giá và phí giao hàng luôn bằng 0.</p>
-                            </div>
-                            <div className="admin-order-create-total-box">
-                                <span>Tổng tiền realtime</span>
-                                <strong>{orderSummary.totalPrice.toLocaleString("vi-VN")} VNĐ</strong>
-                            </div>
+                                    <li key={idx}>
+                                        <img
+                                            className="admin-order-item-image"
+                                            onClick={() => handleGetDetailProduct(item?.product)}
+                                            src={item?.image}
+                                            alt={item?.name} /> {item.name} x {item.amount}: {item.price.toLocaleString()} VNĐ (Giá chưa giảm)
+                                    </li>
+                                ))}
+                            </ul>
                         </div>
+                    </LoadingComponent>
+                </ModalComponent>
 
-                        <Row gutter={[12, 8]}>
-                            <Col xs={24} md={12}>
-                                <Form.Item
-                                    label="Khách hàng đã có tài khoản"
-                                    name="user"
-                                    rules={[{ required: true, message: "Vui lòng chọn khách hàng" }]}
-                                >
+                <ModalComponent
+                    title="Xóa đơn hàng"
+                    open={isModalOpenDelete}
+                    onCancel={() => setIsModalOpenDelete(false)}
+                    okText="Xóa"
+                    onOk={handleDeleteOrder}
+                    className="admin-order-modal"
+                >
+                    <LoadingComponent isPending={mutationDeleteOrder.isPending}>
+                        <div>Bạn có chắc muốn xóa đơn hàng này không?</div>
+                    </LoadingComponent>
+                </ModalComponent>
+
+                <ModalComponent
+                    title="Tạo đơn hàng tại quầy"
+                    open={isModalCreateOrderOpen}
+                    onCancel={() => setIsModalCreateOrderOpen(false)}
+                    footer={null}
+                    width={900}
+                    className="admin-order-modal admin-order-create-modal"
+                >
+                    <LoadingComponent isPending={mutationCreateOrder.isPending || productsQuery.isLoading || usersQuery.isLoading}>
+                        <Form
+                            form={createOrderForm}
+                            layout="vertical"
+                            className="admin-order-form"
+                            initialValues={{ customerType: "registered", paymentMethod: "cash", isPaid: true, orderItems: [{ amount: 1 }] }}
+                            onFinish={onSubmitManualOrder}
+                        >
+                            <div className="admin-order-create-hero">
+                                <div>
+                                    <h3>Đơn hàng tại quầy</h3>
+                                    <p>Tạo nhanh đơn mua trực tiếp tại cửa hàng. Không áp dụng mã giảm giá và phí giao hàng luôn bằng 0.</p>
+                                </div>
+                                <div className="admin-order-create-total-box">
+                                    <span>Tổng tiền realtime</span>
+                                    <strong>{orderSummary.totalPrice.toLocaleString("vi-VN")} VNĐ</strong>
+                                </div>
+                            </div>
+
+                            <Form.Item name="customerType" label="Loại khách hàng">
+                                <Radio.Group>
+                                    <Radio value="registered">Khách đã có tài khoản</Radio>
+                                    <Radio value="guest">Khách vãng lai</Radio>
+                                </Radio.Group>
+                            </Form.Item>
+
+                            <Row gutter={[12, 8]}>
+                                {customerType === "registered" && (
+                                    <Col xs={24} md={12}>
+                                        <Form.Item
+                                            label="Khách hàng đã có tài khoản"
+                                            name="user"
+                                            rules={[{ required: true, message: "Vui lòng chọn khách hàng" }]}
+                                        >
+                                            <Select
+                                                showSearch
+                                                optionFilterProp="label"
+                                                options={userOptions}
+                                                onChange={handleSelectCustomerForManualOrder}
+                                                placeholder="Chọn người dùng"
+                                            />
+                                        </Form.Item>
+                                    </Col>
+                                )}
+                                <Col xs={24} md={12}>
+                                    <Form.Item style={{ marginBottom: 8 }} label="Số điện thoại" name="phone" rules={[{ required: true, message: "Vui lòng nhập SĐT" }]}>
+                                        <Input />
+                                    </Form.Item>
+                                </Col>
+                                <Col xs={24} md={12}>
+                                    <Form.Item style={{ marginBottom: 8 }} label="Họ tên" name="fullName" rules={[{ required: true, message: "Vui lòng nhập họ tên" }]}>
+                                        <Input />
+                                    </Form.Item>
+                                </Col>
+                                <Col xs={24} md={12}>
+                                    <Form.Item style={{ marginBottom: 8 }} label="Thành phố" name="city">
+                                        <Input />
+                                    </Form.Item>
+                                </Col>
+                                <Col span={24}>
+                                    <Form.Item style={{ marginBottom: 8 }} label="Địa chỉ" name="address">
+                                        <Input />
+                                    </Form.Item>
+                                </Col>
+                            </Row>
+
+                            <Divider style={{ margin: "8px 0 14px" }}>Sản phẩm</Divider>
+
+                            <Form.List name="orderItems">
+                                {(fields, { add, remove }) => (
+                                    <>
+                                        {fields.map((field) => (
+                                            <div key={field.key} className="admin-order-create-item-row">
+                                                <Form.Item
+                                                    name={[field.name, "product"]}
+                                                    rules={[{ required: true, message: "Chọn sản phẩm" }]}
+                                                    style={{ flex: 1.8, minWidth: 260 }}
+                                                >
+                                                    <Select
+                                                        placeholder="Sản phẩm"
+                                                        showSearch
+                                                        optionFilterProp="label"
+                                                        options={getProductOptionsByRow(field.name)}
+                                                        onChange={(value) => handleSelectProductForManualOrder(field.name, value)}
+                                                    />
+                                                </Form.Item>
+                                                <Form.Item
+                                                    name={[field.name, "amount"]}
+                                                    style={{ flex: 1, minWidth: 130 }}
+                                                    rules={[
+                                                        { required: true, message: "SL" },
+                                                        ({ getFieldValue }) => ({
+                                                            validator(_, value) {
+                                                                const productId = getFieldValue(["orderItems", field.name, "product"]);
+                                                                const stock = getStockByProductId(productId);
+                                                                if (!value || value <= stock) {
+                                                                    return Promise.resolve();
+                                                                }
+                                                                return Promise.reject(new Error(`Số lượng vượt tồn kho (${stock})`));
+                                                            },
+                                                        }),
+                                                    ]}
+                                                >
+                                                    <InputNumber
+                                                        min={1}
+                                                        max={getStockByProductId(watchedOrderItems?.[field.name]?.product) || undefined}
+                                                        placeholder="Số lượng"
+                                                        style={{ width: "100%" }}
+                                                    />
+                                                </Form.Item>
+                                                <Form.Item
+                                                    name={[field.name, "unitPrice"]}
+                                                    style={{ flex: 1.2, minWidth: 140 }}
+                                                    rules={[{ required: true, message: "Đơn giá" }]}
+                                                >
+                                                    <InputNumber min={0} placeholder="Đơn giá" style={{ width: "100%" }} />
+                                                </Form.Item>
+                                                <Button danger type="text" onClick={() => remove(field.name)}>
+                                                    Xóa
+                                                </Button>
+                                            </div>
+                                        ))}
+                                        <Button type="dashed" block onClick={() => add({ amount: 1 })}>
+                                            Thêm sản phẩm
+                                        </Button>
+                                    </>
+                                )}
+                            </Form.List>
+
+                            <Space style={{ width: "100%", marginTop: 12 }} size={12} wrap>
+                                <Form.Item style={{ minWidth: 220 }} label="Phương thức thanh toán" name="paymentMethod" rules={[{ required: true }]}>
                                     <Select
-                                        showSearch
-                                        optionFilterProp="label"
-                                        options={userOptions}
-                                        onChange={handleSelectCustomerForManualOrder}
-                                        placeholder="Chọn người dùng"
+                                        options={[
+                                            { value: "cash", label: "Tiền mặt tại quầy" },
+                                            { value: "payos", label: "PayOS (Quét QR)" },
+                                        ]}
                                     />
                                 </Form.Item>
-                            </Col>
-                            <Col xs={24} md={12}>
-                                <Form.Item style={{ marginBottom: 8 }} label="Số điện thoại" name="phone" rules={[{ required: true }]}>
-                                    <Input />
-                                </Form.Item>
-                            </Col>
-                            <Col xs={24} md={12}>
-                                <Form.Item style={{ marginBottom: 8 }} label="Họ tên" name="fullName" rules={[{ required: true }]}>
-                                    <Input />
-                                </Form.Item>
-                            </Col>
-                            <Col xs={24} md={12}>
-                                <Form.Item style={{ marginBottom: 8 }} label="Thành phố" name="city" rules={[{ required: true }]}>
-                                    <Input />
-                                </Form.Item>
-                            </Col>
-                            <Col span={24}>
-                                <Form.Item style={{ marginBottom: 8 }} label="Địa chỉ" name="address" rules={[{ required: true }]}>
-                                    <Input />
-                                </Form.Item>
-                            </Col>
-                        </Row>
+                            </Space>
 
-                        <Divider style={{ margin: "8px 0 14px" }}>Sản phẩm</Divider>
-
-                        <Form.List name="orderItems">
-                            {(fields, { add, remove }) => (
-                                <>
-                                    {fields.map((field) => (
-                                        <div key={field.key} className="admin-order-create-item-row">
-                                            <Form.Item
-                                                name={[field.name, "product"]}
-                                                rules={[{ required: true, message: "Chọn sản phẩm" }]}
-                                                style={{ flex: 1.8, minWidth: 260 }}
-                                            >
-                                                <Select
-                                                    placeholder="Sản phẩm"
-                                                    showSearch
-                                                    optionFilterProp="label"
-                                                    options={getProductOptionsByRow(field.name)}
-                                                    onChange={(value) => handleSelectProductForManualOrder(field.name, value)}
-                                                />
-                                            </Form.Item>
-                                            <Form.Item
-                                                name={[field.name, "amount"]}
-                                                style={{ flex: 1, minWidth: 130 }}
-                                                rules={[
-                                                    { required: true, message: "SL" },
-                                                    ({ getFieldValue }) => ({
-                                                        validator(_, value) {
-                                                            const productId = getFieldValue(["orderItems", field.name, "product"]);
-                                                            const stock = getStockByProductId(productId);
-                                                            if (!value || value <= stock) {
-                                                                return Promise.resolve();
-                                                            }
-                                                            return Promise.reject(new Error(`Số lượng vượt tồn kho (${stock})`));
-                                                        },
-                                                    }),
-                                                ]}
-                                            >
-                                                <InputNumber
-                                                    min={1}
-                                                    max={getStockByProductId(watchedOrderItems?.[field.name]?.product) || undefined}
-                                                    placeholder="Số lượng"
-                                                    style={{ width: "100%" }}
-                                                />
-                                            </Form.Item>
-                                            <Form.Item
-                                                name={[field.name, "unitPrice"]}
-                                                style={{ flex: 1.2, minWidth: 140 }}
-                                                rules={[{ required: true, message: "Đơn giá" }]}
-                                            >
-                                                <InputNumber min={0} placeholder="Đơn giá" style={{ width: "100%" }} />
-                                            </Form.Item>
-                                            <Button danger type="text" onClick={() => remove(field.name)}>
-                                                Xóa
-                                            </Button>
-                                        </div>
-                                    ))}
-                                    <Button type="dashed" block onClick={() => add({ amount: 1 })}>
-                                        Thêm sản phẩm
-                                    </Button>
-                                </>
-                            )}
-                        </Form.List>
-
-                        <Space style={{ width: "100%", marginTop: 12 }} size={12} wrap>
-                            <Form.Item style={{ minWidth: 220 }} label="Phương thức thanh toán" name="paymentMethod" rules={[{ required: true }]}>
-                                <Select
-                                    options={[
-                                        { value: "cash", label: "Tiền mặt tại quầy" },
-                                        { value: "card", label: "Thẻ" },
-                                        { value: "transfer", label: "Chuyển khoản" },
-                                    ]}
-                                />
-                            </Form.Item>
-                            <Form.Item style={{ minWidth: 220 }} label="Trạng thái thanh toán" name="isPaid" rules={[{ required: true }]}>
-                                <Select
-                                    options={[
-                                        { value: true, label: "Đã thanh toán" },
-                                        { value: false, label: "Chưa thanh toán" },
-                                    ]}
-                                />
-                            </Form.Item>
-                        </Space>
-
-                        <div className="admin-order-create-summary">
-                            <div>
-                                <span>Tạm tính</span>
-                                <strong>{orderSummary.itemsPrice.toLocaleString("vi-VN")} VNĐ</strong>
+                            <div className="admin-order-create-summary">
+                                <div>
+                                    <span>Tạm tính</span>
+                                    <strong>{orderSummary.itemsPrice.toLocaleString("vi-VN")} VNĐ</strong>
+                                </div>
+                                <div>
+                                    <span>Phí giao hàng</span>
+                                    <strong>{orderSummary.shippingPrice.toLocaleString("vi-VN")} VNĐ</strong>
+                                </div>
+                                <div className="total">
+                                    <span>Tổng thanh toán</span>
+                                    <strong>{orderSummary.totalPrice.toLocaleString("vi-VN")} VNĐ</strong>
+                                </div>
                             </div>
-                            <div>
-                                <span>Phí giao hàng</span>
-                                <strong>{orderSummary.shippingPrice.toLocaleString("vi-VN")} VNĐ</strong>
-                            </div>
-                            <div className="total">
-                                <span>Tổng thanh toán</span>
-                                <strong>{orderSummary.totalPrice.toLocaleString("vi-VN")} VNĐ</strong>
-                            </div>
-                        </div>
 
-                        <Button className="admin-order-submit-btn" type="primary" htmlType="submit" block>
-                            Tạo đơn hàng
-                        </Button>
-                    </Form>
-                </LoadingComponent>
-            </ModalComponent>
-        </OrderPageContainer>
+                            <Button className="admin-order-submit-btn" type="primary" htmlType="submit" block>
+                                Tạo đơn hàng
+                            </Button>
+                        </Form>
+                    </LoadingComponent>
+                </ModalComponent>
+
+                <PaymentQRModal
+                    isOpen={payosModal.isOpen}
+                    qrCode={payosModal.qrCode}
+                    checkoutUrl={payosModal.checkoutUrl}
+                    amount={mutationCreateOrder.data?.data?.totalPrice || 0}
+                    orderId={payosModal.orderId}
+                    socketRef={socketRef}
+                    onSuccess={handlePayOSSuccess}
+                    onCancel={handlePayOSCancel}
+                    onExpire={handlePayOSExpire}
+                    bin={payosModal.bin}
+                    accountNumber={payosModal.accountNumber}
+                    accountName={payosModal.accountName}
+                    description={payosModal.description}
+                />
+            </DashboardShell>
+        </>
     );
 };
 

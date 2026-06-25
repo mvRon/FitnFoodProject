@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { Modal, Button, Typography, message as toast } from "antd";
+import { CheckCircleOutlined, CloseCircleOutlined, QrcodeOutlined } from '@ant-design/icons';
 import styled, { keyframes } from "styled-components";
 import { convertPrice } from "../../utils";
 
@@ -190,7 +191,7 @@ const PaymentQRModal = ({
 
             clearInterval(intervalRef.current);
             setPaymentStatus("success");
-            toast.success("Thanh toán thành công! 🎉");
+            toast.success("Thanh toán thành công!");
 
             setTimeout(() => {
                 if (onSuccess) onSuccess(payload);
@@ -253,8 +254,8 @@ const PaymentQRModal = ({
     }, [isDone, onCancel]);
 
     const renderStatus = () => {
-        if (isSuccess) return <StatusBadge $success>✅ Thanh toán thành công!</StatusBadge>;
-        if (isCancelled) return <StatusBadge $cancelled>❌ Thanh toán đã bị hủy</StatusBadge>;
+        if (isSuccess) return <StatusBadge $success><CheckCircleOutlined /> Thanh toán thành công!</StatusBadge>;
+        if (isCancelled) return <StatusBadge $cancelled><CloseCircleOutlined /> Thanh toán đã bị hủy</StatusBadge>;
         if (isExpired) return <StatusBadge $cancelled>⏰ Hết thời gian thanh toán</StatusBadge>;
         return (
             <StatusBadge>
@@ -291,7 +292,7 @@ const PaymentQRModal = ({
             }
             title={
                 <span style={{ fontSize: 16, fontWeight: 700 }}>
-                    💳 Thanh toán bằng QR Code
+                    <QrcodeOutlined /> Thanh toán bằng QR Code
                 </span>
             }
             width={380}

@@ -223,16 +223,12 @@ const AdminUserComponent = () => {
             className="admin-user-detail-btn"
             icon={<EyeOutlined />}
             onClick={() => handleOpenDetail(record)}
-          >
-            Xem chi tiết
-          </Button>
+          />
           <Button
             className="admin-user-edit-btn"
             icon={<EditOutlined />}
             onClick={() => handleOpenEdit(record)}
-          >
-            Chỉnh sửa
-          </Button>
+          />
         </Space>
       ),
     },

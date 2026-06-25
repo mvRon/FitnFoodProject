@@ -3,6 +3,20 @@ import { useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { useQuery } from "@tanstack/react-query";
 import {
+    DollarOutlined,
+    CarOutlined,
+    FileTextOutlined,
+    CheckCircleOutlined,
+    WarningOutlined,
+    RobotOutlined,
+    InboxOutlined,
+    MessageOutlined,
+    BulbOutlined,
+    SearchOutlined,
+    SyncOutlined,
+    ThunderboltOutlined
+} from "@ant-design/icons";
+import {
     BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid,
     Tooltip, ResponsiveContainer,
 } from "recharts";
@@ -179,7 +193,7 @@ const AdminRevenueDashboard = () => {
             <Shell>
                 {/* ── Header & Filter ── */}
                 <Header>
-                    <Title>📊 Doanh thu & AI Analytics</Title>
+                    <Title>Thống kê doanh thu</Title>
                     <FilterBar>
                         {PRESETS.map((p) => (
                             <FilterBtn
@@ -208,7 +222,8 @@ const AdminRevenueDashboard = () => {
                             </>
                         )}
                         <RefreshBtn onClick={() => refetch()} disabled={isFetching}>
-                            {isFetching ? "🔄 Đang tải..." : "🔄 Làm mới"}
+                            <SyncOutlined spin={isFetching} style={{ marginRight: 6 }} />
+                            {isFetching ? "Đang tải..." : "Làm mới"}
                         </RefreshBtn>
                     </FilterBar>
                 </Header>
@@ -228,7 +243,7 @@ const AdminRevenueDashboard = () => {
                 {/* ── KPI Cards ── */}
                 <KpiGrid>
                     <KpiCard $accent={COLORS.success}>
-                        <KpiIcon>💰</KpiIcon>
+                        <KpiIcon><DollarOutlined /></KpiIcon>
                         {isLoading ? renderLoading("40px") : (
                             <>
                                 <KpiValue $color={COLORS.success}>{convertPrice(stats?.netProductRevenue || 0)}</KpiValue>
@@ -239,7 +254,7 @@ const AdminRevenueDashboard = () => {
                     </KpiCard>
 
                     <KpiCard $accent={COLORS.secondary}>
-                        <KpiIcon>🚚</KpiIcon>
+                        <KpiIcon><CarOutlined /></KpiIcon>
                         {isLoading ? renderLoading("40px") : (
                             <>
                                 <KpiValue $color={COLORS.secondary}>{convertPrice(stats?.shippingRevenue || 0)}</KpiValue>
@@ -250,7 +265,7 @@ const AdminRevenueDashboard = () => {
                     </KpiCard>
 
                     <KpiCard $accent={COLORS.primary}>
-                        <KpiIcon>📋</KpiIcon>
+                        <KpiIcon><FileTextOutlined /></KpiIcon>
                         {isLoading ? renderLoading("40px") : (
                             <>
                                 <KpiValue $color={COLORS.primary}>{convertPrice(stats?.expectedRevenue || 0)}</KpiValue>
@@ -261,7 +276,7 @@ const AdminRevenueDashboard = () => {
                     </KpiCard>
 
                     <KpiCard $accent={COLORS.info}>
-                        <KpiIcon>✅</KpiIcon>
+                        <KpiIcon><CheckCircleOutlined /></KpiIcon>
                         {isLoading ? renderLoading("40px") : (
                             <>
                                 <KpiValue $color={COLORS.info}>{stats?.paidOrders || 0}</KpiValue>
@@ -272,7 +287,7 @@ const AdminRevenueDashboard = () => {
                     </KpiCard>
 
                     <KpiCard $accent={stats?.unpaidRate > 30 ? COLORS.danger : COLORS.warning}>
-                        <KpiIcon>⚠️</KpiIcon>
+                        <KpiIcon><WarningOutlined /></KpiIcon>
                         {isLoading ? renderLoading("40px") : (
                             <>
                                 <KpiValue $color={stats?.unpaidRate > 30 ? COLORS.danger : COLORS.warning}>
@@ -280,14 +295,14 @@ const AdminRevenueDashboard = () => {
                                 </KpiValue>
                                 <KpiLabel>Tỷ lệ chưa thanh toán</KpiLabel>
                                 <KpiSub $color={stats?.unpaidRate > 30 ? COLORS.danger : undefined}>
-                                    {stats?.unpaidRate > 30 ? "⚡ Cần chú ý!" : "Trong ngưỡng ổn định"}
+                                    {stats?.unpaidRate > 30 ? <><ThunderboltOutlined /> Cần chú ý!</> : "Trong ngưỡng ổn định"}
                                 </KpiSub>
                             </>
                         )}
                     </KpiCard>
 
                     <KpiCard $accent={COLORS.chatbot}>
-                        <KpiIcon>🤖</KpiIcon>
+                        <KpiIcon><RobotOutlined /></KpiIcon>
                         {isLoading ? renderLoading("40px") : (
                             <>
                                 <KpiValue $color={COLORS.chatbot}>{stats?.aiRevenuePercent || 0}%</KpiValue>
@@ -298,7 +313,7 @@ const AdminRevenueDashboard = () => {
                     </KpiCard>
 
                     <KpiCard $accent={COLORS.danger}>
-                        <KpiIcon>📦</KpiIcon>
+                        <KpiIcon><InboxOutlined /></KpiIcon>
                         {isLoading ? renderLoading("40px") : (
                             <>
                                 <KpiValue $color={(stats?.lowStockWarnings?.length || 0) > 0 ? COLORS.danger : COLORS.success}>
@@ -314,7 +329,7 @@ const AdminRevenueDashboard = () => {
                 {/* ── Row 2: Dòng tiền + AI Donut ── */}
                 <SectionGrid $cols="1fr 1.2fr">
                     <Card>
-                        <CardTitle>💵 Dòng tiền: Dự kiến vs Thực tế</CardTitle>
+                        <CardTitle>Dòng tiền: Dự kiến vs Thực tế</CardTitle>
                         {isLoading ? renderLoading("200px") : (
                             <ResponsiveContainer width="100%" height={200}>
                                 <BarChart data={revenueCompareData} barCategoryGap="40%">
@@ -338,7 +353,7 @@ const AdminRevenueDashboard = () => {
                     </Card>
 
                     <Card>
-                        <CardTitle>🤖 Phân bổ doanh thu theo nguồn gốc</CardTitle>
+                        <CardTitle>Phân bổ doanh thu theo nguồn gốc</CardTitle>
                         {isLoading ? renderLoading("200px") : (
                             <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
                                 {aiPieData.length > 0 ? (
@@ -361,9 +376,9 @@ const AdminRevenueDashboard = () => {
                                         </ResponsiveContainer>
                                         <div style={{ flex: 1 }}>
                                             {[
-                                                { label: "Chatbot AI", color: COLORS.chatbot, icon: "💬", rev: stats?.chatbotRevenue, count: stats?.chatbotOrderCount },
-                                                { label: "RAG Gợi ý", color: COLORS.rag, icon: "✨", rev: stats?.ragRevenue, count: stats?.ragOrderCount },
-                                                { label: "Tự tìm", color: COLORS.organic, icon: "🔍", rev: stats?.organicRevenue, count: stats?.organicOrderCount },
+                                                { label: "Chatbot AI", color: COLORS.chatbot, icon: <MessageOutlined />, rev: stats?.chatbotRevenue, count: stats?.chatbotOrderCount },
+                                                { label: "RAG Gợi ý", color: COLORS.rag, icon: <BulbOutlined />, rev: stats?.ragRevenue, count: stats?.ragOrderCount },
+                                                { label: "Tự tìm", color: COLORS.organic, icon: <SearchOutlined />, rev: stats?.organicRevenue, count: stats?.organicOrderCount },
                                             ].map((src, i) => (
                                                 <AiImpactRow key={i}>
                                                     <SourceBadge $bg={src.color + "22"} $color={src.color}>
@@ -390,7 +405,7 @@ const AdminRevenueDashboard = () => {
                 {/* ── Row 3: Top Products ── */}
                 <SectionGrid $cols="1fr 1fr">
                     <Card>
-                        <CardTitle>🏆 Top 5 — Số lượng bán</CardTitle>
+                        <CardTitle>Top 5 — Số lượng bán</CardTitle>
                         {isLoading ? renderLoading("200px") : (
                             (stats?.topProductsByQty || []).length === 0
                                 ? <EmptyState>Không có dữ liệu</EmptyState>
@@ -418,7 +433,7 @@ const AdminRevenueDashboard = () => {
                     </Card>
 
                     <Card>
-                        <CardTitle>💎 Top 5 — Doanh thu</CardTitle>
+                        <CardTitle>Top 5 — Doanh thu</CardTitle>
                         {isLoading ? renderLoading("200px") : (
                             (stats?.topProductsByRevenue || []).length === 0
                                 ? <EmptyState>Không có dữ liệu</EmptyState>
@@ -443,11 +458,11 @@ const AdminRevenueDashboard = () => {
 
                 {/* ── Row 4: Inventory Warnings ── */}
                 <Card>
-                    <CardTitle>⚠️ Cảnh báo tồn kho — Dưới ngưỡng an toàn</CardTitle>
+                    <CardTitle>Cảnh báo tồn kho — Dưới ngưỡng an toàn</CardTitle>
                     {isLoading ? renderLoading("120px") : (
                         (stats?.lowStockWarnings || []).length === 0 ? (
                             <EmptyState style={{ color: COLORS.success }}>
-                                ✅ Tất cả sản phẩm đang ở mức tồn kho an toàn
+                                Tất cả sản phẩm đang ở mức tồn kho an toàn
                             </EmptyState>
                         ) : (
                             <div>

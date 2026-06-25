@@ -55,13 +55,24 @@ export const BreadcrumbWrap = styled.div`
 
   .ant-breadcrumb a,
   .ant-breadcrumb-link {
-    color: #0369a1;
+    color: #475569;
+    font-weight: 500;
+    font-size: 14px;
+    transition: color 0.2s ease;
+  }
+
+  .ant-breadcrumb a:hover {
+    color: #10B981;
+  }
+
+  .ant-breadcrumb > span:last-child .ant-breadcrumb-link {
+    color: #1E293B;
     font-weight: 600;
-    cursor: pointer;
   }
 
   .ant-breadcrumb-separator {
-    color: #0ea5e9;
+    color: #94A3B8;
+    margin: 0 8px;
   }
 `;
 
@@ -110,29 +121,37 @@ export const HeroMeta = styled.p`
 
 export const CategoryBar = styled.div`
   margin-top: 16px;
-  padding: 12px;
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.78);
-  border: 1px solid rgba(148, 163, 184, 0.22);
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+  padding: 6px 12px; /* Reduced to compensate for scroller padding */
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(2, 132, 199, 0.15); /* Ocean Blue border */
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
 `;
 
 export const CategoryScroller = styled.div`
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   overflow-x: auto;
   overflow-y: hidden;
   white-space: nowrap;
-  padding-bottom: 6px;
+  
+  /* Add padding to prevent clipping of box-shadow and translateY */
+  padding: 10px 6px 14px 6px; 
 
   &::-webkit-scrollbar {
     height: 6px;
   }
 
   &::-webkit-scrollbar-thumb {
-    background: rgba(2, 132, 199, 0.35);
-    border-radius: 999px;
+    background: rgba(148, 163, 184, 0.4);
+    border-radius: 10px;
+  }
+  
+  &::-webkit-scrollbar-track {
+    background: transparent;
+    margin: 0 16px; /* keeps scrollbar neatly inside the rounded frame */
   }
 `;
 
@@ -155,20 +174,29 @@ export const ParentCategory = styled.button`
 `;
 
 export const ChildCategory = styled.button`
-  border: 1px solid ${(props) => (props.$active ? "#0284c7" : "#cbd5e1")};
-  padding: 9px 14px;
-  border-radius: 999px;
+  padding: 10px 22px;
+  border-radius: 50px;
   font-weight: 600;
   font-size: 14px;
-  color: ${(props) => (props.$active ? "#0369a1" : "#334155")};
-  background: ${(props) => (props.$active ? "rgba(2, 132, 199, 0.14)" : "#ffffff")};
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+
+  /* Dynamic based on active state */
+  background-color: ${(props) => (props.$active ? "rgba(16, 185, 129, 0.08)" : "#ffffff")};
+  border: 1px solid ${(props) => (props.$active ? "#10B981" : "rgba(148, 163, 184, 0.3)")};
+  color: ${(props) => (props.$active ? "#10B981" : "#1E293B")};
+  box-shadow: ${(props) => (props.$active ? "0 4px 12px rgba(16, 185, 129, 0.15)" : "0 4px 10px rgba(30, 41, 59, 0.04)")};
 
   &:hover {
-    border-color: #10b981;
-    color: #047857;
-    box-shadow: 0 4px 10px rgba(16, 185, 129, 0.18);
+    border-color: #10B981;
+    color: #10B981;
+    background-color: rgba(16, 185, 129, 0.04);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 14px rgba(16, 185, 129, 0.12);
   }
 `;
 
