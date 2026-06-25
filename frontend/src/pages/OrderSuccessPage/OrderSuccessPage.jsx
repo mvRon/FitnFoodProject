@@ -36,11 +36,11 @@ const OrderSuccessPage = () => {
                 title={<Title level={2}>Đặt hàng thành công!</Title>}
                 subTitle={<Text>Cảm ơn bạn đã mua hàng. Đơn hàng đang được xử lý và sẽ sớm cập nhật trạng thái giao nhận.</Text>}
                 extra={[
-                    <Button type="primary" key="home" onClick={handleGoHome}>
-                        Về trang chủ
-                    </Button>,
-                    <Button key="history" onClick={handleGoOrderHistory}>
+                    <Button type="primary" key="history" onClick={handleGoOrderHistory}>
                         Xem lịch sử đơn hàng
+                    </Button>,
+                    <Button key="home" onClick={handleGoHome}>
+                        Về trang chủ
                     </Button>,
                 ]}
             />
