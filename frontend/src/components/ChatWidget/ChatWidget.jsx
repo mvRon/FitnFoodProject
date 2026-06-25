@@ -402,11 +402,8 @@ const ChatWidget = () => {
   const handleAction = useCallback((actionType, payload = {}, messageId) => {
     if (!socketRef.current || !conversation?._id) return;
 
-    // Disable nút đã click
-    setDisabledActions((prev) => new Set([...prev, `${messageId}-${actionType}`]));
-
     if (actionType === "change_address") {
-      // Mở modal đổi địa chỉ
+      // Mở modal đổi địa chỉ — KHÔNG disable nút, cho phép bấm nhiều lần
       addressForm.setFieldsValue({
         name: user?.name || "",
         phone: user?.phone || "",
@@ -416,6 +413,9 @@ const ChatWidget = () => {
       setIsAddressModalOpen(true);
       return;
     }
+
+    // Với các action khác (confirm_order, confirm_cod, confirm_payos, select_voucher...) — disable sau khi bấm
+    setDisabledActions((prev) => new Set([...prev, `${messageId}-${actionType}`]));
 
     // Emit action qua socket
     socketRef.current.emit("chat:action", {
@@ -606,16 +606,24 @@ const ChatWidget = () => {
                       <ActionButtonsRow>
                         {actionButtons.map((action, actionIdx) => {
                           const actionKey = `${messageId}-${action.type}`;
-                          const isDisabled = disabledActions.has(actionKey) || !isLastMessage;
+                          // change_address không bao giờ bị disable — cho phép mở modal nhiều lần
+                          const isDisabled = action.type === "change_address"
+                            ? false
+                            : (disabledActions.has(actionKey) || !isLastMessage);
                           return (
                             <ActionButton
                               key={`${actionKey}-${actionIdx}`}
-                              $variant={action.type === "confirm_order" ? "primary" : "secondary"}
+                              $variant={
+                                action.type === "confirm_order" || action.type === "confirm_cod" || action.type === "confirm_payos"
+                                  ? "primary"
+                                  : "secondary"
+                              }
                               disabled={isDisabled}
                               onClick={() => handleAction(action.type, action.payload, messageId)}
                             >
-                              {action.type === "confirm_order" && <CheckCircleOutlined style={{ marginRight: 6 }} />}
+                              {(action.type === "confirm_order" || action.type === "confirm_cod" || action.type === "confirm_payos") && <CheckCircleOutlined style={{ marginRight: 6 }} />}
                               {action.type === "change_address" && <EnvironmentOutlined style={{ marginRight: 6 }} />}
+                              {action.type === "confirm_cod" && <CreditCardOutlined style={{ marginRight: 6 }} />}
                               {action.label}
                             </ActionButton>
                           );

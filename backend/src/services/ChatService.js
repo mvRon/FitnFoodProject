@@ -150,7 +150,7 @@ const getGeminiModel = () => {
 10. KHI KHÁCH MUỐN MUA / THÊM GIỎ HÀNG: Khi khách nói muốn mua, đặt hàng, thêm giỏ hàng, lấy sản phẩm nào đó → gọi function add_to_cart. 
     QUAN TRỌNG: Khi gọi tool add_to_cart, bạn PHẢI truyền TÊN ĐẦY ĐỦ VÀ CHÍNH XÁC CỦA SẢN PHẨM vào tham số productName. TUYỆT ĐỐI KHÔNG truyền "sản phẩm 1", "số 2", "vitamin C" hoặc các từ khóa chung chung. Nếu khách nói "mua sản phẩm 1", bạn phải tự đối chiếu lịch sử chat để lấy tên đầy đủ của sản phẩm số 1 truyền vào tool.
 11. SAU KHI THÊM GIỎ HÀNG THÀNH CÔNG: Luôn gợi ý sản phẩm bổ sung liên quan (upsell/cross-sell). Ví dụ: nếu khách mua Whey Protein → gợi ý bình lắc, creatine, hoặc BCAA. Nếu khách mua vitamin → gợi ý thêm sản phẩm bổ sung khác.
-12. KHI KHÁCH MUỐN THANH TOÁN / CHECKOUT: Khi khách nói muốn thanh toán, đặt hàng luôn, checkout → thực hiện theo thứ tự: (a) Gọi view_cart để xem giỏ hàng hiện tại, (b) Liệt kê ngắn gọn các sản phẩm trong giỏ và tổng tiền, (c) Gọi get_user_address để lấy địa chỉ mặc định, (d) Gọi find_applicable_vouchers để quét voucher phù hợp, (e) Trình bày thông tin tổng hợp cho khách và hỏi khách muốn thanh toán theo phương thức nào: COD (thanh toán khi nhận hàng) hoặc QR PayOS (chuyển khoản qua app ngân hàng). QUAN TRỌNG: Thêm tag "[CHECKOUT_CONFIRM]" vào cuối response khi đang chờ khách xác nhận đặt hàng.
+12. KHI KHÁCH MUỐN THANH TOÁN / CHECKOUT: Khi khách nói muốn thanh toán, đặt hàng luôn, checkout → thực hiện theo thứ tự: (a) Gọi view_cart để xem giỏ hàng hiện tại, (b) Liệt kê ngắn gọn các sản phẩm trong giỏ và tổng tiền, (c) Gọi get_user_address để lấy địa chỉ mặc định, (d) Gọi find_applicable_vouchers để quét voucher phù hợp, (e) Trình bày thông tin tổng hợp cho khách và hỏi khách muốn thanh toán theo phương thức nào: COD (thanh toán khi nhận hàng) hoặc QR PayOS (chuyển khoản qua app ngân hàng). QUAN TRỌNG: Khi hỏi khách chọn phương thức thanh toán (COD hay QR), hãy thêm tag "[PAYMENT_METHOD_CHOICE]" vào cuối response (thay vì [CHECKOUT_CONFIRM]) để hệ thống tự động hiện các nút chọn phương thức. Chỉ dùng [CHECKOUT_CONFIRM] khi khách đã xác nhận rõ phương thức và chỉ cần xác nhận đặt hàng.
 13. KHI KHÁCH XÁC NHẬN ĐẶT HÀNG COD: Khi khách chọn COD hoặc nói "thanh toán khi nhận hàng" → PHẢI gọi view_cart trước để lấy trạng thái giỏ hàng mới nhất (giỏ hàng có thể đã thay đổi từ lần xem trước), rồi mới gọi create_cod_order. Dù trước đó đã gọi view_cart, LUÔN phải gọi lại một lần nữa ngay trước create_cod_order. Sau khi tạo thành công, thông báo mã đơn hàng.
 14. KHI KHÁCH CHỌN PAYOS QR: Khi khách chọn QR, PayOS, chuyển khoản, quét mã QR → PHẢI gọi view_cart trước để lấy trạng thái giỏ hàng mới nhất (giỏ hàng có thể đã thay đổi kể từ lần xem trước đó trong hội thoại — ví dụ khách vào trang giỏ hàng tự xóa bớt sản phẩm), rồi mới gọi create_payos_order. TUYỆT ĐỐI KHÔNG bỏ qua bước gọi view_cart ngay trước create_payos_order dù có lịch sử giỏ hàng trong hội thoại. Hệ thống sẽ tự động gửi link thanh toán cho khách trong chat. Khách click link và quét QR bằng app ngân hàng.
 15. KHI KHÁCH MUỐN XEM GIỎ HÀNG: Gọi function view_cart.
@@ -1147,12 +1147,21 @@ const generateBotMessage = async (question, conversationId, userId, statusCallba
         text = text.replace(/\[NEEDS_INFO\]/gi, "").trim();
     }
 
-    // 6. Xử lý [CHECKOUT_CONFIRM] — tạo action buttons cho checkout
+    // 6. Xử lý các tag action — tạo action buttons cho checkout
     let actions = [];
-    if (text.includes("[CHECKOUT_CONFIRM]")) {
+
+    if (text.includes("[PAYMENT_METHOD_CHOICE]")) {
+        // Khi AI hỏi chọn phương thức thanh toán → hiện 2 nút rõ ràng
+        text = text.replace(/\[PAYMENT_METHOD_CHOICE\]/gi, "").trim();
+        actions = [
+            { type: "confirm_cod",   label: "Thanh toán COD (nhận hàng trả tiền)", payload: {} },
+            { type: "confirm_payos", label: "Thanh toán QR PayOS (chuyển khoản)",   payload: {} },
+        ];
+    } else if (text.includes("[CHECKOUT_CONFIRM]")) {
+        // Khi AI đã biết phương thức, chỉ cần xác nhận đặt hàng
         text = text.replace(/\[CHECKOUT_CONFIRM\]/gi, "").trim();
         actions = [
-            { type: "confirm_order", label: "Xác nhận đặt hàng", payload: {} },
+            { type: "confirm_order",  label: "Xác nhận đặt hàng", payload: {} },
             { type: "change_address", label: "Đổi địa chỉ giao hàng", payload: {} },
         ];
     }
