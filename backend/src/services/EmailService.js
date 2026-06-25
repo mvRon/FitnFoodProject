@@ -145,7 +145,7 @@ const recoveryPassword = async ({ email, token }) => {
                 <p>Chúng tôi nhận được yêu cầu đặt lại mật khẩu cho tài khoản của bạn. Nếu đó là bạn, vui lòng nhấn vào nút bên dưới để đặt lại mật khẩu mới:</p>
 
                 <!-- URL chứa token được chèn động tại backend -->
-                <a href="${process.env.NODE_ENV === 'production' ? 'https://do-an-thuc-tap.vercel.app' : 'http://localhost:3000'}/reset-password?token=${token}" class="button">
+                <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/reset-password?token=${token}" class="button">
                     Đặt lại mật khẩu
                 </a>
 
@@ -187,7 +187,21 @@ const sendEmailOrder = async ({ email, orderItems, totalPrice }) => {
             }
         });
 
-        // Hàm tạo nội dung HTML
+        // Phân loại ảnh: base64 hay URL
+        const isBase64 = (str) => typeof str === 'string' && str.startsWith('data:image');
+
+        // Tạo attachments CID chỉ cho ảnh base64 (local dev)
+        const base64Items = orderItems.map((item, index) => ({ item, index, isB64: isBase64(item.image) }));
+        const attachments = base64Items
+            .filter(({ isB64 }) => isB64)
+            .map(({ item, index }) => ({
+                filename: `${item.name}.jpg`,
+                content: Buffer.from(item.image.replace(/^data:image\/\w+;base64,/, ''), 'base64'),
+                encoding: 'base64',
+                cid: `image${index}@ecom`,
+            }));
+
+        // Hàm tạo nội dung HTML — dùng src URL nếu là URL, cid nếu là base64
         const htmlContent = (orderItems, totalPrice) => `
             <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: auto;">
                 <h2 style="color: #4CAF50; border-bottom: 1px solid #eee;">✅ Đơn hàng của bạn đã được xác nhận!</h2>
@@ -203,16 +217,23 @@ const sendEmailOrder = async ({ email, orderItems, totalPrice }) => {
                     </tr>
                 </thead>
                 <tbody>
-                    ${orderItems.map((item, index) => `
+                    ${orderItems.map((item, index) => {
+                        const imgSrc = isBase64(item.image)
+                            ? `cid:image${index}@ecom`
+                            : (item.image || '');
+                        return `
                     <tr>
                         <td style="padding: 10px; border: 1px solid #ddd;">
-                            <img src="cid:image${index}@ecom" alt="${item.name}" style="width: 50px; height: 50px; object-fit: cover;" />
+                            ${imgSrc
+                                ? `<img src="${imgSrc}" alt="${item.name}" style="width: 50px; height: 50px; object-fit: cover;" />`
+                                : '<span style="color:#aaa;">Không có ảnh</span>'
+                            }
                         </td>
                         <td style="padding: 10px; border: 1px solid #ddd;">${item.name}</td>
                         <td style="padding: 10px; border: 1px solid #ddd;">${item.amount}</td>
                         <td style="padding: 10px; border: 1px solid #ddd;">${item.price} VNĐ</td>
-                    </tr>
-                    `).join('')}
+                    </tr>`;
+                    }).join('')}
                 </tbody>
                 </table>
 
@@ -223,22 +244,12 @@ const sendEmailOrder = async ({ email, orderItems, totalPrice }) => {
             </div>
         `;
 
-        // Chuyển ảnh base64 thành attachments dạng CID
-        const createAttachments = (orderItems) => {
-            return orderItems.map((item, index) => ({
-                filename: `${item.name}.jpg`,
-                content: Buffer.from(item.image.replace(/^data:image\/\w+;base64,/, ""), 'base64'),
-                encoding: 'base64',
-                cid: `image${index}@ecom`
-            }));
-        };
-
         const info = await transporter.sendMail({
             from: `"${senderName}" <${process.env.EMAIL_USER}>`,
             to: `${email}`,
             subject: "THÔNG BÁO ĐƠN HÀNG",
             html: htmlContent(orderItems, totalPrice),
-            attachments: createAttachments(orderItems)
+            attachments,
         });
 
         console.log("✅ Đã gửi email thông tin đơn hàng: %s", info.messageId);
