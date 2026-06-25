@@ -43,7 +43,6 @@ const SystemSettingSchema = new mongoose.Schema(
         },
         paymentMethods: {
             cod: { type: Boolean, default: true },
-            bankTransfer: { type: Boolean, default: true },
             payos: { type: Boolean, default: true },
         },
 
@@ -53,6 +52,11 @@ const SystemSettingSchema = new mongoose.Schema(
         emailSenderName: {
             type: String,
             default: 'FitnFood Corporation',
+        },
+        autoSendEmail: {
+            verifyAccount: { type: Boolean, default: true },
+            recoveryPassword: { type: Boolean, default: true },
+            sendEmailOrder: { type: Boolean, default: true },
         },
 
         // ────────────────────────────────────────────

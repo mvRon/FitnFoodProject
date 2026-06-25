@@ -77,15 +77,27 @@ export const TabCard = styled.div`
 `;
 
 // ─── Section label trong mỗi tab ─────────────────────────────────────────────
+export const SectionBox = styled.div`
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 24px;
+    background: #ffffff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+`;
+
 export const SectionLabel = styled.div`
-    font-size: 12px;
-    font-weight: 600;
+    font-size: 13px;
+    font-weight: 700;
     color: #0284C7;
     text-transform: uppercase;
-    letter-spacing: 0.06em;
-    margin-bottom: 16px;
-    padding-bottom: 10px;
-    border-bottom: 1px solid rgba(2, 132, 199, 0.1);
+    letter-spacing: 0.05em;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid rgba(2, 132, 199, 0.15);
+    display: flex;
+    align-items: center;
+    gap: 8px;
 `;
 
 // ─── Logo preview ─────────────────────────────────────────────────────────────

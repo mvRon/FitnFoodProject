@@ -5,20 +5,31 @@ dotenv.config();
 const SystemSettingModel = require('../models/SystemSettingModel');
 
 /**
- * Lấy tên người gửi từ cài đặt hệ thống (fallback về default nếu chưa có document)
+ * Lấy tên người gửi và cài đặt autoSendEmail từ hệ thống
  */
-const getSenderName = async () => {
+const getEmailSettings = async () => {
     try {
-        const setting = await SystemSettingModel.findOne().select('emailSenderName').lean();
-        return setting?.emailSenderName || 'FitnFood Corporation';
+        const setting = await SystemSettingModel.findOne().select('emailSenderName autoSendEmail').lean();
+        return {
+            senderName: setting?.emailSenderName || 'FitnFood Corporation',
+            autoSendEmail: setting?.autoSendEmail || { verifyAccount: true, recoveryPassword: true, sendEmailOrder: true }
+        };
     } catch {
-        return 'FitnFood Corporation';
+        return {
+            senderName: 'FitnFood Corporation',
+            autoSendEmail: { verifyAccount: true, recoveryPassword: true, sendEmailOrder: true }
+        };
     }
 };
 
 const verifyAccount = async ({ email, verificationCode }) => {
     try {
-        const senderName = await getSenderName();
+        const settings = await getEmailSettings();
+        if (settings.autoSendEmail && settings.autoSendEmail.verifyAccount === false) {
+            console.log("Bỏ qua gửi email xác thực tài khoản do bị tắt trong cài đặt hệ thống.");
+            return;
+        }
+        const senderName = settings.senderName;
         const transporter = nodemailer.createTransport({
             host: "smtp.gmail.com",
             port: 465,
@@ -74,15 +85,20 @@ const verifyAccount = async ({ email, verificationCode }) => {
             html: htmlContent(verificationCode),
         });
 
-        console.log("✅ Đã gửi email xác thực tài khoản: %s", info.messageId);
+        console.log("Đã gửi email xác thực tài khoản: %s", info.messageId);
     } catch (error) {
-        console.error("❌ Lỗi gửi email:", error);
+        console.error("Lỗi gửi email:", error);
     }
 };
 
 const recoveryPassword = async ({ email, token }) => {
     try {
-        const senderName = await getSenderName();
+        const settings = await getEmailSettings();
+        if (settings.autoSendEmail && settings.autoSendEmail.recoveryPassword === false) {
+            console.log("Bỏ qua gửi email khôi phục mật khẩu do bị tắt trong cài đặt hệ thống.");
+            return;
+        }
+        const senderName = settings.senderName;
         const transporter = nodemailer.createTransport({
             host: "smtp.gmail.com",
             port: 465,
@@ -167,16 +183,21 @@ const recoveryPassword = async ({ email, token }) => {
             html: htmlContent(token),
         });
 
-        console.log("✅ Đã gửi email khôi phục mật khẩu: %s", info.messageId);
+        console.log("Đã gửi email khôi phục mật khẩu: %s", info.messageId);
     } catch (error) {
-        console.error("❌ Lỗi gửi email:", error);
+        console.error("Lỗi gửi email:", error);
     }
 };
 
 
 const sendEmailOrder = async ({ email, orderItems, totalPrice }) => {
     try {
-        const senderName = await getSenderName();
+        const settings = await getEmailSettings();
+        if (settings.autoSendEmail && settings.autoSendEmail.sendEmailOrder === false) {
+            console.log("Bỏ qua gửi email thông báo đơn hàng do bị tắt trong cài đặt hệ thống.");
+            return;
+        }
+        const senderName = settings.senderName;
         const transporter = nodemailer.createTransport({
             host: "smtp.gmail.com",
             port: 465,
@@ -218,22 +239,22 @@ const sendEmailOrder = async ({ email, orderItems, totalPrice }) => {
                 </thead>
                 <tbody>
                     ${orderItems.map((item, index) => {
-                        const imgSrc = isBase64(item.image)
-                            ? `cid:image${index}@ecom`
-                            : (item.image || '');
-                        return `
+            const imgSrc = isBase64(item.image)
+                ? `cid:image${index}@ecom`
+                : (item.image || '');
+            return `
                     <tr>
                         <td style="padding: 10px; border: 1px solid #ddd;">
                             ${imgSrc
-                                ? `<img src="${imgSrc}" alt="${item.name}" style="width: 50px; height: 50px; object-fit: cover;" />`
-                                : '<span style="color:#aaa;">Không có ảnh</span>'
-                            }
+                    ? `<img src="${imgSrc}" alt="${item.name}" style="width: 50px; height: 50px; object-fit: cover;" />`
+                    : '<span style="color:#aaa;">Không có ảnh</span>'
+                }
                         </td>
                         <td style="padding: 10px; border: 1px solid #ddd;">${item.name}</td>
                         <td style="padding: 10px; border: 1px solid #ddd;">${item.amount}</td>
                         <td style="padding: 10px; border: 1px solid #ddd;">${item.price} VNĐ</td>
                     </tr>`;
-                    }).join('')}
+        }).join('')}
                 </tbody>
                 </table>
 
@@ -252,9 +273,9 @@ const sendEmailOrder = async ({ email, orderItems, totalPrice }) => {
             attachments,
         });
 
-        console.log("✅ Đã gửi email thông tin đơn hàng: %s", info.messageId);
+        console.log("Đã gửi email thông tin đơn hàng: %s", info.messageId);
     } catch (error) {
-        console.error("❌ Lỗi gửi email thông tin đơn hàng:", error);
+        console.error("Lỗi gửi email thông tin đơn hàng:", error);
     }
 };
 
