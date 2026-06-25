@@ -5,20 +5,31 @@ dotenv.config();
 const SystemSettingModel = require('../models/SystemSettingModel');
 
 /**
- * Lấy tên người gửi từ cài đặt hệ thống (fallback về default nếu chưa có document)
+ * Lấy tên người gửi và cài đặt autoSendEmail từ hệ thống
  */
-const getSenderName = async () => {
+const getEmailSettings = async () => {
     try {
-        const setting = await SystemSettingModel.findOne().select('emailSenderName').lean();
-        return setting?.emailSenderName || 'FitnFood Corporation';
+        const setting = await SystemSettingModel.findOne().select('emailSenderName autoSendEmail').lean();
+        return {
+            senderName: setting?.emailSenderName || 'FitnFood Corporation',
+            autoSendEmail: setting?.autoSendEmail || { verifyAccount: true, recoveryPassword: true, sendEmailOrder: true, restockNotification: true }
+        };
     } catch {
-        return 'FitnFood Corporation';
+        return {
+            senderName: 'FitnFood Corporation',
+            autoSendEmail: { verifyAccount: true, recoveryPassword: true, sendEmailOrder: true, restockNotification: true }
+        };
     }
 };
 
 const verifyAccount = async ({ email, verificationCode }) => {
     try {
-        const senderName = await getSenderName();
+        const settings = await getEmailSettings();
+        if (settings.autoSendEmail && settings.autoSendEmail.verifyAccount === false) {
+            console.log("Bỏ qua gửi email xác thực tài khoản do bị tắt trong cài đặt hệ thống.");
+            return;
+        }
+        const senderName = settings.senderName;
         const transporter = nodemailer.createTransport({
             host: "smtp.gmail.com",
             port: 465,
@@ -74,15 +85,20 @@ const verifyAccount = async ({ email, verificationCode }) => {
             html: htmlContent(verificationCode),
         });
 
-        console.log("✅ Đã gửi email xác thực tài khoản: %s", info.messageId);
+        console.log("Đã gửi email xác thực tài khoản: %s", info.messageId);
     } catch (error) {
-        console.error("❌ Lỗi gửi email:", error);
+        console.error("Lỗi gửi email:", error);
     }
 };
 
 const recoveryPassword = async ({ email, token }) => {
     try {
-        const senderName = await getSenderName();
+        const settings = await getEmailSettings();
+        if (settings.autoSendEmail && settings.autoSendEmail.recoveryPassword === false) {
+            console.log("Bỏ qua gửi email khôi phục mật khẩu do bị tắt trong cài đặt hệ thống.");
+            return;
+        }
+        const senderName = settings.senderName;
         const transporter = nodemailer.createTransport({
             host: "smtp.gmail.com",
             port: 465,
@@ -167,16 +183,21 @@ const recoveryPassword = async ({ email, token }) => {
             html: htmlContent(token),
         });
 
-        console.log("✅ Đã gửi email khôi phục mật khẩu: %s", info.messageId);
+        console.log("Đã gửi email khôi phục mật khẩu: %s", info.messageId);
     } catch (error) {
-        console.error("❌ Lỗi gửi email:", error);
+        console.error("Lỗi gửi email:", error);
     }
 };
 
 
 const sendEmailOrder = async ({ email, orderItems, totalPrice }) => {
     try {
-        const senderName = await getSenderName();
+        const settings = await getEmailSettings();
+        if (settings.autoSendEmail && settings.autoSendEmail.sendEmailOrder === false) {
+            console.log("Bỏ qua gửi email thông báo đơn hàng do bị tắt trong cài đặt hệ thống.");
+            return;
+        }
+        const senderName = settings.senderName;
         const transporter = nodemailer.createTransport({
             host: "smtp.gmail.com",
             port: 465,
@@ -218,22 +239,22 @@ const sendEmailOrder = async ({ email, orderItems, totalPrice }) => {
                 </thead>
                 <tbody>
                     ${orderItems.map((item, index) => {
-                        const imgSrc = isBase64(item.image)
-                            ? `cid:image${index}@ecom`
-                            : (item.image || '');
-                        return `
+            const imgSrc = isBase64(item.image)
+                ? `cid:image${index}@ecom`
+                : (item.image || '');
+            return `
                     <tr>
                         <td style="padding: 10px; border: 1px solid #ddd;">
                             ${imgSrc
-                                ? `<img src="${imgSrc}" alt="${item.name}" style="width: 50px; height: 50px; object-fit: cover;" />`
-                                : '<span style="color:#aaa;">Không có ảnh</span>'
-                            }
+                    ? `<img src="${imgSrc}" alt="${item.name}" style="width: 50px; height: 50px; object-fit: cover;" />`
+                    : '<span style="color:#aaa;">Không có ảnh</span>'
+                }
                         </td>
                         <td style="padding: 10px; border: 1px solid #ddd;">${item.name}</td>
                         <td style="padding: 10px; border: 1px solid #ddd;">${item.amount}</td>
                         <td style="padding: 10px; border: 1px solid #ddd;">${item.price} VNĐ</td>
                     </tr>`;
-                    }).join('')}
+        }).join('')}
                 </tbody>
                 </table>
 
@@ -252,14 +273,114 @@ const sendEmailOrder = async ({ email, orderItems, totalPrice }) => {
             attachments,
         });
 
-        console.log("✅ Đã gửi email thông tin đơn hàng: %s", info.messageId);
+        console.log("Đã gửi email thông tin đơn hàng: %s", info.messageId);
     } catch (error) {
-        console.error("❌ Lỗi gửi email thông tin đơn hàng:", error);
+        console.error("Lỗi gửi email thông tin đơn hàng:", error);
+    }
+};
+
+const sendRestockEmail = async ({ email, productName, productUrl }) => {
+    try {
+        const settings = await getEmailSettings();
+        if (settings.autoSendEmail && settings.autoSendEmail.restockNotification === false) {
+            console.log("Bỏ qua gửi email thông báo có hàng do bị tắt trong cài đặt hệ thống.");
+            return;
+        }
+        const senderName = settings.senderName;
+        const transporter = nodemailer.createTransport({
+            host: "smtp.gmail.com",
+            port: 465,
+            secure: true, // dùng SSL
+            auth: {
+                user: process.env.EMAIL_USER,
+                pass: process.env.EMAIL_PASSWORD
+            }
+        });
+
+        // Hàm tạo nội dung HTML
+        const htmlContent = (name, url) => `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8" />
+                <title>Sản phẩm đã có hàng trở lại</title>
+                <style>
+                body {
+                    font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+                    background-color: #f4f4f4;
+                    margin: 0;
+                    padding: 0;
+                }
+                .container {
+                    background-color: #ffffff;
+                    max-width: 600px;
+                    margin: 40px auto;
+                    padding: 30px;
+                    border-radius: 10px;
+                    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+                }
+                h2 {
+                    color: #10B981;
+                }
+                p {
+                    color: #555555;
+                    line-height: 1.6;
+                }
+                .button {
+                    display: inline-block;
+                    padding: 14px 24px;
+                    background-color: #10B981;
+                    color: white;
+                    text-decoration: none;
+                    border-radius: 6px;
+                    margin-top: 20px;
+                    font-weight: bold;
+                }
+                .footer {
+                    font-size: 12px;
+                    color: #999999;
+                    margin-top: 30px;
+                }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                <h2>Tin vui: Đã có hàng! 🎉</h2>
+                <p>Xin chào,</p>
+                <p>Sản phẩm <strong>${name}</strong> mà bạn đang theo dõi hiện đã có hàng trở lại tại FitnFood.</p>
+                <p>Số lượng có hạn, hãy nhanh tay đặt hàng ngay để không bỏ lỡ!</p>
+
+                <!-- URL sản phẩm -->
+                <a href="${url}" class="button">
+                    Mua ngay bây giờ
+                </a>
+
+                <p>Cảm ơn bạn đã luôn đồng hành và ủng hộ FitnFood.</p>
+
+                <div class="footer">
+                    © 2025 FitnFood Corporation. All rights reserved.
+                </div>
+                </div>
+            </body>
+            </html>
+        `;
+
+        const info = await transporter.sendMail({
+            from: `"${senderName}" <${process.env.EMAIL_USER}>`,
+            to: `${email}`,
+            subject: "FITNFOOD - SẢN PHẨM ĐÃ CÓ HÀNG TRỞ LẠI",
+            html: htmlContent(productName, productUrl),
+        });
+
+        console.log("Đã gửi email thông báo có hàng: %s", info.messageId);
+    } catch (error) {
+        console.error("Lỗi gửi email thông báo có hàng:", error);
     }
 };
 
 module.exports = {
     verifyAccount,
     recoveryPassword,
-    sendEmailOrder
+    sendEmailOrder,
+    sendRestockEmail
 };

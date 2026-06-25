@@ -209,6 +209,10 @@ const registerChatSocket = (io) => {
             let messageText = "";
             if (actionType === "confirm_order") {
                 messageText = "Xác nhận đặt hàng";
+            } else if (actionType === "confirm_cod") {
+                messageText = "Tôi muốn thanh toán bằng COD (thanh toán khi nhận hàng)";
+            } else if (actionType === "confirm_payos") {
+                messageText = "Tôi muốn thanh toán bằng QR PayOS (chuyển khoản)";
             } else if (actionType === "select_voucher" && payload?.voucherCode) {
                 messageText = `Tôi chọn mã giảm giá ${payload.voucherCode}`;
             } else if (actionType === "quick_reply" && payload?.text) {

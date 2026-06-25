@@ -5,7 +5,9 @@ const InventoryService = require("./InventoryService");
 const RecommendationService = require("./RecommendationService");
 const { embedText, normalizeText } = require("./EmbeddingService");
 const NotificationService = require('./NotificationService');
+const EmailService = require('./EmailService');
 const { emitToUser } = require('../socket/notificationSocket');
+const User = require('../models/UserModel');
 
 const VECTOR_INDEX = process.env.MONGO_VECTOR_INDEX || "product_embedding_index";
 const EMBEDDING_DIM = Number(process.env.AI_EMBEDDING_DIM || 384);
@@ -792,6 +794,11 @@ async function _triggerRestockNotifications(updatedProduct, oldStock) {
         const subscribers = updatedProduct.restockSubscribers || [];
         if (subscribers.length === 0) return;
 
+        // Fetch user emails
+        const users = await User.find({ _id: { $in: subscribers } }, 'email name').lean();
+        const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
+        const productUrl = `${FRONTEND_URL}/product-details/${updatedProduct._id}`;
+
         for (const userId of subscribers) {
             const notification = await NotificationService.createNotification({
                 recipient: String(userId),
@@ -806,6 +813,16 @@ async function _triggerRestockNotifications(updatedProduct, oldStock) {
                 },
             });
             emitToUser(String(userId), notification);
+
+            // Gửi email
+            const user = users.find(u => String(u._id) === String(userId));
+            if (user && user.email) {
+                EmailService.sendRestockEmail({
+                    email: user.email,
+                    productName: updatedProduct.name,
+                    productUrl: productUrl
+                }).catch(err => console.error("Lỗi gửi restock email độc lập:", err));
+            }
         }
 
         // Xóa danh sách đăng ký sau khi đã thông báo

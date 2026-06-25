@@ -57,7 +57,7 @@ const RecommendationCarousel = ({
   context,
   productId,
   cartItems,
-  limit = 5,
+  limit = 10,
   title,
   subtitle,
 }) => {

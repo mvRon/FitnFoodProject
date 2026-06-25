@@ -40,6 +40,25 @@ export const SystemSettingProvider = ({ children }) => {
         fetchSetting();
     }, []);
 
+    // Effect to update Document Title and Favicon dynamically when setting changes
+    useEffect(() => {
+        if (setting.metaTitle) {
+            document.title = setting.metaTitle;
+        } else if (setting.storeName) {
+            document.title = setting.storeName;
+        }
+
+        if (setting.storeLogo) {
+            let link = document.querySelector("link[rel~='icon']");
+            if (!link) {
+                link = document.createElement('link');
+                link.rel = 'icon';
+                document.head.appendChild(link);
+            }
+            link.href = setting.storeLogo;
+        }
+    }, [setting.metaTitle, setting.storeName, setting.storeLogo]);
+
     return (
         <SystemSettingContext.Provider value={{ setting, isLoaded, setSetting }}>
             {children}

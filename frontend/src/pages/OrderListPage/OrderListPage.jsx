@@ -140,9 +140,19 @@ const renderOrderItemThumb = (image, name) => {
 const OrderListPage = () => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(false);
+  const user = useSelector((state) => state.user);
   const location = useLocation()
   const { state } = location
-  const flag = ((state?.id) && (state?.token) ? true : false) //Chỉ cần thiếu 1 trong 2 thì luôn false
+  
+  let token = state?.token || user?.access_token;
+  try {
+      if (typeof token === 'string' && token.startsWith('"')) {
+          token = JSON.parse(token);
+      }
+  } catch (e) {}
+  let userId = state?.id || user?.id;
+
+  const flag = (userId && token ? true : false) //Chỉ cần thiếu 1 trong 2 thì luôn false
 
 //   console.log('state', state)
 
@@ -170,7 +180,7 @@ const OrderListPage = () => {
   }, [preset, customFrom, customTo]);
 
   const fetchMyOrder = async () => {
-    const res = await OrderService.getAllOrder(state?.token, state?.id, dateRange)
+    const res = await OrderService.getAllOrder(token, userId, dateRange)
     return res.data
   }
 
