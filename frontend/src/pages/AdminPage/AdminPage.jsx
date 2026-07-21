@@ -1,4 +1,4 @@
-import { AppstoreAddOutlined, ProductOutlined, UserOutlined, ShoppingCartOutlined, ShopOutlined, GiftOutlined, SettingOutlined, MessageOutlined, BarChartOutlined, BellOutlined, DatabaseOutlined } from '@ant-design/icons';
+import { AppstoreAddOutlined, ProductOutlined, UserOutlined, ShoppingCartOutlined, ShopOutlined, GiftOutlined, SettingOutlined, MessageOutlined, BarChartOutlined, BellOutlined, DatabaseOutlined, CarOutlined } from '@ant-design/icons';
 import { Button, Form, Input, Menu, message as toast } from 'antd'
 import React, { useEffect, useState } from 'react'
 import { getLevelKeys } from '../../utils';
@@ -20,7 +20,9 @@ import AdminChatComponent from '../../components/AdminChatComponent/AdminChatCom
 import AdminRevenueDashboard from '../../components/AdminRevenueDashboard/AdminRevenueDashboard';
 import AdminNotificationComponent from '../../components/AdminNotificationComponent/AdminNotificationComponent';
 import AdminSystemSettingComponent from '../../components/AdminSystemSettingComponent/AdminSystemSettingComponent';
+import AdminTrackingComponent from '../../components/AdminTrackingComponent/AdminTrackingComponent.jsx'
 import * as NotificationService from '../../services/NotificationService';
+
 
 const AdminPage = () => {
     // const navigate = useNavigate()
@@ -62,6 +64,8 @@ const AdminPage = () => {
                 return <AdminNotificationComponent />
             case 'Setting':
                 return <AdminSystemSettingComponent />
+            case 'Tracking':
+                return <AdminTrackingComponent />
             default:
                 return <></>
         }
@@ -148,6 +152,11 @@ const AdminPage = () => {
             key: 'Setting',
             icon: <SettingOutlined />,
             label: 'Cài đặt hệ thống',
+        },
+        {
+            key: 'Tracking',
+            icon: <CarOutlined />,
+            label: 'Theo dõi đơn hàng',
         },
     ];
 
