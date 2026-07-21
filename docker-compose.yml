@@ -1,4 +1,5 @@
 services:
+  # 1. Cơ sở dữ liệu MongoDB Local (Dùng chung hoặc cho Backend MERN)
   mongo:
     image: mongo:7
     container_name: fitnfood-mongo
@@ -8,6 +9,7 @@ services:
     volumes:
       - mongo_data:/data/db
 
+  # 2. Hệ thống Backend MERN (Express)
   backend:
     build:
       context: ./backend
@@ -18,13 +20,15 @@ services:
     environment:
       PORT: 3001
       MONGO_DB: mongodb+srv://ronm250304:Inzuki123456@cluster0.xn5xe.mongodb.net/FitnFood?retryWrites=true&w=majority&appName=Cluster0
-      CLIENT_URL: http://localhost:8080
-      FRONTEND_URL: http://localhost:8080
+      # Đã cập nhật lại PORT frontend thành 3000 theo kiến trúc mới
+      CLIENT_URL: http://localhost:3000
+      FRONTEND_URL: http://localhost:3000
     depends_on:
       - mongo
     ports:
       - "3001:3001"
 
+  # 3. Hệ thống Frontend MERN (React)
   frontend:
     build:
       context: ./frontend
@@ -35,7 +39,26 @@ services:
     depends_on:
       - backend
     ports:
-      - "8080:80"
+      # Host 3000 ánh xạ vào Nginx port 80 bên trong container
+      - "3000:80"
+
+  # 4. Hệ thống Backend IoT (NestJS)
+  iot_backend:
+    build:
+      context: ../iotEx/fitnfood-iot-service
+    container_name: fitnfood-iot-backend
+    restart: unless-stopped
+    ports:
+      # Host 3002 ánh xạ vào NestJS port 3002 bên trong container
+      - "3002:3002"
+    environment:
+      - PORT=3002
+      - MQTT_URL=mqtts://9f49232aa8d644968a6a76937b65671c.s1.eu.hivemq.cloud:8883
+      - MQTT_USERNAME=ronm250304
+      - MQTT_PASSWORD=13141516..
+      - FIREBASE_DATABASE_URL=https://e-com-flutter-fef78-default-rtdb.asia-southeast1.firebasedatabase.app
+      - MONGODB_URI=mongodb+srv://ronm250304_db_user:2LsOxIAstUgjQL4z@learningnestjs.fghrpuq.mongodb.net/IotProject
 
 volumes:
   mongo_data:
+  
