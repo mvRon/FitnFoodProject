@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { database } from '../../firebase';
 import { ref, onValue, set } from 'firebase/database';
 import { MapContainer, TileLayer, Marker, Popup, Polyline } from 'react-leaflet';
@@ -49,6 +49,14 @@ const AdminTrackingComponent = () => {
     const [truckStatus, setTruckStatus] = useState(null);
     const [path, setPath] = useState([]);
     const [tempHistory, setTempHistory] = useState([]);
+    const chartScrollRef = useRef(null);
+
+    // Tự động cuộn biểu đồ tới thời điểm hiện tại (bên phải)
+    useEffect(() => {
+        if (chartScrollRef.current) {
+            chartScrollRef.current.scrollLeft = chartScrollRef.current.scrollWidth;
+        }
+    }, [tempHistory]);
 
     // Biến lưu trữ instance của bản đồ để có thể điều khiển camera thủ công
     const [map, setMap] = useState(null);
@@ -102,7 +110,7 @@ const AdminTrackingComponent = () => {
                         return currentHistory;
                     }
                     const newHistory = [...currentHistory, { time: currentTime, temp: data.temperature }];
-                    const trimmedHistory = newHistory.slice(-20);
+                    const trimmedHistory = newHistory.slice(-200); // Tăng giới hạn lưu trữ để có thể xem lại quá khứ
 
                     // Đẩy mảng lịch sử mới lên Firebase để đồng bộ
                     set(historyRef, trimmedHistory);
@@ -147,6 +155,7 @@ const AdminTrackingComponent = () => {
 
     const chartOptions = {
         responsive: true,
+        maintainAspectRatio: false,
         plugins: {
             legend: {
                 position: 'top',
@@ -154,7 +163,7 @@ const AdminTrackingComponent = () => {
             title: {
                 display: true,
                 text: 'Biểu đồ nhiệt độ theo thời gian',
-            },
+            }
         },
         scales: {
             y: {
@@ -235,8 +244,14 @@ const AdminTrackingComponent = () => {
             </MapContainer>
                 </div>
                 
-                <div style={{ width: '100%', padding: '15px', boxSizing: 'border-box', marginTop: '20px' }}>
-                    <Line data={chartData} options={chartOptions} />
+                <div 
+                    ref={chartScrollRef} 
+                    style={{ width: '100%', padding: '15px', boxSizing: 'border-box', marginTop: '20px', overflowX: 'auto', overflowY: 'hidden' }}
+                >
+                    {/* Bọc biểu đồ trong div có chiều rộng linh động để tạo thanh cuộn ngang tự nhiên */}
+                    <div style={{ width: tempHistory.length > 20 ? `${tempHistory.length * 50}px` : '100%', minWidth: '100%', height: '350px' }}>
+                        <Line data={chartData} options={chartOptions} />
+                    </div>
                 </div>
             </div>
         </div>
