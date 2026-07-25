@@ -1,12 +1,33 @@
 import React, { useState, useEffect } from 'react';
 import { database } from '../../firebase';
-import { ref, onValue } from 'firebase/database';
+import { ref, onValue, set } from 'firebase/database';
 import { MapContainer, TileLayer, Marker, Popup, Polyline } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend,
+} from 'chart.js';
+import { Line } from 'react-chartjs-2';
 
 // IMPORT COMPONENT ĐỊNH TUYẾN MỚI TẠO
 import RoutingMachine from './RoutingMachine';
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend
+);
 
 // 1. ICON XE TẢI (Từ thư viện Icons8)
 const truckIcon = new L.Icon({
@@ -27,6 +48,7 @@ const homeIcon = new L.Icon({
 const AdminTrackingComponent = () => {
     const [truckStatus, setTruckStatus] = useState(null);
     const [path, setPath] = useState([]);
+    const [tempHistory, setTempHistory] = useState([]);
 
     // Biến lưu trữ instance của bản đồ để có thể điều khiển camera thủ công
     const [map, setMap] = useState(null);
@@ -35,6 +57,14 @@ const AdminTrackingComponent = () => {
     const destination = [10.7769, 106.7009];
 
     useEffect(() => {
+        const historyRef = ref(database, 'vehicles/FITNFOOD_TRUCK_01/history');
+        const unsubHistory = onValue(historyRef, (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                setTempHistory(data);
+            }
+        });
+
         const truckRef = ref(database, 'vehicles/FITNFOOD_TRUCK_01/current_status');
         const unsubscribe = onValue(truckRef, (snapshot) => {
             const data = snapshot.val();
@@ -44,9 +74,28 @@ const AdminTrackingComponent = () => {
                 setTruckStatus(data);
                 const newPos = [data.location.lat, data.location.lng];
                 setPath(prevPath => [...prevPath, newPos]);
+
+                const currentTime = new Date().toLocaleTimeString();
+                setTempHistory(prev => {
+                    const lastEntry = prev[prev.length - 1];
+                    // Tránh ghi đè/lưu trùng lặp cùng một thời điểm
+                    if (lastEntry && lastEntry.time === currentTime && lastEntry.temp === data.temperature) {
+                        return prev;
+                    }
+                    const newHistory = [...prev, { time: currentTime, temp: data.temperature }];
+                    const trimmedHistory = newHistory.slice(-20);
+
+                    // Đẩy mảng lịch sử mới lên Firebase để đồng bộ
+                    set(historyRef, trimmedHistory);
+
+                    return trimmedHistory;
+                });
             }
         });
-        return () => unsubscribe();
+        return () => {
+            unsubscribe();
+            unsubHistory();
+        };
     }, []);
 
     // Hàm lia camera về vị trí xe khi người dùng bấm nút
@@ -63,8 +112,40 @@ const AdminTrackingComponent = () => {
     // ĐỒNG BỘ LOGIC BACKEND: Cảnh báo khi nhiệt độ ngoài khoảng 5 - 10 độ C
     const isAbnormalTemp = truckStatus.temperature < 5.0 || truckStatus.temperature > 35.0;
 
+    const chartData = {
+        labels: tempHistory.map(item => item.time),
+        datasets: [
+            {
+                label: 'Nhiệt độ thùng hàng (°C)',
+                data: tempHistory.map(item => item.temp),
+                borderColor: 'rgb(255, 99, 132)',
+                backgroundColor: 'rgba(255, 99, 132, 0.5)',
+                tension: 0.3,
+            }
+        ]
+    };
+
+    const chartOptions = {
+        responsive: true,
+        plugins: {
+            legend: {
+                position: 'top',
+            },
+            title: {
+                display: true,
+                text: 'Biểu đồ nhiệt độ theo thời gian',
+            },
+        },
+        scales: {
+            y: {
+                suggestedMin: 0,
+                suggestedMax: 40
+            }
+        }
+    };
+
     return (
-        <div style={{ height: '600px', width: '100%', border: '1px solid #ccc', position: 'relative' }}>
+        <div style={{ width: '100%', border: '1px solid #ccc', position: 'relative' }}>
             {/* Thanh trạng thái */}
             <div style={{
                 padding: '15px',
@@ -98,13 +179,15 @@ const AdminTrackingComponent = () => {
                 </button>
             </div>
 
-            {/* BẢN ĐỒ */}
-            <MapContainer
-                center={position}
-                zoom={15}
-                style={{ height: '500px', width: '100%' }}
-                ref={setMap} // Gán ref để lấy instance của map
-            >
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <div style={{ width: '100%' }}>
+                    {/* BẢN ĐỒ */}
+                    <MapContainer
+                        center={position}
+                        zoom={15}
+                        style={{ height: '500px', width: '100%' }}
+                        ref={setMap} // Gán ref để lấy instance của map
+                    >
                 <TileLayer
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                     attribution='&copy; OpenStreetMap contributors'
@@ -130,6 +213,12 @@ const AdminTrackingComponent = () => {
                     <Popup>Điểm đích (Khách hàng)</Popup>
                 </Marker>
             </MapContainer>
+                </div>
+                
+                <div style={{ width: '100%', padding: '15px', boxSizing: 'border-box', marginTop: '20px' }}>
+                    <Line data={chartData} options={chartOptions} />
+                </div>
+            </div>
         </div>
     );
 };
