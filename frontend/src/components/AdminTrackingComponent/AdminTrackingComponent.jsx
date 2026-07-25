@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { database } from '../../firebase';
 import { ref, onValue, set } from 'firebase/database';
 import { MapContainer, TileLayer, Marker, Popup, Polyline } from 'react-leaflet';
@@ -15,6 +15,7 @@ import {
   Legend,
 } from 'chart.js';
 import { Line } from 'react-chartjs-2';
+import zoomPlugin from 'chartjs-plugin-zoom';
 
 // IMPORT COMPONENT ĐỊNH TUYẾN MỚI TẠO
 import RoutingMachine from './RoutingMachine';
@@ -26,7 +27,8 @@ ChartJS.register(
   LineElement,
   Title,
   Tooltip,
-  Legend
+  Legend,
+  zoomPlugin
 );
 
 // 1. ICON XE TẢI (Từ thư viện Icons8)
@@ -49,14 +51,6 @@ const AdminTrackingComponent = () => {
     const [truckStatus, setTruckStatus] = useState(null);
     const [path, setPath] = useState([]);
     const [tempHistory, setTempHistory] = useState([]);
-    const chartScrollRef = useRef(null);
-
-    // Tự động cuộn biểu đồ tới thời điểm hiện tại (bên phải)
-    useEffect(() => {
-        if (chartScrollRef.current) {
-            chartScrollRef.current.scrollLeft = chartScrollRef.current.scrollWidth;
-        }
-    }, [tempHistory]);
 
     // Biến lưu trữ instance của bản đồ để có thể điều khiển camera thủ công
     const [map, setMap] = useState(null);
@@ -163,6 +157,21 @@ const AdminTrackingComponent = () => {
             title: {
                 display: true,
                 text: 'Biểu đồ nhiệt độ theo thời gian',
+            },
+            zoom: {
+                pan: {
+                    enabled: true,
+                    mode: 'x',
+                },
+                zoom: {
+                    wheel: {
+                        enabled: true,
+                    },
+                    pinch: {
+                        enabled: true
+                    },
+                    mode: 'x',
+                }
             }
         },
         scales: {
@@ -244,12 +253,8 @@ const AdminTrackingComponent = () => {
             </MapContainer>
                 </div>
                 
-                <div 
-                    ref={chartScrollRef} 
-                    style={{ width: '100%', padding: '15px', boxSizing: 'border-box', marginTop: '20px', overflowX: 'auto', overflowY: 'hidden' }}
-                >
-                    {/* Bọc biểu đồ trong div có chiều rộng linh động để tạo thanh cuộn ngang tự nhiên */}
-                    <div style={{ width: tempHistory.length > 20 ? `${tempHistory.length * 50}px` : '100%', minWidth: '100%', height: '350px' }}>
+                <div style={{ width: '100%', padding: '15px', boxSizing: 'border-box', marginTop: '20px' }}>
+                    <div style={{ width: '100%', height: '350px' }}>
                         <Line data={chartData} options={chartOptions} />
                     </div>
                 </div>
