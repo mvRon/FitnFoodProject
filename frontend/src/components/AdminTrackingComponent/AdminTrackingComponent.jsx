@@ -60,9 +60,14 @@ const AdminTrackingComponent = () => {
         const historyRef = ref(database, 'vehicles/FITNFOOD_TRUCK_01/history');
         const unsubHistory = onValue(historyRef, (snapshot) => {
             const data = snapshot.val();
-            if (data) {
-                setTempHistory(data);
-            }
+            setTempHistory(Array.isArray(data) ? data : (data ? Object.values(data) : []));
+        });
+
+        // Lấy lịch sử đường đi từ Firebase
+        const pathHistoryRef = ref(database, 'vehicles/FITNFOOD_TRUCK_01/path_history');
+        const unsubPathHistory = onValue(pathHistoryRef, (snapshot) => {
+            const data = snapshot.val();
+            setPath(Array.isArray(data) ? data : (data ? Object.values(data) : []));
         });
 
         const truckRef = ref(database, 'vehicles/FITNFOOD_TRUCK_01/current_status');
@@ -73,16 +78,30 @@ const AdminTrackingComponent = () => {
             if (data && data.location.lat !== 0 && data.location.lng !== 0) {
                 setTruckStatus(data);
                 const newPos = [data.location.lat, data.location.lng];
-                setPath(prevPath => [...prevPath, newPos]);
+                
+                setPath(prevPath => {
+                    const currentPath = Array.isArray(prevPath) ? prevPath : [];
+                    const lastPos = currentPath[currentPath.length - 1];
+                    // Tránh lưu trùng lặp tọa độ nếu xe chưa di chuyển
+                    if (lastPos && lastPos[0] === newPos[0] && lastPos[1] === newPos[1]) {
+                        return currentPath;
+                    }
+                    const newPath = [...currentPath, newPos];
+                    
+                    // Cập nhật đường đi lên Firebase
+                    set(pathHistoryRef, newPath);
+                    return newPath;
+                });
 
                 const currentTime = new Date().toLocaleTimeString();
                 setTempHistory(prev => {
-                    const lastEntry = prev[prev.length - 1];
+                    const currentHistory = Array.isArray(prev) ? prev : [];
+                    const lastEntry = currentHistory[currentHistory.length - 1];
                     // Tránh ghi đè/lưu trùng lặp cùng một thời điểm
                     if (lastEntry && lastEntry.time === currentTime && lastEntry.temp === data.temperature) {
-                        return prev;
+                        return currentHistory;
                     }
-                    const newHistory = [...prev, { time: currentTime, temp: data.temperature }];
+                    const newHistory = [...currentHistory, { time: currentTime, temp: data.temperature }];
                     const trimmedHistory = newHistory.slice(-20);
 
                     // Đẩy mảng lịch sử mới lên Firebase để đồng bộ
@@ -95,6 +114,7 @@ const AdminTrackingComponent = () => {
         return () => {
             unsubscribe();
             unsubHistory();
+            unsubPathHistory();
         };
     }, []);
 
@@ -193,10 +213,10 @@ const AdminTrackingComponent = () => {
                     attribution='&copy; OpenStreetMap contributors'
                 />
 
-                {/* 1. ĐOẠN ĐƯỜNG ĐÃ ĐI: Màu xám, nét đứt, mờ */}
+                {/* 1. ĐOẠN ĐƯỜNG ĐÃ ĐI: Màu đỏ, nét đứt, mờ */}
                 <Polyline
                     positions={path}
-                    color="#9e9e9e"
+                    color="red"
                     weight={5}
                     opacity={0.6}
                     dashArray="5, 10"
