@@ -35,6 +35,18 @@ const resolveToken = (token) => {
   }
 };
 
+const getOrCreateGuestId = () => {
+  const storageKey = "guest_chat_id";
+  const stored = localStorage.getItem(storageKey);
+  if (stored) return stored;
+
+  const generated = typeof crypto !== "undefined" && crypto.randomUUID
+    ? crypto.randomUUID()
+    : `guest_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+  localStorage.setItem(storageKey, generated);
+  return generated;
+};
+
 const CONTEXT_CONFIG = {
   product: {
     title: "Gợi ý tương tự",
@@ -50,6 +62,11 @@ const CONTEXT_CONFIG = {
     title: "Gợi ý riêng cho bạn",
     subtitle: "Được cá nhân hóa từ lịch sử mua hàng",
     reason: "Dựa trên lịch sử mua hàng của bạn",
+  },
+  guest: {
+    title: "Gợi ý cho khách hàng mới",
+    subtitle: "Được gợi ý dựa trên sản phẩm nổi bật",
+    reason: "Dựa trên sản phẩm nổi bật",
   },
 };
 
@@ -69,6 +86,10 @@ const RecommendationCarousel = ({
   const user = useSelector((state) => state.user);
   const accessTokenRaw = localStorage.getItem("access_token");
   const accessToken = resolveToken(accessTokenRaw);
+  const guestId = useMemo(
+    () => (context === "guest" ? getOrCreateGuestId() : null),
+    [context]
+  );
 
   const productIds = useMemo(() => {
     return (cartItems || [])
@@ -109,7 +130,7 @@ const RecommendationCarousel = ({
   );
 
   const { data: recommendationsData, isLoading: loading } = useQuery({
-    queryKey: ["recommendations", context, productId, productIdsKey, accessToken, limit],
+    queryKey: ["recommendations", context, productId, productIdsKey, accessToken, guestId, limit],
     queryFn: async () => {
       let response = null;
       if (context === "product") {
@@ -118,6 +139,8 @@ const RecommendationCarousel = ({
         response = await RecommendationService.getRecommendationsByCart(productIds, limit, accessToken);
       } else if (context === "history") {
         response = await RecommendationService.getRecommendationsByHistory(accessToken, limit);
+      } else if (context === "guest") {
+        response = await RecommendationService.getRecommendationsByGuest(guestId, limit);
       }
       if (response?.status === "OK") {
         return response.data || [];
@@ -127,7 +150,8 @@ const RecommendationCarousel = ({
     enabled:
       (context === "product" && !!productId) ||
       (context === "cart" && !!accessToken && productIds.length > 0) ||
-      (context === "history" && !!accessToken),
+      (context === "history" && !!accessToken) ||
+      (context === "guest" && !!guestId),
     staleTime: 5 * 60 * 1000,
   });
 

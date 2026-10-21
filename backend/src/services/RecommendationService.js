@@ -325,10 +325,33 @@ const rebuildProductEmbeddings = async (options = {}) => {
     };
 };
 
+const getRecommendationsByGuest = async (guestId, options = {}) => {
+    const limit = Number(options.limit) || DEFAULT_LIMIT;
+    const cacheKey = `guest_${guestId}_${limit}`;
+
+    const cachedData = historyCache.get(cacheKey);
+    if (cachedData && Date.now() - cachedData.timestamp < CACHE_TTL) {
+        return cachedData.result;
+    }
+
+    const fallback = await fetchFallbackProducts({ limit, excludeIds: [] });
+    const result = {
+        status: "OK",
+        message: "Recommendations generated successfully!",
+        data: fallback.map((item) => mapRecommendation(item, "Dựa trên sản phẩm nổi bật")),
+    };
+
+    historyCache.set(cacheKey, { result, timestamp: Date.now() });
+
+    return result;
+}
+
+
 module.exports = {
     ensureProductEmbedding,
     getRecommendationsByProduct,
     getRecommendationsByCart,
     getRecommendationsByHistory,
     rebuildProductEmbeddings,
+    getRecommendationsByGuest,
 };

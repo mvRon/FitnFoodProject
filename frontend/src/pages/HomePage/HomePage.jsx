@@ -33,8 +33,6 @@ const HomePage = () => {
     return res
   }
 
-
-
   const fetchAllTypeProduct = async () => {
     // const res = await ProductService.getAllTypeProduct()
     const res = await CategoryService.getAllCategories();
@@ -125,8 +123,10 @@ const HomePage = () => {
                 </WrapperTypeProduct>
               </CategoryBar>
             </div>
-            {accessToken && (
+            {accessToken ? (
               <RecommendationCarousel context="history" />
+            ) : (
+              <RecommendationCarousel context="guest" />
             )}
             <WrapperProducts style={{ marginTop: '20px' }}>
               {displayProducts?.length > 0 ? displayProducts?.map((product) => {

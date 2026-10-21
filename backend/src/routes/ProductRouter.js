@@ -33,6 +33,7 @@ router.delete('/:productId/reviews/:reviewId', authUserMiddleWare, ProductContro
 router.get('/get-recommendations-by-product/:id', ProductController.getRecommendationsByProduct);
 router.post('/get-recommendations-by-cart', authUserMiddleWare, ProductController.getRecommendationsByCart);
 router.get('/get-recommendations-by-history', authUserMiddleWare, ProductController.getRecommendationsByHistory);
+router.get('/get-recommendations-by-guest', ProductController.getRecommendationsByGuest);
 router.post('/rebuild-product-embeddings', authMiddleWare, ProductController.rebuildProductEmbeddings);
 
 // Đăng ký nhận thông báo khi sản phẩm có hàng trở lại

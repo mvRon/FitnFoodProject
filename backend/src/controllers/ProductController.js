@@ -264,6 +264,27 @@ const getRecommendationsByHistory = async (req, res) => {
     }
 };
 
+const getRecommendationsByGuest = async (req, res) => {
+    try {
+        const guestId = String(req.query?.guestId || "").trim();
+        const limit = Number(req.query.limit);
+        if (!guestId) {
+            return res.status(400).json({
+                status: "ERR",
+                message: "Guest ID is required!"
+            });
+        };
+
+        const response = await RecommendationService.getRecommendationsByGuest(guestId, { limit });
+        return res.status(200).json(response);
+    } catch (e) {
+        return res.status(500).json({
+            status: "ERR",
+            message: e.message || "Something went wrong!"
+        });
+    }
+}
+
 const rebuildProductEmbeddings = async (req, res) => {
     try {
         const limit = Number(req.body?.limit || req.query?.limit || 0);
@@ -339,6 +360,7 @@ module.exports = {
     getRecommendationsByProduct,
     getRecommendationsByCart,
     getRecommendationsByHistory,
+    getRecommendationsByGuest,
     rebuildProductEmbeddings,
     subscribeRestock,
 }

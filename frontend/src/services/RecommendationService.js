@@ -59,3 +59,20 @@ export const getRecommendationsByHistory = async (access_token, limit = 5) => {
 
   return res.data;
 };
+
+
+export const getRecommendationsByGuest = async (guestId, limit = 5) => {
+  const queryParams = new URLSearchParams();
+  if (guestId) {
+    queryParams.append("guestId", guestId);
+  }
+  if (limit) {
+    queryParams.append("limit", String(limit));
+  };
+
+  const res = await axios.get(
+    `${API}/get-recommendations-by-guest?${queryParams.toString()}`
+  );
+
+  return res.data;
+}
