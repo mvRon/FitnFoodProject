@@ -12,6 +12,7 @@ const cookieParser = require("cookie-parser")
 const registerChatSocket = require("./socket/chatSocket")
 const { registerNotificationSocket } = require("./socket/notificationSocket")
 const PaymentController = require("./controllers/PaymentController")
+const { startPaymentOutboxWorker } = require("./services/PaymentOutboxWorker")
 const compression = require("compression")
 dotenv.config()
 
@@ -54,6 +55,7 @@ routes(app);
 mongoose.connect(`${process.env.MONGO_DB}`)
     .then(() => {
         console.log("Connected succesfully!")
+        startPaymentOutboxWorker(io)
     })
     .catch((err) => {
         console.log(err)

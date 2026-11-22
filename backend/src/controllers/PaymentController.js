@@ -1,9 +1,7 @@
 const OrderService = require("../services/OrderService");
 const PayOSService = require("../services/PayOSService");
-const EmailService = require("../services/EmailService");
 const Order = require("../models/OrderModel");
-const NotificationService = require("../services/NotificationService");
-const { emitToAdmin } = require("../socket/notificationSocket");
+const PaymentWebhookService = require("../services/PaymentWebhookService");
 
 // Sẽ được gán bởi index.js sau khi khởi tạo Socket.IO
 let _io = null;
@@ -140,103 +138,18 @@ const handleWebhook = async (req, res) => {
             return res.status(200).json({ error: "0" });
         }
 
-        // Tìm đơn hàng theo payosOrderCode
-        const order = await Order.findOne({ payosOrderCode: Number(orderCode) }).populate('user', 'email');
-        if (!order) {
-            console.warn(`[PayOS Webhook] Order not found for orderCode: ${orderCode}`);
-            return res.status(200).json({ error: "0" });
-        }
+        const amount = verifiedData?.amount ?? webhookData?.data?.amount;
+        const paymentLinkId = verifiedData?.paymentLinkId
+            ?? webhookData?.data?.paymentLinkId
+            ?? webhookData?.paymentLinkId;
 
-        const orderId = order._id.toString();
-
-        if (code === "00") {
-            // Thanh toán thành công — cập nhật đơn hàng
-            await Order.findByIdAndUpdate(order._id, {
-                isPaid: true,
-                paidAt: new Date(),
-            });
-
-            console.log(`[PayOS] Order ${orderId} marked as PAID`);
-
-            // Gửi email xác nhận đơn hàng
-            if (order.user && order.user.email) {
-                setImmediate(() => {
-                    EmailService.sendEmailOrder({
-                        email: order.user.email,
-                        orderItems: order.orderItems,
-                        totalPrice: order.totalPrice
-                    }).catch((err) => {
-                        console.error("[PayOS] Failed to send order confirmation email:", err);
-                    });
-                });
-            }
-
-            // Emit Socket.IO real-time xuống frontend
-            if (_io) {
-                _io.to(`payment:${orderId}`).emit("payment:success", {
-                    orderId,
-                    totalPrice: order.totalPrice,
-                    paidAt: new Date(),
-                });
-            }
-
-            // Thông báo đơn hàng mới (đã thanh toán) cho Admin
-            setImmediate(async () => {
-                try {
-                    const notification = await NotificationService.createNotification({
-                        recipientType: 'admin',
-                        type: 'NEW_ORDER',
-                        title: 'Đơn hàng mới!',
-                        message: `Đơn hàng #${orderId.slice(-6).toUpperCase()} vừa được đặt và thanh toán qua QR.`,
-                        metadata: {
-                            orderId,
-                            totalPrice: order.totalPrice,
-                            paymentMethod: order.paymentMethod || 'payos',
-                        },
-                    });
-                    emitToAdmin(notification);
-                } catch (notifErr) {
-                    console.error('[Notification] NEW_ORDER trigger failed:', notifErr);
-                }
-            });
-
-        } else {
-            // Thanh toán thất bại / hủy — hủy đơn + hoàn kho
-            console.log(`[PayOS] Order ${orderId} cancelled (code=${code})`);
-
-            try {
-                await OrderService.cancelExpiredOrder(orderId);
-            } catch (cancelErr) {
-                console.error("[PayOS] cancelExpiredOrder failed:", cancelErr?.message);
-            }
-
-            if (_io) {
-                _io.to(`payment:${orderId}`).emit("payment:cancelled", {
-                    orderId,
-                    reason: desc || "Payment cancelled",
-                });
-            }
-
-            // Thông báo lỗi thanh toán cho Admin
-            setImmediate(async () => {
-                try {
-                    const notification = await NotificationService.createNotification({
-                        recipientType: 'admin',
-                        type: 'PAYMENT_FAILED',
-                        title: 'Thanh toán thất bại!',
-                        message: `Đơn hàng #${orderId.slice(-6).toUpperCase()} bị hủy hoặc lỗi thanh toán (mã: ${code}).`,
-                        metadata: {
-                            orderId,
-                            code,
-                            reason: desc || 'Payment failed/cancelled',
-                        },
-                    });
-                    emitToAdmin(notification);
-                } catch (notifErr) {
-                    console.error('[Notification] PAYMENT_FAILED trigger failed:', notifErr);
-                }
-            });
-        }
+        await PaymentWebhookService.handleVerifiedWebhook({
+            orderCode,
+            code,
+            desc,
+            amount,
+            paymentLinkId,
+        });
 
         // PayOS yêu cầu trả về { error: "0" } để xác nhận đã nhận webhook
         return res.status(200).json({ error: "0" });

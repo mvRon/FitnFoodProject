@@ -37,9 +37,16 @@ const orderSchema = new mongoose.Schema(
         user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
         isPaid: { type: Boolean, default: false },
         paidAt: { type: Date },
+        paymentStatus: {
+            type: String,
+            enum: ["pending", "paid", "cancelled", "failed"],
+            default: "pending",
+        },
+        cancelledAt: { type: Date },
+        stockRestored: { type: Boolean, default: false },
         isDelivered: { type: String, default: "pending" },
         // PayOS fields
-        payosOrderCode: { type: Number, default: null },   // Mã số PayOS (số nguyên)
+        payosOrderCode: { type: Number, default: null, unique: true, sparse: true },   // Mã số PayOS (số nguyên)
         paymentLinkId: { type: String, default: null },    // ID payment link từ PayOS
     },
     {

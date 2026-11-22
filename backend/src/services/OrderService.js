@@ -827,6 +827,7 @@ async function createPendingOrder(newOrder) {
             totalPrice,
             user,
             isPaid: false,
+            paymentStatus: 'pending',
             isDelivered: deliveryStatus,
             payosOrderCode: payosOrderCode || null,
             paymentLinkId: paymentLinkId || null,
@@ -904,14 +905,42 @@ async function createPendingOrder(newOrder) {
  */
 async function cancelExpiredOrder(orderId) {
     try {
-        const order = await Order.findById(orderId);
-        if (!order) {
-            return { status: 'ERR', message: 'Order not found!' };
-        }
+        let order = await Order.findOneAndUpdate(
+            {
+                _id: orderId,
+                isPaid: { $ne: true },
+                stockRestored: { $ne: true },
+                $or: [
+                    { paymentStatus: "pending" },
+                    { paymentStatus: "failed" },
+                    { paymentStatus: { $exists: false } },
+                ],
+            },
+            {
+                $set: {
+                    paymentStatus: "cancelled",
+                    cancelledAt: new Date(),
+                },
+            },
+            { new: true }
+        );
 
-        // Chỉ hủy đơn PayOS chưa thanh toán
-        if (order.isPaid) {
-            return { status: 'ERR', message: 'Cannot cancel a paid order!' };
+        if (!order) {
+            const existingOrder = await Order.findById(orderId);
+            if (!existingOrder) {
+                return { status: 'ERR', message: 'Order not found!' };
+            }
+            if (existingOrder.isPaid) {
+                return { status: 'ERR', message: 'Cannot cancel a paid order!' };
+            }
+            if (existingOrder.stockRestored) {
+                return { status: 'OK', message: 'Order already cancelled!', duplicate: true };
+            }
+            if (existingOrder.paymentStatus === 'cancelled') {
+                order = existingOrder;
+            } else {
+                return { status: 'ERR', message: 'Cannot cancel this order!' };
+            }
         }
 
         // Hoàn lại hàng tồn kho
@@ -980,7 +1009,13 @@ async function cancelExpiredOrder(orderId) {
             }
         }
 
-        await Order.findByIdAndDelete(orderId);
+        await Order.findByIdAndUpdate(orderId, {
+            $set: {
+                paymentStatus: 'cancelled',
+                cancelledAt: new Date(),
+                stockRestored: true,
+            },
+        });
         return { status: 'OK', message: 'Expired order cancelled and stock restored!' };
 
     } catch (error) {
