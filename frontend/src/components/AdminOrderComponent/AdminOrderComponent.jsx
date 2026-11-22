@@ -577,9 +577,7 @@ const AdminOrderComponent = () => {
 
         // Lấy giờ Việt Nam chuẩn ISO
         const getVietnamTimeISO = () => {
-            const now = new Date();
-            now.setHours(now.getHours() + 7);
-            return now.toISOString();
+            return new Date().toISOString();
         };
 
         let paidAtValue = currentOrder?.paidAt || null;
