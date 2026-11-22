@@ -108,10 +108,10 @@ const cancelPaymentLink = async (orderCode, reason = "Order expired") => {
  * Dùng 8 ký tự hex cuối của ObjectId → convert sang số nguyên 32-bit
  */
 const generateOrderCode = (mongoId) => {
-    const hex = String(mongoId).slice(-8);
-    const num = parseInt(hex, 16);
-    // Đảm bảo dương và < 2^31 để tránh overflow
-    return Math.abs(num % 2000000000) + 1;
+    const hex = String(mongoId).replace(/[^0-9a-f]/gi, "").slice(-16);
+    const num = hex ? BigInt(`0x${hex}`) : BigInt(String(Date.now()).replace(/\D/g, "").slice(-10));
+    // PayOS yêu cầu số nguyên dương; dùng 800 triệu khả năng trong 100M-899M.
+    return Number((num % 800000000n) + 100000000n);
 };
 
 module.exports = {

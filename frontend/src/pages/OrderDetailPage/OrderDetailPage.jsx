@@ -248,7 +248,7 @@ const OrderDetailPage = () => {
             )}
             {orderDetail.isPaid && (
               <Text type="secondary" style={{ display: 'block', marginTop: '8px' }}>
-                Thanh toán lúc: {new Date(orderDetail.paidAt).toLocaleString('vi-VN', { timeZone: 'UTC' })}
+                Thanh toán lúc: {new Date(orderDetail.paidAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}
               </Text>
             )}
             <Divider />

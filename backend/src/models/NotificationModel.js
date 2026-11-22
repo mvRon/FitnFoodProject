@@ -31,6 +31,7 @@ const notificationSchema = new mongoose.Schema(
         message: { type: String, required: true },
         // Dữ liệu đính kèm (orderId, productId, v.v.) để navigate khi click
         metadata: { type: mongoose.Schema.Types.Mixed, default: {} },
+        dedupKey: { type: String, default: null },
         isRead: { type: Boolean, default: false },
     },
     {
@@ -44,6 +45,7 @@ notificationSchema.index({ createdAt: 1 }, { expireAfterSeconds: 30 * 24 * 60 * 
 // Index để query nhanh
 notificationSchema.index({ recipient: 1, recipientType: 1, createdAt: -1 });
 notificationSchema.index({ recipientType: 1, createdAt: -1 });
+notificationSchema.index({ dedupKey: 1 }, { unique: true, sparse: true });
 
 const Notification = mongoose.model("Notification", notificationSchema);
 module.exports = Notification;
