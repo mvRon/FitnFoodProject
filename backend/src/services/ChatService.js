@@ -618,6 +618,7 @@ const executeFunctionCall = async (functionCall, userId, context = {}) => {
             const orderResult = await OrderService.createOrder({
                 orderItems,
                 paymentMethod: "cash",
+                discountCode: voucherCode,
                 itemsPrice,
                 shippingPrice,
                 totalPrice,
@@ -743,6 +744,7 @@ const executeFunctionCall = async (functionCall, userId, context = {}) => {
             const orderResult = await OrderService.createPendingOrder({
                 orderItems,
                 paymentMethod: "payos",
+                discountCode: voucherCode,
                 itemsPrice,
                 shippingPrice,
                 totalPrice,

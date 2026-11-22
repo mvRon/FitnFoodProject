@@ -200,10 +200,11 @@ const PaymentPage = () => {
 
   const baseDeliveryMemo = useMemo(() => {
     if (orderDeliveryMemo !== undefined) return Number(orderDeliveryMemo) || 0;
-    if (priceMemo >= 500000 || order?.orderItemSelected?.length === 0) return 0;
-    if (priceMemo >= 200000 && priceMemo < 500000) return 10000;
-    return 20000;
-  }, [orderDeliveryMemo, priceMemo, order?.orderItemSelected?.length]);
+    if (order?.orderItemSelected?.length === 0) return 0;
+    const shippingFee = Number(setting?.shippingFee ?? 30000);
+    const freeShippingThreshold = Number(setting?.freeShippingThreshold ?? 200000);
+    return priceMemo >= freeShippingThreshold ? 0 : shippingFee;
+  }, [orderDeliveryMemo, priceMemo, order?.orderItemSelected?.length, setting?.shippingFee, setting?.freeShippingThreshold]);
 
   const deliverySurchargeMemo = useMemo(() => {
     return delivery === "fast" ? 50000 : 0;
@@ -276,6 +277,8 @@ const PaymentPage = () => {
           itemsPrice: priceMemo,
           shippingPrice: deliveryMemo,
           totalPrice: totalPriceMemo,
+          discountCode: orderDiscount?.code,
+          delivery,
           email: user?.email,
         });
 
@@ -321,6 +324,8 @@ const PaymentPage = () => {
       itemsPrice: priceMemo,
       shippingPrice: deliveryMemo,
       totalPrice: totalPriceMemo,
+      discountCode: orderDiscount?.code,
+      delivery,
       user: userId,
       email: user?.email,
     });

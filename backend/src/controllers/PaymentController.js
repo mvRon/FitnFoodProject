@@ -22,6 +22,8 @@ const createPaymentLink = async (req, res) => {
             address,
             city,
             phone,
+            discountCode,
+            delivery,
         } = req.body;
 
         const userId = req.user.id;
@@ -44,6 +46,8 @@ const createPaymentLink = async (req, res) => {
             phone,
             user: userId,
             email: req.body.email || "",
+            discountCode,
+            delivery,
         });
 
         if (pendingOrderResult.status === "ERR") {
@@ -59,11 +63,14 @@ const createPaymentLink = async (req, res) => {
         const ngrokUrl = process.env.NGROK_URL || "";
         const frontendUrl = process.env.FRONTEND_URL || process.env.CLIENT_URL || "http://localhost:3000";
 
+        console.log("pendingOrderResult", pendingOrderResult);
+        
+        const payAmount = Math.round(order.totalPrice);
         const paymentLinkData = await PayOSService.createPaymentLink({
             orderCode: payosOrderCode,
-            amount: Math.round(totalPrice),
+            amount: payAmount,
             description: `FitnFood #${String(order._id).slice(-6).toUpperCase()}`,
-            items: orderItems.map((item) => ({
+            items: order.orderItems.map((item) => ({
                 name: String(item.name || "Sản phẩm").slice(0, 50),
                 quantity: Number(item.amount || 1),
                 price: Math.round(Number(item.price || 0)),
@@ -89,7 +96,7 @@ const createPaymentLink = async (req, res) => {
                 qrCode: paymentLinkData.qrCode,
                 checkoutUrl: paymentLinkData.checkoutUrl,
                 paymentLinkId: paymentLinkData.paymentLinkId,
-                totalPrice,
+                totalPrice: order.totalPrice,
                 bin: paymentLinkData.bin,
                 accountNumber: paymentLinkData.accountNumber,
                 accountName: paymentLinkData.accountName,

@@ -66,6 +66,26 @@ const OrderDetailPage = () => {
     return result
   }, [data])
 
+  const itemDiscountMemo = useMemo(() => {
+    if (!data?.orderItems?.length) return 0;
+    return data.orderItems.reduce((total, item) => {
+      const originalLinePrice = Number(item?.price || 0) * Number(item?.amount || 0);
+      return total + originalLinePrice * Number(item?.discount || 0) / 100;
+    }, 0);
+  }, [data])
+
+  const couponDiscountMemo = useMemo(() => {
+    if (!orderDetail) return 0;
+    if (Number(orderDetail.couponDiscountAmount) >= 0 && orderDetail.couponDiscountAmount != null) {
+      return Number(orderDetail.couponDiscountAmount);
+    }
+    const fallback = priceMemo
+      - itemDiscountMemo
+      + Number(orderDetail.shippingPrice || 0)
+      - Number(orderDetail.totalPrice || 0);
+    return Math.max(0, fallback);
+  }, [orderDetail, priceMemo, itemDiscountMemo])
+
   const mockOrders = [
     {
       _id: data?.id, // Sử dụng _id để khớp với cách MongoDB lưu trữ
@@ -268,8 +288,16 @@ const OrderDetailPage = () => {
               <Text className="value">{formatCurrency(orderDetail.shippingPrice)}</Text>
             </PriceDetail>
             <PriceDetail>
+              <Text className="label">Giảm giá sản phẩm:</Text>
+              <Text className="value">{formatCurrency(
+                Number(orderDetail.itemDiscountAmount) >= 0 && orderDetail.itemDiscountAmount != null
+                  ? Number(orderDetail.itemDiscountAmount)
+                  : itemDiscountMemo
+              )}</Text>
+            </PriceDetail>
+            <PriceDetail>
               <Text className="label">Giảm khuyến mãi:</Text>
-              <Text className="value">{formatCurrency(priceMemo - orderDetail.totalPrice)}</Text>
+              <Text className="value">{formatCurrency(couponDiscountMemo)}</Text>
             </PriceDetail>
 
             <Divider />
