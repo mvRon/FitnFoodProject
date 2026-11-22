@@ -8,11 +8,134 @@ const StockCard = require("../models/StockCardModel");
 const InventoryThreshold = require("../models/InventoryThresholdModel");
 const NotificationService = require('./NotificationService');
 const { emitToAdmin, emitToUser } = require('../socket/notificationSocket');
+const Discount = require("../models/DiscountModel");
+const SystemSetting = require("../models/SystemSettingModel");
+
+async function calculateServerPricing(newOrder) {
+    const orderItems = Array.isArray(newOrder.orderItems) ? newOrder.orderItems : [];
+    if (!orderItems.length) {
+        return { status: 'ERR', message: 'Order items are required!' };
+    }
+
+    const mongoose = require('mongoose');
+    const mergedItems = new Map();
+    for (const item of orderItems) {
+        const rawProductId = item?.product?._id || item?.product;
+        const productId = rawProductId ? String(rawProductId) : '';
+        const amount = Number(item?.amount);
+        if (!mongoose.Types.ObjectId.isValid(productId) || !Number.isInteger(amount) || amount <= 0) {
+            return { status: 'ERR', message: 'Dữ liệu sản phẩm không hợp lệ!' };
+        }
+        const existing = mergedItems.get(productId);
+        if (existing) {
+            existing.amount += amount;
+        } else {
+            mergedItems.set(productId, {
+                product: productId,
+                amount,
+                orderSource: ["organic", "chatbot", "rag_recommendation"].includes(item?.orderSource)
+                    ? item.orderSource
+                    : "organic",
+            });
+        }
+    }
+
+    const products = await Product.find({
+        _id: { $in: Array.from(mergedItems.keys()) }
+    }).lean();
+    const productMap = new Map(products.map(product => [String(product._id), product]));
+    if (productMap.size !== mergedItems.size) {
+        return { status: 'ERR', message: 'Một số sản phẩm không tồn tại!' };
+    }
+
+    let itemsPrice = 0;
+    let itemDiscountAmount = 0;
+    const normalizedOrderItems = [];
+    for (const [productId, item] of mergedItems) {
+        const product = productMap.get(productId);
+        const unitPrice = Number(product.price);
+        const discount = Math.min(100, Math.max(0, Number(product.discount || 0)));
+        if (!Number.isFinite(unitPrice) || unitPrice < 0) {
+            return { status: 'ERR', message: 'Giá sản phẩm không hợp lệ!' };
+        }
+        const lineTotal = unitPrice * item.amount;
+        itemsPrice += lineTotal;
+        itemDiscountAmount += lineTotal * discount / 100;
+        normalizedOrderItems.push({
+            ...item,
+            name: product.name || "",
+            image: Array.isArray(product.images) && product.images.length ? product.images[0] : "",
+            price: unitPrice,
+            discount,
+        });
+    }
+
+    let couponDiscountAmount = 0;
+    let discountCode = null;
+    const rawDiscountCode = newOrder.discountCode || newOrder.discount?.code;
+    if (rawDiscountCode) {
+        const code = String(rawDiscountCode).trim().toUpperCase();
+        const discount = await Discount.findOne({ code }).lean();
+        const now = new Date();
+        if (
+            discount &&
+            discount.isActive &&
+            discount.usesLeft > 0 &&
+            now >= discount.startDate &&
+            now <= discount.endDate &&
+            itemsPrice >= Number(discount.minValue || 0) &&
+            !discount.usersUsed?.some(id => String(id) === String(newOrder.user))
+        ) {
+            discountCode = code;
+            couponDiscountAmount = discount.type === 'percent'
+                ? itemsPrice * Number(discount.value) / 100
+                : Number(discount.value);
+            couponDiscountAmount = Math.min(
+                itemsPrice,
+                Math.max(0, couponDiscountAmount)
+            );
+        } else {
+            return { status: 'ERR', message: 'Mã giảm giá không hợp lệ hoặc đã hết lượt sử dụng!' };
+        }
+    }
+
+    let shippingPrice = 0;
+    if (newOrder.adminId) {
+        shippingPrice = 0;
+    } else {
+        const setting = await SystemSetting.findOne()
+            .select("shippingFee freeShippingThreshold")
+            .lean();
+        const shippingFee = Math.max(0, Number(setting?.shippingFee ?? 30000));
+        const freeShippingThreshold = Math.max(0, Number(setting?.freeShippingThreshold ?? 200000));
+        shippingPrice = itemsPrice >= freeShippingThreshold ? 0 : shippingFee;
+        if (newOrder.delivery === 'fast') {
+            shippingPrice += 50000;
+        }
+    }
+
+    const totalPrice = Math.round(
+        Math.max(0, itemsPrice - itemDiscountAmount - couponDiscountAmount + shippingPrice)
+    );
+
+    return {
+        status: 'OK',
+        data: {
+            normalizedOrderItems,
+            itemsPrice: Math.round(itemsPrice),
+            shippingPrice: Math.round(shippingPrice),
+            itemDiscountAmount: Math.round(itemDiscountAmount),
+            couponDiscountAmount: Math.round(couponDiscountAmount),
+            totalPrice,
+            discountCode,
+        }
+    };
+}
 
 
 const createOrder = (newOrder) => {
     return new Promise(async (resolve, reject) => {
-        const { orderItems, paymentMethod, itemsPrice, shippingPrice, totalPrice, fullName, address, city, phone, user, isPaid, paidAt, isDelivered, email } = newOrder;
+        const { paymentMethod, fullName, address, city, phone, user, isPaid, paidAt, isDelivered, email } = newOrder;
         const deliveryStatus = ["pending", "processing", "shipping", "delivered"].includes(isDelivered)
             ? isDelivered
             : "pending";
@@ -20,6 +143,20 @@ const createOrder = (newOrder) => {
         let session = null;
 
         try {
+            const pricingResult = await calculateServerPricing(newOrder);
+            if (pricingResult.status === 'ERR') {
+                return resolve(pricingResult);
+            }
+            const {
+                normalizedOrderItems: serverOrderItems,
+                itemsPrice,
+                shippingPrice,
+                itemDiscountAmount,
+                couponDiscountAmount,
+                totalPrice,
+                discountCode,
+            } = pricingResult.data;
+
             // Check user existence and get email outside the transaction to minimize database locking
             let userEmail = email;
             if (user) {
@@ -42,7 +179,7 @@ const createOrder = (newOrder) => {
             const failedItems = [];
 
             // Duyệt từng sản phẩm để cập nhật kho
-            for (const order of orderItems) {
+            for (const order of serverOrderItems) {
                 const productData = await Product.findOneAndUpdate(
                     {
                         _id: order.product,
@@ -75,15 +212,13 @@ const createOrder = (newOrder) => {
                 normalizedOrderItems.push({
                     ...order,
                     product: order.product,
-                    name: order.name || productData?.name || "",
+                    name: productData?.name || order.name || "",
                     amount: Number(order.amount || 0),
-                    price: Number(order.price ?? productData?.price ?? 0),
-                    discount: Number(order.discount || 0),
+                    price: Number(productData?.price ?? order.price ?? 0),
+                    discount: Number(productData?.discount ?? order.discount ?? 0),
                     countInStock: Number(productData?.countInStock || 0),
                     image: primaryImage,
-                    orderSource: ["organic", "chatbot", "rag_recommendation"].includes(order.orderSource)
-                        ? order.orderSource
-                        : "organic",
+                    orderSource: order.orderSource,
                 });
             }
 
@@ -109,7 +244,10 @@ const createOrder = (newOrder) => {
                 paymentMethod,
                 itemsPrice,
                 shippingPrice,
+                itemDiscountAmount,
+                couponDiscountAmount,
                 totalPrice,
+                discountCode,
                 user,
                 isPaid,
                 paidAt,
@@ -751,8 +889,7 @@ async function _triggerOrderStatusNotification(order, newStatus) {
  */
 async function createPendingOrder(newOrder) {
     const {
-        orderItems, paymentMethod, itemsPrice, shippingPrice, totalPrice,
-        fullName, address, city, phone, user, email,
+        paymentMethod, fullName, address, city, phone, user, email,
         payosOrderCode, paymentLinkId,
     } = newOrder;
 
@@ -760,6 +897,20 @@ async function createPendingOrder(newOrder) {
     let session = null;
 
     try {
+        const pricingResult = await calculateServerPricing(newOrder);
+        if (pricingResult.status === 'ERR') {
+            return pricingResult;
+        }
+        const {
+            normalizedOrderItems: serverOrderItems,
+            itemsPrice,
+            shippingPrice,
+            itemDiscountAmount,
+            couponDiscountAmount,
+            totalPrice,
+            discountCode,
+        } = pricingResult.data;
+
         let userEmail = email;
         if (user) {
             const userData = await User.findById(user).select('email').lean();
@@ -776,7 +927,7 @@ async function createPendingOrder(newOrder) {
         const normalizedOrderItems = [];
         const failedItems = [];
 
-        for (const order of orderItems) {
+        for (const order of serverOrderItems) {
             const productData = await Product.findOneAndUpdate(
                 { _id: order.product, countInStock: { $gte: Number(order.amount || 0) } },
                 {
@@ -800,15 +951,13 @@ async function createPendingOrder(newOrder) {
             normalizedOrderItems.push({
                 ...order,
                 product: order.product,
-                name: order.name || productData?.name || "",
+                name: productData?.name || order.name || "",
                 amount: Number(order.amount || 0),
-                price: Number(order.price ?? productData?.price ?? 0),
-                discount: Number(order.discount || 0),
+                price: Number(productData?.price ?? order.price ?? 0),
+                discount: Number(productData?.discount ?? order.discount ?? 0),
                 countInStock: Number(productData?.countInStock || 0),
                 image: primaryImage,
-                orderSource: ["organic", "chatbot", "rag_recommendation"].includes(order.orderSource)
-                    ? order.orderSource
-                    : "organic",
+                orderSource: order.orderSource,
             });
         }
 
@@ -824,7 +973,10 @@ async function createPendingOrder(newOrder) {
             paymentMethod: paymentMethod || 'payos',
             itemsPrice,
             shippingPrice,
+            itemDiscountAmount,
+            couponDiscountAmount,
             totalPrice,
+            discountCode,
             user,
             isPaid: false,
             paymentStatus: 'pending',
